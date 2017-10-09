@@ -11,13 +11,12 @@
 
 #define PDELAUNAY_LON 0
 #define PDELAUNAY_LAT 1
-#incledu "processing_unit_mgt.h"
+#include "processing_unit_mgt.h"
 
 struct Midline {
     int type;
     double value;
 };
-
 
 struct Boundry {
     double min_lat;
@@ -44,15 +43,16 @@ struct Search_tree_node {
     
     vector <int> processing_units_id;
     vector <Search_tree_node *> neighbors;
-    XY_triangulation_class *triangulation;
+    //XY_triangulation_class *triangulation;
 
     Search_tree_node(Search_tree_node*, double**, Boundry, int);
+    ~Search_tree_node();
     void update_processing_units_id(int*, int);
-    int decompose_with_certain_line(int, double);
-    int decompose_automatically();
+    int decompose_with_certain_line(Midline, double**, int*);
+    int decompose_automatically(Workload_info*);
 };
 
-class Delaunay_grid_decomposition_mgt {
+class Delaunay_grid_decomposition {
 private:
     Processing_info *processing_info;
     //Remap_grid_class *original_grid;
@@ -67,12 +67,15 @@ private:
     //double min_length_single_chunk;
     
     int rotate_grid();
+    int initialze_workload();
+    int assign_polars(bool, bool);
 public:
-    Delaunay_grid_decomposition_mgt(int);
-    ~Delaunay_grid_decomposition_mgt();
+    Delaunay_grid_decomposition(int, Processing_info*);
+    ~Delaunay_grid_decomposition();
     int generate_grid_decomposition();
     int expand_boundry();
     int generate_delaunay_triangulizition();
 };
 
 
+#endif

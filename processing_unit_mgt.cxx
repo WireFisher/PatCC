@@ -58,11 +58,9 @@ Processing_info::Processing_info() {
     MPI_Comm comm;
 
     processing_units = NULL;
-    processing_units_id_actived = NULL;
     component_id = -1;
 
     num_total_processing_units = 0;
-    num_actived_processing_units = 0;
     local_proc_processing_units = NULL;
     num_local_proc_processing_units = 0;
 
@@ -136,12 +134,13 @@ Workload_info* Processing_info::search_or_add_grid_workload_info(int grid_id, in
         if(this->grids_workload_info[i]->grid_id == grid_id)
             return this->grids_workload_info[i];
 
-    return this->grids_workload_info.push_back(new Workload_info((grid_id, num_points));
+    this->grids_workload_info.push_back(new Workload_info(grid_id, num_points));
+    return this->grids_workload_info.back();
 }
 
 
 /*
- * Return Values 0: Workload info already exists
+ * 
  */
 void Processing_info::pick_out_actived_processing_units(int grid_id, int num, double average_workload) {
     double ratio;
@@ -152,7 +151,7 @@ void Processing_info::pick_out_actived_processing_units(int grid_id, int num, do
     Workload_info *current_workload_info;
 
     if(this->search_grid_workload_info(grid_id))
-        return 0;
+        return; //FIXME: this should not return
 
     ratio = ((double)num/this->num_total_processing_units);
     printf("%lf\n", ratio);

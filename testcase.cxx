@@ -33,10 +33,29 @@ int get_openmp_size() {
     return 1;
 }
 
+
+
+double** get_grid_coord_values(int grid_id)
+{
+}
+int get_grid_num_points(int grid_id)
+{
+}
+void get_grid_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
+{
+}
+int get_grid_size(int grid_id)
+{
+}
+int get_polar_points(char polar)
+{
+}
+
+
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     Processing_info *processing_info = new Processing_info();
-    processing_info->pick_out_actived_processing_units(1,2);
+    processing_info->pick_out_actived_processing_units(1,2, 200.0);
     MPI_Finalize();
     return 0;
 }

@@ -77,7 +77,7 @@ private:
 public:
     Processing_info();
     ~Processing_info();
-    void pick_out_actived_processing_units(int, int);
+    void pick_out_actived_processing_units(int, int, double);
     Workload_info* search_grid_workload_info(int);
     Workload_info* search_or_add_grid_workload_info(int, int);
     Processing_unit* get_processing_unit(int common_id) { return this->processing_units[common_id]; };
@@ -93,6 +93,6 @@ private:
 public:
     Processing_info_mgt();
     ~Processing_info_mgt();
-    get_processing_info(int component_id) {return all_processing_info[component_id]; };
-}
+    Processing_info* get_processing_info(int component_id) {return all_processing_info[component_id]; };
+};
 #endif
