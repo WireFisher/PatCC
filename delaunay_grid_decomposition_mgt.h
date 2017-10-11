@@ -9,8 +9,8 @@
 #ifndef DELAUNAY_GRID_DECOMPOSITION_MGT_H
 #define DELAUNAY_GRID_DECOMPOSITION_MGT_H
 
-#define PDELAUNAY_LON 0
-#define PDELAUNAY_LAT 1
+#define PDLN_LON 0
+#define PDLN_LAT 1
 #include "processing_unit_mgt.h"
 
 struct Midline {
@@ -44,31 +44,39 @@ struct Search_tree_node {
     vector <int> processing_units_id;
     vector <Search_tree_node *> neighbors;
     //XY_triangulation_class *triangulation;
+    
+    int do_decompose(Workload_info*, double **, int*, Boundry*, vector<int>*, int);
+    int decompose_with_certain_line(Midline, double**, int*);
 
-    Search_tree_node(Search_tree_node*, double**, Boundry, int);
+    Search_tree_node(Search_tree_node*, double**, int, Boundry);
     ~Search_tree_node();
     void update_processing_units_id(int*, int);
-    int decompose_with_certain_line(Midline, double**, int*);
-    int decompose_automatically(Workload_info*);
+    void update_processing_units_id(vector<int>);
 };
 
 class Delaunay_grid_decomposition {
 private:
     Processing_info *processing_info;
+    Workload_info *workload_info;
     //Remap_grid_class *original_grid;
     int original_grid;
     Search_tree_node *search_tree_root;
     Search_tree_node *current_tree_node;
-    Search_tree_node *local_threads_node;
+    vector<Search_tree_node*> local_threads_node;
     int *num_local_nodes_per_thread;
     int num_total_nodes;
     int *local_units_id;
     int min_num_points_per_chunk;
+    bool is_cyclic;
     //double min_length_single_chunk;
     
     int rotate_grid();
     int initialze_workload();
     int assign_polars(bool, bool);
+    int decompose_common_node_recursively(Search_tree_node*);
+    int assign_cyclic_grid_for_single_unit();
+    bool have_local_processing_units_id(vector<int>);
+
 public:
     Delaunay_grid_decomposition(int, Processing_info*);
     ~Delaunay_grid_decomposition();
