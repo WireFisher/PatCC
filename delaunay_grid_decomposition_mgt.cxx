@@ -7,7 +7,6 @@
   ***************************************************************/
 
 #include "delaunay_grid_decomposition_mgt.h"
-#include "testcase.h"
 #include <cstddef>
 #include <cstring>
 #include <algorithm>
@@ -26,6 +25,7 @@ using namespace std;
 
 #define PDLN_SPOLAR_MAX_LAT -45.0
 #define PDLN_NPOLAR_MIN_LAT 45.0
+
 
 Boundry& Boundry::operator= (Boundry& boundry) {
     min_lat = boundry.min_lat;
@@ -221,9 +221,9 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
 
     this->min_num_points_per_chunk = DEFAULT_NUM_POINTS_THRESHOLD;
     
-    coord_values = get_grid_coord_values(grid_id);
-    num_points = get_grid_num_points(grid_id);
-    get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
+    coord_values = grid_info_mgr->get_grid_coord_values(grid_id);
+    num_points = grid_info_mgr->get_grid_num_points(grid_id);
+    grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
     this->search_tree_root = new Search_tree_node(NULL, coord_values, num_points, boundry);
     //this->initialze_workload();
@@ -237,10 +237,10 @@ int Delaunay_grid_decomposition::initialze_workload()
     double average_workload;
 
     //assert min_num_points_per_chunk && min_num_points_per_chunk > 0
-    max_num_processing_units = (get_grid_size(this->original_grid) + this->min_num_points_per_chunk - 1) / this->min_num_points_per_chunk;
+    max_num_processing_units = (grid_info_mgr->get_grid_size(this->original_grid) + this->min_num_points_per_chunk - 1) / this->min_num_points_per_chunk;
 
     num_actived_processing_units = min(this->processing_info->get_num_total_processing_units(), max_num_processing_units);
-    average_workload = (double)get_grid_size(this->original_grid) / num_actived_processing_units;
+    average_workload = (double)grid_info_mgr->get_grid_size(this->original_grid) / num_actived_processing_units;
 
     this->processing_info->pick_out_actived_processing_units(this->original_grid, num_actived_processing_units, average_workload);
     this->search_tree_root->update_processing_units_id(this->workload_info->actived_common_id,
@@ -320,6 +320,9 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         this->search_tree_root->second_child->update_processing_units_id(child_proc_id[1]);
 
         this->current_tree_node = this->search_tree_root->second_child;
+
+        if(this->have_local_processing_units_id(this->search_tree_root->first_child->processing_units_id))
+            this->local_threads_node.push_back(this->search_tree_root->first_child);
     }
     
     if(assign_north_polar) {
@@ -347,6 +350,9 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         this->search_tree_root->third_child->update_processing_units_id(child_proc_id[1]);
 
         this->current_tree_node = this->search_tree_root->second_child;
+
+        if(this->have_local_processing_units_id(this->search_tree_root->third_child->processing_units_id))
+            this->local_threads_node.push_back(this->search_tree_root->third_child);
     }
 
     for(int i = 0; i < 4; i++)
@@ -356,11 +362,46 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 
 int Delaunay_grid_decomposition::assign_cyclic_grid_for_single_unit()
 {
+    double *child_cells_coord[4];
+    Boundry child_boundry[2];
+    int child_num_cells[2];
+    vector<int> child_proc_id[2];
+    Midline midline;
+
+    for(int i = 0; i < 4; i++)
+        child_cells_coord[i] = new double[this->current_tree_node->num_local_kernel_cells];
+
+    //assert this->current_tree_node->processing_units_id.size() == 1
+    midline.type = PDLN_LON;
+    midline.value = 180.0;
+    child_boundry[0] = child_boundry[1] = *this->current_tree_node->kernel_boundry;
+    child_boundry[0].max_lon = child_boundry[1].min_lon = 180.0;
+    child_proc_id[0] = child_proc_id[1] = this->current_tree_node->processing_units_id;
+    this->current_tree_node->decompose_with_certain_line(midline, child_cells_coord, child_num_cells);
+    this->workload_info->workloads[this->current_tree_node->processing_units_id[0]] -= child_num_cells[0] + child_num_cells[1];
+
+    this->current_tree_node->first_child = new Search_tree_node(this->current_tree_node, child_cells_coord,   child_num_cells[0], child_boundry[0]);
+    this->current_tree_node->third_child = new Search_tree_node(this->current_tree_node, child_cells_coord+2, child_num_cells[1], child_boundry[1]);
+    this->current_tree_node->first_child->update_processing_units_id(child_proc_id[0]);
+    this->current_tree_node->third_child->update_processing_units_id(child_proc_id[1]);
+
+    //assert this->have_local_processing_units_id(child_proc_id[0])
+    this->local_threads_node.push_back(this->current_tree_node->first_child);
+    this->local_threads_node.push_back(this->current_tree_node->third_child);
+
+    for(int i = 0; i < 4; i++)
+        delete[] child_cells_coord[i];
 }
 
-
+//TODO: get faster
 bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> units_id)
 {
+    for(int i = 0; i < units_id.size(); i++)
+        for(int j = 0; j < this->processing_info->get_num_local_proc_processing_units(); j++)
+            if(units_id[i] == this->processing_info->get_local_proc_processing_units_id()[j])
+                return true;
+
+    return false;
 }
 
 int Delaunay_grid_decomposition::generate_grid_decomposition()
@@ -374,8 +415,8 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 
     this->initialze_workload();
     this->current_tree_node = this->search_tree_root;
-    num_south_polar = get_polar_points('S');
-    num_north_polar = get_polar_points('N');
+    num_south_polar = grid_info_mgr->get_polar_points('S');
+    num_north_polar = grid_info_mgr->get_polar_points('N');
     this->assign_polars(num_south_polar > 2, num_north_polar > 2);
 
     if(this->current_tree_node->processing_units_id.size() == 1 && this->is_cyclic) {
@@ -390,4 +431,20 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 int Delaunay_grid_decomposition::rotate_grid()
 {
     
+}
+
+double** Grid_info_manager::get_grid_coord_values(int grid_id)
+{
+}
+int Grid_info_manager::get_grid_num_points(int grid_id)
+{
+}
+void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
+{
+}
+int Grid_info_manager::get_grid_size(int grid_id)
+{
+}
+int Grid_info_manager::get_polar_points(char polar)
+{
 }

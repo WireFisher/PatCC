@@ -6,16 +6,14 @@
   *  please contact Dr. Li Liu via liuli-cess@tsinghua.edu.cn
   ***************************************************************/
 
-#include "mpi.h"
 #include "processing_unit_mgt.h"
 #include <unistd.h>
 #include <map>
-#include "testcase.h"
 #include "cstdio"
 #include <cstring>
+#include <omp.h>
 
 #define MAX_HOSTNAME_LEN 128
-
 
 Workload_info::Workload_info(int id, int num_processing_units): grid_id(id), size(num_processing_units)
 {
@@ -61,16 +59,17 @@ Processing_info::Processing_info() {
     component_id = -1;
 
     num_total_processing_units = 0;
-    local_proc_processing_units = NULL;
+    //local_proc_processing_units = NULL;
     num_local_proc_processing_units = 0;
 
-    gethostname(hostname, MAX_HOSTNAME_LEN);
+    process_thread_mgr->get_hostname(hostname, MAX_HOSTNAME_LEN);
     local_hostname_checksum = BKDRHash(hostname, MAX_HOSTNAME_LEN);
-    local_proc_id = get_mpi_rank();
-    num_procs = get_mpi_size();
-    comm = get_mpi_comm();
-    local_thread_id = get_openmp_rank();
-    num_local_threads = get_openmp_size();
+    //printf("%s\nhash:%d\n", hostname, local_hostname_checksum);
+    local_proc_id = process_thread_mgr->get_mpi_rank();
+    num_procs = process_thread_mgr->get_mpi_size();
+    comm = process_thread_mgr->get_mpi_comm();
+    local_thread_id = process_thread_mgr->get_openmp_rank();
+    num_local_threads = process_thread_mgr->get_openmp_size();
     
     //assertion num_procs > 0
     num_threads_per_process = new int[num_procs];
@@ -154,7 +153,6 @@ void Processing_info::pick_out_actived_processing_units(int grid_id, int num, do
         return; //FIXME: this should not return
 
     ratio = ((double)num/this->num_total_processing_units);
-    printf("%lf\n", ratio);
     num_actived_units = 0; 
 
     num_actived_units_per_node = new int[computing_nodes.size()];
@@ -199,4 +197,40 @@ void Workload_info::update_actived_common_id()
         if(this->is_actived[i] == true)
             actived_common_id[j++] = i;
     //assert j == this->size_actived
+}
+
+void Processing_info::print_all_nodes_info()
+{
+    for(int i = 0; i < this->num_total_processing_units; i++)
+        printf("hostname: %u\nproc_id: %d\nthread_id: %d\ncommon_id: %d\n========\n", this->processing_units[i]->hostname_checksum, this->processing_units[i]->process_id, this->processing_units[i]->thread_id, this->processing_units[i]->common_id);
+}
+
+void Process_thread_manager::get_hostname(char *hostname, int len) {
+    strncpy(hostname, "default", len);
+    return;
+}
+
+int Process_thread_manager::get_mpi_rank() {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    return rank;
+}
+
+int Process_thread_manager::get_mpi_size() {
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    return size;
+}
+
+MPI_Comm Process_thread_manager::get_mpi_comm() {
+    return MPI_COMM_WORLD;
+}
+
+int Process_thread_manager::get_openmp_rank() {
+    return omp_get_thread_num();
+
+}
+
+int Process_thread_manager::get_openmp_size() {
+    return omp_get_max_threads();
 }

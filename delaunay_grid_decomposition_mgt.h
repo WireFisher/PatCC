@@ -63,9 +63,9 @@ private:
     Search_tree_node *search_tree_root;
     Search_tree_node *current_tree_node;
     vector<Search_tree_node*> local_threads_node;
-    int *num_local_nodes_per_thread;
+    //int *num_local_nodes_per_thread;
     int num_total_nodes;
-    int *local_units_id;
+    //int *local_units_id;
     int min_num_points_per_chunk;
     bool is_cyclic;
     //double min_length_single_chunk;
@@ -86,4 +86,15 @@ public:
 };
 
 
+class Grid_info_manager {
+public:
+    /* for unittest */
+    virtual double** get_grid_coord_values(int);
+    virtual int get_grid_num_points(int);
+    virtual void get_grid_boundry(int, double*, double*, double*, double*);
+    virtual int get_grid_size(int);
+    virtual int get_polar_points(char);
+};
+
+extern Grid_info_manager *grid_info_mgr;
 #endif

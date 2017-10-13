@@ -9,6 +9,7 @@
 #ifndef PROCESSING_UNIT_MGT_H
 #define PROCESSING_UNIT_MGT_H
 
+#include "mpi.h"
 #include <map>
 #include <vector>
 using std::vector;
@@ -67,13 +68,15 @@ private:
     Processing_unit **processing_units; //(All threads_info sorted by common_id)
     //vector <struct Computing_node*> computing_nodes;
     //int *processing_units_id_actived;
-    
     int num_total_processing_units;
     //int num_actived_processing_units;
-    Processing_unit **local_proc_processing_units; //(length is number of threads in local process)
+    //Processing_unit **local_proc_processing_units; //(length is number of threads in local process)
+    //TODO: init below
+    int *local_proc_processing_units_id;
     int num_local_proc_processing_units;
     
     int identify_processing_units_by_hostname();
+
 public:
     Processing_info();
     ~Processing_info();
@@ -82,8 +85,11 @@ public:
     Workload_info* search_or_add_grid_workload_info(int, int);
     Processing_unit* get_processing_unit(int common_id) { return this->processing_units[common_id]; };
     int get_num_total_processing_units(){ return num_total_processing_units; };
+    int* get_local_proc_processing_units_id(){ return local_proc_processing_units_id; };
+    int get_num_local_proc_processing_units(){ return num_local_proc_processing_units; };
+    void print_all_nodes_info();
     //int get_num_actived_processing_units(){ return num_actived_processing_units; };
-    Processing_unit** get_local_proc_processing_units(){ return local_proc_processing_units; };
+    //Processing_unit** get_local_proc_processing_units(){ return local_proc_processing_units; };
 };
 
 
@@ -95,4 +101,18 @@ public:
     ~Processing_info_mgt();
     Processing_info* get_processing_info(int component_id) {return all_processing_info[component_id]; };
 };
+
+class Process_thread_manager
+{
+public:
+    /* for unittest */
+    virtual void get_hostname(char*, int);
+    virtual int get_mpi_rank();
+    virtual int get_mpi_size();
+    virtual MPI_Comm get_mpi_comm();
+    virtual int get_openmp_rank();
+    virtual int get_openmp_size();
+};
+
+extern Process_thread_manager *process_thread_mgr;
 #endif
