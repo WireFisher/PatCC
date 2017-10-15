@@ -50,7 +50,7 @@ unsigned int BKDRHash(char *str, unsigned int n)
 
 Processing_info::Processing_info() {
     char hostname[MAX_HOSTNAME_LEN];
-    int local_proc_id, num_procs, local_thread_id, num_local_threads;
+    int local_proc_id, num_procs, num_local_threads;
     int *num_threads_per_process;
     unsigned int local_hostname_checksum, *hostname_checksum_per_process;
     MPI_Comm comm;
@@ -68,7 +68,6 @@ Processing_info::Processing_info() {
     local_proc_id = process_thread_mgr->get_mpi_rank();
     num_procs = process_thread_mgr->get_mpi_size();
     comm = process_thread_mgr->get_mpi_comm();
-    local_thread_id = process_thread_mgr->get_openmp_rank();
     num_local_threads = process_thread_mgr->get_openmp_size();
     
     //assertion num_procs > 0
@@ -210,6 +209,9 @@ void Process_thread_manager::get_hostname(char *hostname, int len) {
     return;
 }
 
+Process_thread_manager_base::~Process_thread_manager_base() {
+}
+
 int Process_thread_manager::get_mpi_rank() {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -224,11 +226,6 @@ int Process_thread_manager::get_mpi_size() {
 
 MPI_Comm Process_thread_manager::get_mpi_comm() {
     return MPI_COMM_WORLD;
-}
-
-int Process_thread_manager::get_openmp_rank() {
-    return omp_get_thread_num();
-
 }
 
 int Process_thread_manager::get_openmp_size() {
