@@ -103,26 +103,31 @@ public:
     Processing_info* get_processing_info(int component_id) {return all_processing_info[component_id]; };
 };
 
+/*
 class Process_thread_manager_base
 {
 public:
-    /* for unittest */
     virtual ~Process_thread_manager_base();
     virtual void get_hostname(char*, int) = 0;
     virtual int get_mpi_rank() = 0;
     virtual int get_mpi_size() = 0;
     virtual MPI_Comm get_mpi_comm() = 0;
     virtual int get_openmp_size() = 0;
+    virtual int allgather(const void*, int, MPI_Datatype, void*, int, MPI_Datatype, MPI_Comm) = 0;
 };
+*/
 
-class Process_thread_manager : public Process_thread_manager_base
+class Process_thread_manager //: public Process_thread_manager_base
 {
+public:
+    virtual ~Process_thread_manager();
     virtual void get_hostname(char*, int);
     virtual int get_mpi_rank();
     virtual int get_mpi_size();
     virtual MPI_Comm get_mpi_comm();
     virtual int get_openmp_size();
+    virtual int allgather(void*, int, MPI_Datatype, void*, int, MPI_Datatype, MPI_Comm);
 };
 
-extern Process_thread_manager_base *process_thread_mgr;
+extern Process_thread_manager *process_thread_mgr;
 #endif

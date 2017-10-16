@@ -74,8 +74,10 @@ Processing_info::Processing_info() {
     num_threads_per_process = new int[num_procs];
     hostname_checksum_per_process = new unsigned int[num_procs];
 
-    MPI_Allgather(&num_local_threads, 1, MPI_INT, num_threads_per_process, 1, MPI_INT, comm);
-    MPI_Allgather(&local_hostname_checksum, 1, MPI_UNSIGNED, hostname_checksum_per_process, 1, MPI_UNSIGNED, comm);
+    process_thread_mgr->allgather(&num_local_threads, 1, MPI_INT, num_threads_per_process, 1, MPI_INT, comm);
+    process_thread_mgr->allgather(&local_hostname_checksum, 1, MPI_UNSIGNED, hostname_checksum_per_process, 1, MPI_UNSIGNED, comm);
+    //MPI_Allgather();
+    //MPI_Allgather(&local_hostname_checksum, 1, MPI_UNSIGNED, hostname_checksum_per_process, 1, MPI_UNSIGNED, comm);
     
     /* assume that "num_threads_per_process" and "hostname_checksum_per_process" are sorted by process id */
     for(int i=0; i < num_procs; i ++)
@@ -209,7 +211,7 @@ void Process_thread_manager::get_hostname(char *hostname, int len) {
     return;
 }
 
-Process_thread_manager_base::~Process_thread_manager_base() {
+Process_thread_manager::~Process_thread_manager() {
 }
 
 int Process_thread_manager::get_mpi_rank() {
@@ -230,4 +232,10 @@ MPI_Comm Process_thread_manager::get_mpi_comm() {
 
 int Process_thread_manager::get_openmp_size() {
     return omp_get_max_threads();
+}
+
+int Process_thread_manager::allgather(void *sendbuf, int sendcount, MPI_Datatype sendtype, 
+                                      void *recvbuf, int recvcount, MPI_Datatype recvtype,
+                                      MPI_Comm comm) {
+    MPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);// Haven't been tested
 }

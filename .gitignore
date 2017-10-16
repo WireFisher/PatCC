@@ -1,0 +1,5 @@
+*.o
+*.a
+*.swp
+pDelaunay
+run_all_test
