@@ -62,7 +62,7 @@ private:
     int original_grid;
     Search_tree_node *search_tree_root;
     Search_tree_node *current_tree_node;
-    vector<Search_tree_node*> local_threads_node;
+    vector<Search_tree_node*> local_leaf_nodes;
     //int *num_local_nodes_per_thread;
     int num_total_nodes;
     //int *local_units_id;
@@ -83,6 +83,7 @@ public:
     int generate_grid_decomposition();
     int expand_boundry();
     int generate_delaunay_triangulizition();
+    vector<Search_tree_node*> get_local_leaf_nodes() {return this->local_leaf_nodes; };
 };
 
 
@@ -92,8 +93,8 @@ public:
     virtual double** get_grid_coord_values(int);
     virtual int get_grid_num_points(int);
     virtual void get_grid_boundry(int, double*, double*, double*, double*);
-    virtual int get_grid_size(int);
-    virtual int get_polar_points(char);
+    virtual int get_polar_points(int, char);
+    virtual bool is_grid_cyclic(int);
 };
 
 extern Grid_info_manager *grid_info_mgr;

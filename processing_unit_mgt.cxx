@@ -56,12 +56,11 @@ Processing_info::Processing_info() {
     unsigned int local_hostname_checksum, *hostname_checksum_per_process;
     MPI_Comm comm;
 
-    processing_units = NULL;
-    component_id = -1;
+    this->processing_units = NULL;
+    this->component_id = -1;
 
-    num_total_processing_units = 0;
-    //local_proc_processing_units = NULL;
-    num_local_proc_processing_units = 0;
+    this->num_total_processing_units = 0;
+    this->num_local_proc_processing_units = 0;
 
     process_thread_mgr->get_hostname(hostname, MAX_HOSTNAME_LEN);
     local_hostname_checksum = BKDRHash(hostname, MAX_HOSTNAME_LEN);
@@ -76,6 +75,9 @@ Processing_info::Processing_info() {
         fprintf(stderr, "Invalid number of thread.\n");
         exit(-1);
     }
+
+    //this->num_local_proc_processing_units = num_local_threads;
+    this->local_proc_common_id= new int[num_local_threads];
     num_threads_per_process = new int[num_procs];
     hostname_checksum_per_process = new unsigned int[num_procs];
 
@@ -87,10 +89,21 @@ Processing_info::Processing_info() {
     /* assume that "num_threads_per_process" and "hostname_checksum_per_process" are sorted by process id */
     for(int i=0; i < num_procs; i ++)
         //if(computing_nodes->find(hostname_checksum_per_process[i]) == computing_nodes->end())
-        for(int j=0; j < num_threads_per_process[i]; j ++)
+        for(int j=0; j < num_threads_per_process[i]; j ++) 
             computing_nodes[hostname_checksum_per_process[i]].push_back(new Processing_unit(hostname_checksum_per_process[i], i, j));
 
+    //assert num_local_proc_processing_units == num_local_threads
     this->identify_processing_units_by_hostname();
+
+    MAP_UINT_VECTOR_T::iterator it;
+    for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
+        for(int i = 0; i < it->second.size(); i++)
+            if(it->second[i]->process_id == local_proc_id)
+                this->local_proc_common_id[this->num_local_proc_processing_units++] = it->second[i]->common_id;
+
+    //printf("num_local_proc_processing_units: %d\n", this->num_local_proc_processing_units);
+    //for(int i=0; i < this->num_local_proc_processing_units; i++)
+        //printf("local_common_id: %d\n", this->local_proc_common_id[i]);
 
     delete[] num_threads_per_process;
     delete[] hostname_checksum_per_process;

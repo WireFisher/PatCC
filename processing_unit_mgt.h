@@ -72,7 +72,7 @@ private:
     //int num_actived_processing_units;
     //Processing_unit **local_proc_processing_units; //(length is number of threads in local process)
     //TODO: init below
-    int *local_proc_processing_units_id;
+    int *local_proc_common_id;
     int num_local_proc_processing_units;
     
     int identify_processing_units_by_hostname();
@@ -86,7 +86,7 @@ public:
     Processing_unit* get_processing_unit(int common_id) { return this->processing_units[common_id]; };
     Processing_unit** get_processing_units() { return this->processing_units; };
     int get_num_total_processing_units(){ return num_total_processing_units; };
-    int* get_local_proc_processing_units_id(){ return local_proc_processing_units_id; };
+    int* get_local_proc_common_id(){ return local_proc_common_id; };
     int get_num_local_proc_processing_units(){ return num_local_proc_processing_units; };
     void print_all_nodes_info();
     //int get_num_actived_processing_units(){ return num_actived_processing_units; };

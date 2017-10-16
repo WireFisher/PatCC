@@ -52,6 +52,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     memcpy(this->local_cells_coord[0], coord_value[0], num_points * sizeof(double));
     memcpy(this->local_cells_coord[1], coord_value[1], num_points * sizeof(double));
 
+    this->local_cells_global_index = new int[num_points];
     for(int i=0; i < num_points; i++)
         this->local_cells_global_index[i] = i;
 
@@ -237,10 +238,10 @@ int Delaunay_grid_decomposition::initialze_workload()
     double average_workload;
 
     //assert min_num_points_per_chunk && min_num_points_per_chunk > 0
-    max_num_processing_units = (grid_info_mgr->get_grid_size(this->original_grid) + this->min_num_points_per_chunk - 1) / this->min_num_points_per_chunk;
+    max_num_processing_units = (grid_info_mgr->get_grid_num_points(this->original_grid) + this->min_num_points_per_chunk - 1) / this->min_num_points_per_chunk;
 
     num_actived_processing_units = min(this->processing_info->get_num_total_processing_units(), max_num_processing_units);
-    average_workload = (double)grid_info_mgr->get_grid_size(this->original_grid) / num_actived_processing_units;
+    average_workload = (double)grid_info_mgr->get_grid_num_points(this->original_grid) / num_actived_processing_units;
 
     this->processing_info->pick_out_actived_processing_units(this->original_grid, num_actived_processing_units, average_workload);
     this->search_tree_root->update_processing_units_id(this->workload_info->actived_common_id,
@@ -259,7 +260,7 @@ int Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_n
     //assert node->processing_units_id.size() < 1
     if(node->processing_units_id.size() == 1) {
         if(this->have_local_processing_units_id(node->processing_units_id))
-            this->local_threads_node.push_back(node);
+            this->local_leaf_nodes.push_back(node);
         return 0;
     }
     
@@ -322,7 +323,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         this->current_tree_node = this->search_tree_root->second_child;
 
         if(this->have_local_processing_units_id(this->search_tree_root->first_child->processing_units_id))
-            this->local_threads_node.push_back(this->search_tree_root->first_child);
+            this->local_leaf_nodes.push_back(this->search_tree_root->first_child);
     }
     
     if(assign_north_polar) {
@@ -352,7 +353,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         this->current_tree_node = this->search_tree_root->second_child;
 
         if(this->have_local_processing_units_id(this->search_tree_root->third_child->processing_units_id))
-            this->local_threads_node.push_back(this->search_tree_root->third_child);
+            this->local_leaf_nodes.push_back(this->search_tree_root->third_child);
     }
 
     for(int i = 0; i < 4; i++)
@@ -386,8 +387,8 @@ int Delaunay_grid_decomposition::assign_cyclic_grid_for_single_unit()
     this->current_tree_node->third_child->update_processing_units_id(child_proc_id[1]);
 
     //assert this->have_local_processing_units_id(child_proc_id[0])
-    this->local_threads_node.push_back(this->current_tree_node->first_child);
-    this->local_threads_node.push_back(this->current_tree_node->third_child);
+    this->local_leaf_nodes.push_back(this->current_tree_node->first_child);
+    this->local_leaf_nodes.push_back(this->current_tree_node->third_child);
 
     for(int i = 0; i < 4; i++)
         delete[] child_cells_coord[i];
@@ -398,7 +399,7 @@ bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> uni
 {
     for(int i = 0; i < units_id.size(); i++)
         for(int j = 0; j < this->processing_info->get_num_local_proc_processing_units(); j++)
-            if(units_id[i] == this->processing_info->get_local_proc_processing_units_id()[j])
+            if(units_id[i] == this->processing_info->get_local_proc_common_id()[j])
                 return true;
 
     return false;
@@ -415,11 +416,11 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 
     this->initialze_workload();
     this->current_tree_node = this->search_tree_root;
-    num_south_polar = grid_info_mgr->get_polar_points('S');
-    num_north_polar = grid_info_mgr->get_polar_points('N');
+    num_south_polar = grid_info_mgr->get_polar_points(this->original_grid, 'S');
+    num_north_polar = grid_info_mgr->get_polar_points(this->original_grid, 'N');
     this->assign_polars(num_south_polar > 2, num_north_polar > 2);
 
-    if(this->current_tree_node->processing_units_id.size() == 1 && this->is_cyclic) {
+    if(this->current_tree_node->processing_units_id.size() == 1 && grid_info_mgr->is_grid_cyclic(this->original_grid)) {
         this->assign_cyclic_grid_for_single_unit();
         return 0;
     }
@@ -442,9 +443,9 @@ int Grid_info_manager::get_grid_num_points(int grid_id)
 void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
 {
 }
-int Grid_info_manager::get_grid_size(int grid_id)
+int Grid_info_manager::get_polar_points(int grid_id, char polar)
 {
 }
-int Grid_info_manager::get_polar_points(char polar)
+bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {
 }

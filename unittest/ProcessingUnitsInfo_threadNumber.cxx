@@ -76,7 +76,7 @@ int allgather_hostname_checksum(void *sendbuf, int sendcount, MPI_Datatype sendt
     ON_CALL(*mock_process_thread_manager, allgather(_, _, MPI_UNSIGNED, _, _, _, _))
         .WillByDefault(Invoke(allgather_hostname_checksum));
     */
-
+/*
 TEST(ProcessingUnitsInfoDeathTest, ThreadNumZero) {
     NiceMock<Mock_Process_thread_manager> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager>;
     process_thread_mgr = mock_process_thread_manager;
@@ -84,20 +84,27 @@ TEST(ProcessingUnitsInfoDeathTest, ThreadNumZero) {
 
     char *hostname;
     int len;
+    printf("xxxxx\n");
     ON_CALL(*mock_process_thread_manager, get_hostname(_, _))
         .WillByDefault(Invoke(get_different_hostname));
 
+    printf("xxxx\n");
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     ON_CALL(*mock_process_thread_manager, get_mpi_rank())
         .WillByDefault(Return(mpi_rank));
 
+    printf("xxx\n");
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    printf("ooo\n");
     ON_CALL(*mock_process_thread_manager, get_mpi_size())
         .WillByDefault(Return(mpi_size));
+    printf("oo\n");
 
+    printf("xx\n");
     ON_CALL(*mock_process_thread_manager, get_mpi_comm())
         .WillByDefault(Return(MPI_COMM_WORLD));
 
+    printf("x\n");
     ON_CALL(*mock_process_thread_manager, get_openmp_size())
         .WillByDefault(Return(0));
 
@@ -107,11 +114,10 @@ TEST(ProcessingUnitsInfoDeathTest, ThreadNumZero) {
     unsigned int hostname_checksum;
     int common_id_prev;
 
-    
     ASSERT_DEATH({processing_info = new Processing_info(); }, "");
     //processing_info->pick_out_actived_processing_units(1,1, 200.0);
 
-/*
+*
     ASSERT_GE(num_total_processing_units, 0);
     ASSERT_LE(num_total_processing_units, mpi_size * 4);
     ASSERT_NE(processing_units, (void*)NULL);
@@ -135,11 +141,11 @@ TEST(ProcessingUnitsInfoDeathTest, ThreadNumZero) {
         if(i != num_total_processing_units - 1)
             ASSERT_EQ(processing_units[i]->common_id, processing_units[i+1]->common_id - 1);
     }
-*/
+*
     delete grid_info_mgr;
     delete process_thread_mgr;
 };
-
+*/
 TEST(ProcessingUnitsInfoTest, ThreadNumOne) {
     int num_thread = 1;
     NiceMock<Mock_Process_thread_manager> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager>;
