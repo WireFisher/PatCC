@@ -9,7 +9,8 @@
 #include "processing_unit_mgt.h"
 #include <unistd.h>
 #include <map>
-#include "cstdio"
+#include <cstdio>
+#include <cstdlib> //for exit()
 #include <cstring>
 #include <omp.h>
 
@@ -71,6 +72,10 @@ Processing_info::Processing_info() {
     num_local_threads = process_thread_mgr->get_openmp_size();
     
     //assertion num_procs > 0
+    if(num_local_threads <= 0) {
+        fprintf(stderr, "Invalid number of thread.\n");
+        exit(-1);
+    }
     num_threads_per_process = new int[num_procs];
     hostname_checksum_per_process = new unsigned int[num_procs];
 

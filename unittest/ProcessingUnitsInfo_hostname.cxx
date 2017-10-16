@@ -76,7 +76,7 @@ int allgather_hostname_checksum(void *sendbuf, int sendcount, MPI_Datatype sendt
         .WillByDefault(Invoke(allgather_hostname_checksum));
     */
 
-TEST(TestProcessingUnitsInfo, EmptyHostname) {
+TEST(ProcessingUnitsInfoTest, EmptyHostname) {
     NiceMock<Mock_Process_thread_manager> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager>;
     process_thread_mgr = mock_process_thread_manager;
     grid_info_mgr = new Grid_info_manager;
@@ -132,7 +132,7 @@ TEST(TestProcessingUnitsInfo, EmptyHostname) {
 };
 
 
-TEST(TestProcessingUnitsInfo, DefaultHostname) {
+TEST(ProcessingUnitsInfoTest, DefaultHostname) {
     NiceMock<Mock_Process_thread_manager> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager>;
     process_thread_mgr = mock_process_thread_manager;
     grid_info_mgr = new Grid_info_manager;
@@ -187,7 +187,7 @@ TEST(TestProcessingUnitsInfo, DefaultHostname) {
     delete process_thread_mgr;
 };
 
-TEST(TestProcessingUnitsInfo, DifferentHostname) {
+TEST(ProcessingUnitsInfoTest, DifferentHostname) {
     NiceMock<Mock_Process_thread_manager> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager>;
     process_thread_mgr = mock_process_thread_manager;
     grid_info_mgr = new Grid_info_manager;
