@@ -150,7 +150,7 @@ Workload_info* Processing_info::search_or_add_grid_workload_info(int grid_id, in
 void Processing_info::pick_out_actived_processing_units(int grid_id, int num, double average_workload) {
     double ratio;
     int i;
-    int num_actived_units, num_units;
+    int num_actived_units, num_units, max_num_per_node, max_index;
     int *num_actived_units_per_node;
     MAP_UINT_VECTOR_T::iterator it;
     Workload_info *current_workload_info;
@@ -162,8 +162,19 @@ void Processing_info::pick_out_actived_processing_units(int grid_id, int num, do
     num_actived_units = 0; 
 
     num_actived_units_per_node = new int[computing_nodes.size()];
+    max_num_per_node = 0;
+    max_index = -1;
     for(it = computing_nodes.begin(), i = 0; it != computing_nodes.end(); it ++, i++) {
         num_actived_units_per_node[i] = it->second.size() * ratio;
+        if(num_actived_units_per_node[i] > max_num_per_node) {
+            max_num_per_node = num_actived_units_per_node[i];
+            max_index = i;
+        }
+        if(num_actived_units_per_node[i] == 0 && max_num_per_node != 1) {
+            num_actived_units_per_node[i] = 1;
+            num_actived_units_per_node[max_index] --;
+            continue;
+        }
         num_actived_units += num_actived_units_per_node[i];
     }
     for(it = computing_nodes.begin(), i = 0; num_actived_units < num; it ++, i ++) {
@@ -173,7 +184,7 @@ void Processing_info::pick_out_actived_processing_units(int grid_id, int num, do
         }
         
         if(num_actived_units_per_node[i] < it->second.size()) {
-            num_actived_units_per_node[i];
+            num_actived_units_per_node[i]++;
             num_actived_units++;
         }
     }

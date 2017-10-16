@@ -44,13 +44,13 @@ static void get_different_hostname(char* hostname, int len)
     if(mpi_rank < 0)
         ASSERT_TRUE(false);
     else if(mpi_rank < mpi_size * 0.25)
-        memcpy(hostname, "default", len);
+        memcpy(hostname, "test_node_1", len);
     else if(mpi_rank < mpi_size * 0.5)
-        memcpy(hostname, "default", len);
+        memcpy(hostname, "test_node_2", len);
     else if(mpi_rank < mpi_size * 0.75)
-        memcpy(hostname, "default", len);
+        memcpy(hostname, "test_node_3", len);
     else if(mpi_rank < mpi_size)
-        memcpy(hostname, "default", len);
+        memcpy(hostname, "test_node_4", len);
     else
         ASSERT_TRUE(false);
 }
