@@ -235,7 +235,7 @@ TEST(ProcessingUnitsInfoTest, ActivedUnitsLT) {
     int total_num_actived = 0;
     for(int i = 0; i < num_checksums; i ++) {
         ASSERT_LE(num_actived[i], num_total[i]/2 + 1);
-        printf("%d: %d/%d\n", i, num_actived[i], num_total[i]);
+        //printf("%d: %d/%d\n", i, num_actived[i], num_total[i]);
         ASSERT_GT(num_actived[i], 0);
         total_num_actived += num_actived[i];
     }

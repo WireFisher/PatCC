@@ -53,13 +53,13 @@ static void get_different_hostname(char* hostname, int len)
 
 static void get_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
 {
-    *min_lat = -30.0;
-    *max_lat =  30.0;
-    *min_lon =  90.0;
-    *max_lon = 180.0;
+    *min_lat = -90.0;
+    *max_lat =  90.0;
+    *min_lon =   0.0;
+    *max_lon = 360.0;
 }
 
-TEST(GridDecompositionTest, SmallRegion) {
+TEST(GridDecompositionTest, Global) {
     int nums_thread[10] = {16, 32, 10, 1, 40, 11, 17, 19, 7, 4};
     int num_thread;
     int total_num_threads = 0;
@@ -74,8 +74,11 @@ TEST(GridDecompositionTest, SmallRegion) {
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     num_thread = nums_thread[mpi_rank%10];
+    num_thread = 8;
     for(int i = 0; i < mpi_size; i++)
         total_num_threads += nums_thread[i%10];
+
+    total_num_threads = num_thread * mpi_size;
 
     ON_CALL(*mock_process_thread_manager, get_openmp_size())
         .WillByDefault(Return(num_thread));
@@ -87,8 +90,8 @@ TEST(GridDecompositionTest, SmallRegion) {
     coord_values[1] = new double[num_points]();
     for(int i = 0; i < size; i++)
         for(int j = 0; j < size; j++) {
-            coord_values[0][i * size + j] = 90.0  + 90.0 * j / size;
-            coord_values[1][i * size + j] = -30.0 + 60.0 * i / size;
+            coord_values[0][i * size + j] =   0.0 + 360.0 * j / size;
+            coord_values[1][i * size + j] = -90.0 + 180.0 * i / size;
         }
     ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
         .WillByDefault(Return(coord_values));
@@ -100,10 +103,10 @@ TEST(GridDecompositionTest, SmallRegion) {
         .WillByDefault(Invoke(get_boundry));
 
     ON_CALL(*mock_grid_info_manager, get_polar_points(1, _))
-        .WillByDefault(Return(0));
+        .WillByDefault(Return(3));
 
     ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
-        .WillByDefault(Return(false));
+        .WillByDefault(Return(true));
 
     Processing_info *processing_info;
     Delaunay_grid_decomposition *grid_decomp;
@@ -111,10 +114,9 @@ TEST(GridDecompositionTest, SmallRegion) {
     processing_info = new Processing_info();
     grid_decomp = new Delaunay_grid_decomposition(1, processing_info);
     grid_decomp->generate_grid_decomposition();
-
     FILE *log_file;
     char log_path[64];
-    snprintf(log_path, 64, "log/SmallRegion_log.%d", mpi_rank);
+    snprintf(log_path, 64, "log/GlobalMiddle_log.%d", mpi_rank);
     log_file = fopen(log_path, "w");
     fprintf(log_file, "size: %d\n", grid_decomp->get_local_leaf_nodes().size());
     for(int i = 0; i < grid_decomp->get_local_leaf_nodes().size(); i++) {

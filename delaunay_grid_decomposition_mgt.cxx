@@ -7,6 +7,7 @@
   ***************************************************************/
 
 #include "delaunay_grid_decomposition_mgt.h"
+#include <cstdio>
 #include <cstddef>
 #include <cstring>
 #include <algorithm>
@@ -75,10 +76,10 @@ Search_tree_node::~Search_tree_node()
 
 
 /* assumption: ids are already sorted. */
-void Search_tree_node::update_processing_units_id(int* ids,int num) 
+void Search_tree_node::update_processing_units_id(int* ids, int num) 
 {
     this->processing_units_id.clear();
-    for(int i; i < num; i ++)
+    for(int i = 0; i < num; i ++)
         this->processing_units_id.push_back(ids[i]);
 }
 
@@ -112,7 +113,6 @@ int Search_tree_node::do_decompose(Workload_info *workload_info, double *child_c
 {
     double length[2], boundry_values[4], child_total_workload[2];
     Midline midline;
-    //vector<int> child_proc_units_id[2];
     int i, child_cells_global_index[2];
     int iteration_count;
 
@@ -134,6 +134,8 @@ int Search_tree_node::do_decompose(Workload_info *workload_info, double *child_c
     else
         midline.type = PDLN_LON;
 
+    child_proc_units_id[0].clear();
+    child_proc_units_id[1].clear();
     if(mode == PDLN_DECOMPOSE_COMMON_MODE) {
         for(i = 0; i < this->processing_units_id.size()/2; i++)
             child_proc_units_id[0].push_back(this->processing_units_id[i]);
@@ -168,6 +170,10 @@ int Search_tree_node::do_decompose(Workload_info *workload_info, double *child_c
         this->decompose_with_certain_line(midline, child_cells_coord, child_num_cells);
 
         iteration_count = 1;
+        if(child_num_cells[0] == 0)
+            child_num_cells[0] = 1;
+        if(child_num_cells[1] == 0)
+            child_num_cells[1] = 1;
         while(fabs(child_num_cells[0]/child_num_cells[1] - child_proc_units_id[0].size()/child_proc_units_id[1].size()) > PDLN_TOLERABLE_ERROR) {
             if(iteration_count++ > PDLN_MAX_ITER_COUNT)
                 break;
@@ -182,6 +188,10 @@ int Search_tree_node::do_decompose(Workload_info *workload_info, double *child_c
             }
             /* TODO: Search only half of the whole points, but not the whole points */
             this->decompose_with_certain_line(midline, child_cells_coord, child_num_cells);
+            if(child_num_cells[0] == 0)
+                child_num_cells[0] = 1;
+            if(child_num_cells[1] == 0)
+                child_num_cells[1] = 1;
         }
     }
     else
@@ -218,7 +228,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     this->original_grid = grid_id;
     this->processing_info = proc_info;
     //assert this->processing_info != NULL
-    this->workload_info = this->processing_info->search_grid_workload_info(this->original_grid);
+    this->workload_info = NULL;
 
     this->min_num_points_per_chunk = DEFAULT_NUM_POINTS_THRESHOLD;
     
@@ -244,6 +254,7 @@ int Delaunay_grid_decomposition::initialze_workload()
     average_workload = (double)grid_info_mgr->get_grid_num_points(this->original_grid) / num_actived_processing_units;
 
     this->processing_info->pick_out_actived_processing_units(this->original_grid, num_actived_processing_units, average_workload);
+    this->workload_info = this->processing_info->search_grid_workload_info(this->original_grid);
     this->search_tree_root->update_processing_units_id(this->workload_info->actived_common_id,
                                                        this->workload_info->size_actived);
 }
@@ -259,8 +270,9 @@ int Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_n
 
     //assert node->processing_units_id.size() < 1
     if(node->processing_units_id.size() == 1) {
-        if(this->have_local_processing_units_id(node->processing_units_id))
+        if(this->have_local_processing_units_id(node->processing_units_id)) {
             this->local_leaf_nodes.push_back(node);
+        }
         return 0;
     }
     
@@ -321,7 +333,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         this->search_tree_root->second_child->update_processing_units_id(child_proc_id[1]);
 
         this->current_tree_node = this->search_tree_root->second_child;
-
+        
         if(this->have_local_processing_units_id(this->search_tree_root->first_child->processing_units_id))
             this->local_leaf_nodes.push_back(this->search_tree_root->first_child);
     }
@@ -419,6 +431,8 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
     num_south_polar = grid_info_mgr->get_polar_points(this->original_grid, 'S');
     num_north_polar = grid_info_mgr->get_polar_points(this->original_grid, 'N');
     this->assign_polars(num_south_polar > 2, num_north_polar > 2);
+    //for(int i = 0; i < this->workload_info->size_actived; i++)
+    //    printf("common_id: %d, workload: %lf\n", i, this->workload_info->workloads[i]);
 
     if(this->current_tree_node->processing_units_id.size() == 1 && grid_info_mgr->is_grid_cyclic(this->original_grid)) {
         this->assign_cyclic_grid_for_single_unit();

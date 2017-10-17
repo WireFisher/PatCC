@@ -117,14 +117,14 @@ Processing_info::~Processing_info() {
 int Processing_info::identify_processing_units_by_hostname() {
 
     MAP_UINT_VECTOR_T::iterator it;
-    int i, current_common_id, num_total_processing_units;
+    int i, current_common_id, num_total_proc_units;
     
     current_common_id = 0;
-    num_total_processing_units = 0;
+    num_total_proc_units = 0;
     for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
-        num_total_processing_units += it->second.size();
+        num_total_proc_units += it->second.size();
 
-    this->processing_units = new Processing_unit*[num_total_processing_units];
+    this->processing_units = new Processing_unit*[num_total_proc_units];
     for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
         for(i = 0; i < it->second.size(); i ++) {
             it->second[i]->common_id = current_common_id;
@@ -168,9 +168,6 @@ void Processing_info::pick_out_actived_processing_units(int grid_id, int num, do
     MAP_UINT_VECTOR_T::iterator it;
     Workload_info *current_workload_info;
 
-    if(this->search_grid_workload_info(grid_id))
-        return; //FIXME: this should not return
-
     ratio = ((double)num/this->num_total_processing_units);
     num_actived_units = 0; 
 
@@ -204,13 +201,19 @@ void Processing_info::pick_out_actived_processing_units(int grid_id, int num, do
     //assert num_actived_units = num
     current_workload_info = this->search_or_add_grid_workload_info(grid_id, this->num_total_processing_units);
     //this->grids_workload_info.push_back(new Workload_info(grid_id, this->num_total_processing_units));
+    for(int j = 0; j < this->num_total_processing_units; j++) {
+        current_workload_info->is_actived[j] = false;
+        current_workload_info->workloads[j] = 0.0;
+    }
     for(it = computing_nodes.begin(), i = 0; it != computing_nodes.end(); it ++, i ++)
         for(int j=0; j < num_actived_units_per_node[i]; j ++) {
             current_workload_info->is_actived[it->second[j]->common_id] = true;
-            current_workload_info->workloads[it->second[j]->common_id]= average_workload;
+            current_workload_info->workloads[it->second[j]->common_id] = average_workload;
         }
-    this->grids_workload_info.back()->size_actived = num_actived_units;
-    this->grids_workload_info.back()->update_actived_common_id();
+    current_workload_info->size_actived = num_actived_units;
+    current_workload_info->update_actived_common_id();
+    //for(int i = 0; i < num_actived_units; i ++)
+    //    printf("updated_actived_common_id: %d\n", current_workload_info->actived_common_id[i]);
 
     delete[] num_actived_units_per_node;
 }
