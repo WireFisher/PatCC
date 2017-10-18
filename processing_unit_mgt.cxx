@@ -10,15 +10,15 @@
 #include <unistd.h>
 #include <map>
 #include <cstdio>
-#include <cstdlib> //for exit()
 #include <cstring>
+#include <cassert>
 #include <omp.h>
 
 #define MAX_HOSTNAME_LEN 128
 
 Workload_info::Workload_info(int id, int num_processing_units): grid_id(id), size(num_processing_units)
 {
-    //assert size > 0
+    assert(size > 0);
     this->is_actived = new bool[this->size]();
     this->workloads = new double[this->size]();
     this->actived_common_id = new int[this->size]();
@@ -70,13 +70,10 @@ Processing_info::Processing_info() {
     comm = process_thread_mgr->get_mpi_comm();
     num_local_threads = process_thread_mgr->get_openmp_size();
     
-    //assertion num_procs > 0
-    if(num_local_threads <= 0) {
-        fprintf(stderr, "Invalid number of thread.\n");
-        exit(-1);
-    }
+    assert(num_procs > 0);
+    if(num_local_threads <= 0)
+        assert(false);
 
-    //this->num_local_proc_processing_units = num_local_threads;
     this->local_proc_common_id= new int[num_local_threads];
     num_threads_per_process = new int[num_procs];
     hostname_checksum_per_process = new unsigned int[num_procs];
@@ -92,7 +89,6 @@ Processing_info::Processing_info() {
         for(int j=0; j < num_threads_per_process[i]; j ++) 
             computing_nodes[hostname_checksum_per_process[i]].push_back(new Processing_unit(hostname_checksum_per_process[i], i, j));
 
-    //assert num_local_proc_processing_units == num_local_threads
     this->identify_processing_units_by_hostname();
 
     MAP_UINT_VECTOR_T::iterator it;
@@ -101,6 +97,7 @@ Processing_info::Processing_info() {
             if(it->second[i]->process_id == local_proc_id)
                 this->local_proc_common_id[this->num_local_proc_processing_units++] = it->second[i]->common_id;
 
+    assert(num_local_proc_processing_units == num_local_threads);
     //printf("num_local_proc_processing_units: %d\n", this->num_local_proc_processing_units);
     //for(int i=0; i < this->num_local_proc_processing_units; i++)
         //printf("local_common_id: %d\n", this->local_proc_common_id[i]);
@@ -198,7 +195,7 @@ void Processing_info::pick_out_actived_processing_units(int grid_id, int num, do
             num_actived_units++;
         }
     }
-    //assert num_actived_units = num
+    assert(num_actived_units = num);
     current_workload_info = this->search_or_add_grid_workload_info(grid_id, this->num_total_processing_units);
     //this->grids_workload_info.push_back(new Workload_info(grid_id, this->num_total_processing_units));
     for(int j = 0; j < this->num_total_processing_units; j++) {
@@ -229,7 +226,31 @@ void Workload_info::update_actived_common_id()
     for(i = 0, j = 0; i < this->size; i++)
         if(this->is_actived[i] == true)
             actived_common_id[j++] = i;
-    //assert j == this->size_actived
+
+    assert(j == this->size_actived);
+}
+
+void Workload_info::update_workloads(int total_workload, vector<int> &ids, int min_workload_for_single_unit)
+{
+    double old_total_workload = 0.0;
+    double unassigned_workload = 0.0;
+
+    for(int i = 0; i < ids.size(); i++)
+        old_total_workload += this->workloads[ids[i]];
+
+    for(int i = 0; i < ids.size(); i++)
+        this->workloads[ids[i]] = this->workloads[ids[i]] * total_workload / old_total_workload;
+
+    for(int i = 0; i < ids.size(); i++)
+        if(this->workloads[ids[i]] < min_workload_for_single_unit) {
+            unassigned_workload += this->workloads[ids[i]];
+            ids.erase(ids.begin() + i);
+        }
+
+    assert(!0.0 > 0);
+    if(unassigned_workload > 0)
+        for(int i = 0; i < ids.size(); i++)
+            this->workloads[ids[i]] += unassigned_workload / ids.size();
 }
 
 void Processing_info::print_all_nodes_info()

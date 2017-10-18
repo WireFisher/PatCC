@@ -29,6 +29,7 @@ struct Workload_info {
     Workload_info(int, int);
     ~Workload_info();
     void update_actived_common_id();
+    void update_workloads(int, vector<int>&, int);
 };
 
 

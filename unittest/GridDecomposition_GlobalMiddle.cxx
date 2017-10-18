@@ -59,7 +59,7 @@ static void get_boundry(int grid_id, double* min_lat, double* max_lat, double* m
     *max_lon = 360.0;
 }
 
-TEST(GridDecompositionTest, Global) {
+TEST(GridDecompositionTest, GlobalMiddle) {
     int nums_thread[10] = {16, 32, 10, 1, 40, 11, 17, 19, 7, 4};
     int num_thread;
     int total_num_threads = 0;

@@ -68,7 +68,6 @@ private:
     //int *local_units_id;
     int min_num_points_per_chunk;
     bool is_cyclic;
-    //double min_length_single_chunk;
     
     int rotate_grid();
     int initialze_workload();
