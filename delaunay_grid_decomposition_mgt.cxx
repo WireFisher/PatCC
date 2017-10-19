@@ -183,11 +183,15 @@ int Search_tree_node::do_decompose(Workload_info *workload_info, double *child_c
                 break;
 
             if(child_num_cells[0] < child_total_workload[0]) {
+#ifdef DEBUG
                 assert(child_num_cells[1] >= child_total_workload[1] || fabs(child_total_workload[1] - child_num_cells[1]) < PDLN_FLOAT_EQ_ERROR);
+#endif
                 midline.value += (boundry_values[2+midline.type] - midline.value) * (child_num_cells[1] - child_total_workload[1]) / child_num_cells[1];
             }
             else {
+#ifdef DEBUG
                 assert(child_num_cells[1] <= child_total_workload[1] || fabs(child_total_workload[1] - child_num_cells[1]) < PDLN_FLOAT_EQ_ERROR);
+#endif
                 midline.value -= (midline.value - boundry_values[midline.type]) * (child_num_cells[0] - child_total_workload[0]) / child_num_cells[0];
             }
             assert(midline.value > boundry_values[midline.type]);
@@ -224,7 +228,7 @@ int Search_tree_node::do_decompose(Workload_info *workload_info, double *child_c
 
 
 /* proc_info = processing_info_mgr->get_processing_info(component_id) */
-Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_info *proc_info)
+Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info)
 {
     double **coord_values;
     Boundry boundry;

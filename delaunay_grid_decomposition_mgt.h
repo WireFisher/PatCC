@@ -27,13 +27,15 @@ struct Boundry {
     Boundry& operator= (Boundry& boundry);
 };
 
-struct Search_tree_node {
-    struct Search_tree_node *parent;
-    struct Search_tree_node *first_child, *second_child, *third_child;
-    struct Boundry *kernel_boundry;
-    struct Boundry *expanded_boundry;
-    struct Boundry *rotated_kernel_boundry;
-    struct Boundry *rotated_expanded_boundry;
+class Search_tree_node {
+private:
+    friend class Delaunay_grid_decomposition;
+    Search_tree_node *parent;
+    Search_tree_node *first_child, *second_child, *third_child;
+    Boundry *kernel_boundry;
+    Boundry *expanded_boundry;
+    Boundry *rotated_kernel_boundry;
+    Boundry *rotated_expanded_boundry;
     double expanding_ratio;
     Midline midline;
     double *local_cells_coord[2]; //(clean after having children)
@@ -44,7 +46,7 @@ struct Search_tree_node {
     vector <int> processing_units_id;
     vector <Search_tree_node *> neighbors;
     //XY_triangulation_class *triangulation;
-    
+public:    
     int do_decompose(Workload_info*, double **, int*, Boundry*, vector<int>*, int);
     int decompose_with_certain_line(Midline, double**, int*);
 
@@ -52,11 +54,14 @@ struct Search_tree_node {
     ~Search_tree_node();
     void update_processing_units_id(int*, int);
     void update_processing_units_id(vector<int>);
+
+    int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
+    double** get_local_cells_coord(){return this->local_cells_coord; };
 };
 
 class Delaunay_grid_decomposition {
 private:
-    Processing_info *processing_info;
+    Processing_resource *processing_info;
     Workload_info *workload_info;
     //Remap_grid_class *original_grid;
     int original_grid;
@@ -77,7 +82,7 @@ private:
     bool have_local_processing_units_id(vector<int>);
 
 public:
-    Delaunay_grid_decomposition(int, Processing_info*);
+    Delaunay_grid_decomposition(int, Processing_resource*);
     ~Delaunay_grid_decomposition();
     int generate_grid_decomposition();
     int expand_boundry();

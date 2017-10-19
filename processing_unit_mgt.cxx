@@ -14,7 +14,7 @@
 #include <cassert>
 #include <omp.h>
 
-#define MAX_HOSTNAME_LEN 128
+#define MAX_HOSTNAME_LEN 32
 
 Workload_info::Workload_info(int id, int num_processing_units): grid_id(id), size(num_processing_units)
 {
@@ -49,7 +49,7 @@ unsigned int BKDRHash(char *str, unsigned int n)
 }
 
 
-Processing_info::Processing_info() {
+Processing_resource::Processing_resource() {
     char hostname[MAX_HOSTNAME_LEN];
     int local_proc_id, num_procs, num_local_threads;
     int *num_threads_per_process;
@@ -107,11 +107,11 @@ Processing_info::Processing_info() {
 }
 
 
-Processing_info::~Processing_info() {
+Processing_resource::~Processing_resource() {
 }
 
 
-int Processing_info::identify_processing_units_by_hostname() {
+int Processing_resource::identify_processing_units_by_hostname() {
 
     MAP_UINT_VECTOR_T::iterator it;
     int i, current_common_id, num_total_proc_units;
@@ -133,7 +133,7 @@ int Processing_info::identify_processing_units_by_hostname() {
 }
 
 
-Workload_info* Processing_info::search_grid_workload_info(int grid_id) {
+Workload_info* Processing_resource::search_grid_workload_info(int grid_id) {
 
     for(int i = 0; i < this->grids_workload_info.size(); i++)
         if(this->grids_workload_info[i]->grid_id == grid_id)
@@ -143,7 +143,7 @@ Workload_info* Processing_info::search_grid_workload_info(int grid_id) {
 }
 
 
-Workload_info* Processing_info::search_or_add_grid_workload_info(int grid_id, int num_points) {
+Workload_info* Processing_resource::search_or_add_grid_workload_info(int grid_id, int num_points) {
 
     for(int i = 0; i < this->grids_workload_info.size(); i++)
         if(this->grids_workload_info[i]->grid_id == grid_id)
@@ -157,7 +157,7 @@ Workload_info* Processing_info::search_or_add_grid_workload_info(int grid_id, in
 /*
  * 
  */
-void Processing_info::pick_out_actived_processing_units(int grid_id, int num, double average_workload) {
+void Processing_resource::pick_out_actived_processing_units(int grid_id, int num, double average_workload) {
     double ratio;
     int i;
     int num_actived_units, num_units, max_num_per_node, max_index;
@@ -253,7 +253,7 @@ void Workload_info::update_workloads(int total_workload, vector<int> &ids, int m
             this->workloads[ids[i]] += unassigned_workload / ids.size();
 }
 
-void Processing_info::print_all_nodes_info()
+void Processing_resource::print_all_nodes_info()
 {
     for(int i = 0; i < this->num_total_processing_units; i++)
         printf("hostname: %u\nproc_id: %d\nthread_id: %d\ncommon_id: %d\n========\n", this->processing_units[i]->hostname_checksum, this->processing_units[i]->process_id, this->processing_units[i]->thread_id, this->processing_units[i]->common_id);

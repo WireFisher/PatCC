@@ -100,13 +100,13 @@ TEST(ProcessingUnitsInfoTest, EmptyHostname) {
     ON_CALL(*mock_process_thread_manager, get_openmp_size())
         .WillByDefault(Return(4));
 
-    Processing_info *processing_info;
+    Processing_resource *processing_info;
     Processing_unit **processing_units;
     int num_total_processing_units;
     unsigned int hostname_checksum;
     int common_id_prev;
 
-    processing_info = new Processing_info();
+    processing_info = new Processing_resource();
     //processing_info->pick_out_actived_processing_units(1,1, 200.0);
     processing_units = processing_info->get_processing_units();
     num_total_processing_units = processing_info->get_num_total_processing_units();
@@ -156,13 +156,13 @@ TEST(ProcessingUnitsInfoTest, DefaultHostname) {
     ON_CALL(*mock_process_thread_manager, get_openmp_size())
         .WillByDefault(Return(4));
 
-    Processing_info *processing_info;
+    Processing_resource *processing_info;
     Processing_unit **processing_units;
     int num_total_processing_units;
     unsigned int hostname_checksum;
     int common_id_prev;
 
-    processing_info = new Processing_info();
+    processing_info = new Processing_resource();
     //processing_info->pick_out_actived_processing_units(1,1, 200.0);
     processing_units = processing_info->get_processing_units();
     num_total_processing_units = processing_info->get_num_total_processing_units();
@@ -211,13 +211,13 @@ TEST(ProcessingUnitsInfoTest, DifferentHostname) {
     ON_CALL(*mock_process_thread_manager, get_openmp_size())
         .WillByDefault(Return(4));
 
-    Processing_info *processing_info;
+    Processing_resource *processing_info;
     Processing_unit **processing_units;
     int num_total_processing_units;
     unsigned int hostname_checksum;
     int common_id_prev;
 
-    processing_info = new Processing_info();
+    processing_info = new Processing_resource();
     //processing_info->pick_out_actived_processing_units(1,1, 200.0);
     processing_units = processing_info->get_processing_units();
     num_total_processing_units = processing_info->get_num_total_processing_units();

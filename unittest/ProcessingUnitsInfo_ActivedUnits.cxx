@@ -102,14 +102,14 @@ TEST(ProcessingUnitsInfoDeathTest, ThreadNumZero) {
     ON_CALL(*mock_process_thread_manager, get_openmp_size())
         .WillByDefault(Return(0));
 
-    Processing_info *processing_info;
+    Processing_resource *processing_info;
     Processing_unit **processing_units;
     int num_total_processing_units;
     unsigned int hostname_checksum;
     int common_id_prev;
 
     
-    ASSERT_DEATH({processing_info = new Processing_info(); }, "");
+    ASSERT_DEATH({processing_info = new Processing_resource(); }, "");
     //processing_info->pick_out_actived_processing_units(1,1, 200.0);
 
 *
@@ -172,14 +172,14 @@ TEST(ProcessingUnitsInfoTest, ActivedUnitsLT) {
     ON_CALL(*mock_process_thread_manager, get_openmp_size())
         .WillByDefault(Return(num_thread));
 
-    Processing_info *processing_info;
+    Processing_resource *processing_info;
     Processing_unit **processing_units;
     int num_total_processing_units;
     unsigned int hostname_checksum;
     int common_id_prev;
     Workload_info *workload_info;
     
-    processing_info = new Processing_info();
+    processing_info = new Processing_resource();
     processing_info->pick_out_actived_processing_units(1, total_num_threads/2, 200.0);
     workload_info = processing_info->search_grid_workload_info(1);
     processing_units = processing_info->get_processing_units();

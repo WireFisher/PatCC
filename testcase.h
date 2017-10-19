@@ -1,5 +1,0 @@
-#ifndef P_DELAUNAY_TESTCASE_H
-#define P_DELAUNAY_TESTCASE_H
-
-
-#endif

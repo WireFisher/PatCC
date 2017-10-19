@@ -108,10 +108,10 @@ TEST(GridDecompositionTest, GlobalMiddle) {
     ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
         .WillByDefault(Return(true));
 
-    Processing_info *processing_info;
+    Processing_resource *processing_info;
     Delaunay_grid_decomposition *grid_decomp;
     
-    processing_info = new Processing_info();
+    processing_info = new Processing_resource();
     grid_decomp = new Delaunay_grid_decomposition(1, processing_info);
     grid_decomp->generate_grid_decomposition();
     FILE *log_file;
@@ -120,9 +120,9 @@ TEST(GridDecompositionTest, GlobalMiddle) {
     log_file = fopen(log_path, "w");
     fprintf(log_file, "size: %d\n", grid_decomp->get_local_leaf_nodes().size());
     for(int i = 0; i < grid_decomp->get_local_leaf_nodes().size(); i++) {
-        fprintf(log_file, "-%d: %d-\n",i ,grid_decomp->get_local_leaf_nodes()[i]->num_local_kernel_cells);
-        for(int j=0; j < grid_decomp->get_local_leaf_nodes()[i]->num_local_kernel_cells; j++)
-            fprintf(log_file, "  (%lf, %lf)\n", grid_decomp->get_local_leaf_nodes()[i]->local_cells_coord[0][j], grid_decomp->get_local_leaf_nodes()[i]->local_cells_coord[1][j]);
+        fprintf(log_file, "-%d: %d-\n",i ,grid_decomp->get_local_leaf_nodes()[i]->get_num_local_kernel_cells());
+        for(int j=0; j < grid_decomp->get_local_leaf_nodes()[i]->get_num_local_kernel_cells(); j++)
+            fprintf(log_file, "  (%lf, %lf)\n", grid_decomp->get_local_leaf_nodes()[i]->get_local_cells_coord()[0][j], grid_decomp->get_local_leaf_nodes()[i]->get_local_cells_coord()[1][j]);
     }
     fclose(log_file);
 

@@ -15,10 +15,11 @@
 using std::vector;
 using std::map;
 
-struct Processing_unit;
+class Processing_unit;
 typedef map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
 
-struct Workload_info {
+class Workload_info {
+public:
     int grid_id;
     int size;
     bool *is_actived;
@@ -41,7 +42,9 @@ struct Workload_info {
 };
 */
 
-struct Processing_unit {
+class Processing_unit {
+public:
+    friend class Processing_resource;
     //char *hostname;
     unsigned int hostname_checksum;
     int process_id;
@@ -61,7 +64,7 @@ struct Computing_node {
 };
 */
 
-class Processing_info {
+class Processing_resource {
 private:
     int component_id;
     map <unsigned int, vector <Processing_unit*> > computing_nodes;
@@ -79,8 +82,8 @@ private:
     int identify_processing_units_by_hostname();
 
 public:
-    Processing_info();
-    ~Processing_info();
+    Processing_resource();
+    ~Processing_resource();
     void pick_out_actived_processing_units(int, int, double);
     Workload_info* search_grid_workload_info(int);
     Workload_info* search_or_add_grid_workload_info(int, int);
@@ -95,13 +98,13 @@ public:
 };
 
 
-class Processing_info_mgt {
+class Processing_resource_mgt {
 private:
-    map <int, Processing_info*> all_processing_info;
+    map <int, Processing_resource*> all_processing_info;
 public:
-    Processing_info_mgt();
-    ~Processing_info_mgt();
-    Processing_info* get_processing_info(int component_id) {return all_processing_info[component_id]; };
+    Processing_resource_mgt();
+    ~Processing_resource_mgt();
+    Processing_resource* get_processing_info(int component_id) {return all_processing_info[component_id]; };
 };
 
 /*
