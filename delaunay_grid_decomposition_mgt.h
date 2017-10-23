@@ -47,12 +47,12 @@ private:
     vector <Search_tree_node *> neighbors;
     //XY_triangulation_class *triangulation;
 public:    
-    int do_decompose(Workload_info*, double **, int*, Boundry*, vector<int>*, int);
+    int do_decompose(double*, double **, int*, Boundry*, vector<int>*, int);
     int decompose_with_certain_line(Midline, double**, int*);
 
     Search_tree_node(Search_tree_node*, double**, int, Boundry);
     ~Search_tree_node();
-    void update_processing_units_id(int*, int);
+    void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
@@ -62,7 +62,7 @@ public:
 class Delaunay_grid_decomposition {
 private:
     Processing_resource *processing_info;
-    Workload_info *workload_info;
+    //Workload_info *workload_info;
     //Remap_grid_class *original_grid;
     int original_grid;
     Search_tree_node *search_tree_root;
@@ -73,6 +73,8 @@ private:
     //int *local_units_id;
     int min_num_points_per_chunk;
     bool is_cyclic;
+    int* actived_common_id;
+    double* workloads;
     
     int rotate_grid();
     int initialze_workload();
@@ -80,7 +82,7 @@ private:
     int decompose_common_node_recursively(Search_tree_node*);
     int assign_cyclic_grid_for_single_unit();
     bool have_local_processing_units_id(vector<int>);
-
+    void update_workloads(int, vector<int>&);
 public:
     Delaunay_grid_decomposition(int, Processing_resource*);
     ~Delaunay_grid_decomposition();

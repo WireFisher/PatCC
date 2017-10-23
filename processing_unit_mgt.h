@@ -18,6 +18,7 @@ using std::map;
 class Processing_unit;
 typedef map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
 
+/*
 class Workload_info {
 public:
     int grid_id;
@@ -32,7 +33,7 @@ public:
     void update_actived_common_id();
     void update_workloads(int, vector<int>&, int);
 };
-
+*/
 
 class Processing_unit {
 public:
@@ -54,7 +55,7 @@ class Processing_resource {
 private:
     int component_id;
     map <unsigned int, vector <Processing_unit*> > computing_nodes;
-    vector<Workload_info*> grids_workload_info;
+    //vector<Workload_info*> grids_workload_info;
     Processing_unit **processing_units; //(All threads_info sorted by common_id)
     //vector <struct Computing_node*> computing_nodes;
     //int *processing_units_id_actived;
@@ -68,9 +69,9 @@ private:
 public:
     Processing_resource();
     ~Processing_resource();
-    void pick_out_actived_processing_units(int, int, double);
-    Workload_info* search_grid_workload_info(int);
-    Workload_info* search_or_add_grid_workload_info(int, int);
+    void pick_out_actived_processing_units(int, bool*);
+    //Workload_info* search_grid_workload_info(int);
+    //Workload_info* search_or_add_grid_workload_info(int, int);
     Processing_unit* get_processing_unit(int common_id) { return this->processing_units[common_id]; };
     Processing_unit** get_processing_units() { return this->processing_units; };
     int get_num_total_processing_units(){ return num_total_processing_units; };

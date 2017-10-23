@@ -16,6 +16,7 @@
 
 #define MAX_HOSTNAME_LEN 32
 
+/*
 Workload_info::Workload_info(int id, int num_processing_units): grid_id(id), size(num_processing_units)
 {
     assert(size > 0);
@@ -31,7 +32,7 @@ Workload_info::~Workload_info()
     delete[] workloads;
     delete[] actived_common_id;
 }
-
+*/
 
 /* BKDR Hash Function */
 unsigned int BKDRHash(char *str, unsigned int n)
@@ -132,7 +133,7 @@ int Processing_resource::identify_processing_units_by_hostname() {
     return current_common_id;
 }
 
-
+/*
 Workload_info* Processing_resource::search_grid_workload_info(int grid_id) {
 
     for(int i = 0; i < this->grids_workload_info.size(); i++)
@@ -152,18 +153,17 @@ Workload_info* Processing_resource::search_or_add_grid_workload_info(int grid_id
     this->grids_workload_info.push_back(new Workload_info(grid_id, num_points));
     return this->grids_workload_info.back();
 }
-
+*/
 
 /*
  * 
  */
-void Processing_resource::pick_out_actived_processing_units(int grid_id, int num_total_actived_units, double average_workload) {
+void Processing_resource::pick_out_actived_processing_units(int num_total_actived_units, bool* is_actived) {
     double ratio;
     int i;
-    int num_actived_units, num_units, num_zero_actived_nodes_index;
+    int num_actived_units, num_zero_actived_nodes_index;
     int *num_actived_units_per_node, *zero_actived_nodes_index;
     MAP_UINT_VECTOR_T::iterator it;
-    Workload_info *current_workload_info;
 
     ratio = ((double)num_total_actived_units/this->num_total_processing_units);
     num_actived_units = 0; 
@@ -202,27 +202,24 @@ void Processing_resource::pick_out_actived_processing_units(int grid_id, int num
     }
 
     assert(num_actived_units = num_total_actived_units);
-    current_workload_info = this->search_or_add_grid_workload_info(grid_id, this->num_total_processing_units);
-    //this->grids_workload_info.push_back(new Workload_info(grid_id, this->num_total_processing_units));
-    for(int j = 0; j < this->num_total_processing_units; j++) {
-        current_workload_info->is_actived[j] = false;
-        current_workload_info->workloads[j] = 0.0;
-    }
+    
+    for(i = 0; i < this->num_total_processing_units; i++)
+        is_actived[i] = false;
+
     for(it = computing_nodes.begin(), i = 0; it != computing_nodes.end(); it ++, i ++)
-        for(int j=0; j < num_actived_units_per_node[i]; j ++) {
-            current_workload_info->is_actived[it->second[j]->common_id] = true;
-            current_workload_info->workloads[it->second[j]->common_id] = average_workload;
-        }
-    current_workload_info->size_actived = num_actived_units;
-    current_workload_info->update_actived_common_id();
+        for(int j=0; j < num_actived_units_per_node[i]; j ++)
+            is_actived[it->second[j]->common_id] = true;
+
+    //current_workload_info->size_actived = num_actived_units;
+    //current_workload_info->update_actived_common_id();
     //for(int i = 0; i < num_actived_units; i ++)
     //    printf("updated_actived_common_id: %d\n", current_workload_info->actived_common_id[i]);
-
+    
     delete[] num_actived_units_per_node;
     delete[] zero_actived_nodes_index;
 }
 
-
+/*
 void Workload_info::update_actived_common_id()
 {
     int i, j;
@@ -259,6 +256,8 @@ void Workload_info::update_workloads(int total_workload, vector<int> &ids, int m
         for(int i = 0; i < ids.size(); i++)
             this->workloads[ids[i]] += unassigned_workload / ids.size();
 }
+*/
+
 
 void Processing_resource::print_all_nodes_info()
 {
