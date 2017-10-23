@@ -34,14 +34,6 @@ public:
 };
 
 
-/*
-struct Workload_info {
-    int grid_id;
-    bool is_active;
-    double workload;
-};
-*/
-
 class Processing_unit {
 public:
     friend class Processing_resource;
@@ -57,12 +49,6 @@ public:
                                                                         thread_id(thread_id) {};
 };
 
-/*
-struct Computing_node {
-    char *hostname;
-    vector <struct Processing_unit*> processing_units;
-};
-*/
 
 class Processing_resource {
 private:
@@ -73,9 +59,7 @@ private:
     //vector <struct Computing_node*> computing_nodes;
     //int *processing_units_id_actived;
     int num_total_processing_units;
-    //int num_actived_processing_units;
     //Processing_unit **local_proc_processing_units; //(length is number of threads in local process)
-    //TODO: init below
     int *local_proc_common_id;
     int num_local_proc_processing_units;
     
