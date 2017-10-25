@@ -47,7 +47,7 @@ private:
     vector <Search_tree_node *> neighbors;
     //XY_triangulation_class *triangulation;
 public:    
-    int do_decompose(double*, double **, int*, Boundry*, vector<int>*, int);
+    int decompose_iteratively(double*, double **, int*, Boundry*, vector<int>*, int);
     int decompose_with_certain_line(Midline, double**, int*);
 
     Search_tree_node(Search_tree_node*, double**, int, Boundry);

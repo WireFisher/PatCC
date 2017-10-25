@@ -16,24 +16,6 @@
 
 #define MAX_HOSTNAME_LEN 32
 
-/*
-Workload_info::Workload_info(int id, int num_processing_units): grid_id(id), size(num_processing_units)
-{
-    assert(size > 0);
-    this->is_actived = new bool[this->size]();
-    this->workloads = new double[this->size]();
-    this->actived_common_id = new int[this->size]();
-}
-
-
-Workload_info::~Workload_info()
-{
-    delete[] is_actived;
-    delete[] workloads;
-    delete[] actived_common_id;
-}
-*/
-
 /* BKDR Hash Function */
 unsigned int BKDRHash(char *str, unsigned int n)
 {
@@ -65,7 +47,6 @@ Processing_resource::Processing_resource() {
 
     process_thread_mgr->get_hostname(hostname, MAX_HOSTNAME_LEN);
     local_hostname_checksum = BKDRHash(hostname, MAX_HOSTNAME_LEN);
-    //printf("%s\nhash:%d\n", hostname, local_hostname_checksum);
     local_proc_id = process_thread_mgr->get_mpi_rank();
     num_procs = process_thread_mgr->get_mpi_size();
     comm = process_thread_mgr->get_mpi_comm();
@@ -75,7 +56,7 @@ Processing_resource::Processing_resource() {
     if(num_local_threads <= 0)
         assert(false);
 
-    this->local_proc_common_id= new int[num_local_threads];
+    this->local_proc_common_id = new int[num_local_threads];
     num_threads_per_process = new int[num_procs];
     hostname_checksum_per_process = new unsigned int[num_procs];
 
@@ -86,7 +67,6 @@ Processing_resource::Processing_resource() {
     
     /* assume that "num_threads_per_process" and "hostname_checksum_per_process" are sorted by process id */
     for(int i=0; i < num_procs; i ++)
-        //if(computing_nodes->find(hostname_checksum_per_process[i]) == computing_nodes->end())
         for(int j=0; j < num_threads_per_process[i]; j ++) 
             computing_nodes[hostname_checksum_per_process[i]].push_back(new Processing_unit(hostname_checksum_per_process[i], i, j));
 
@@ -99,9 +79,6 @@ Processing_resource::Processing_resource() {
                 this->local_proc_common_id[this->num_local_proc_processing_units++] = it->second[i]->common_id;
 
     assert(num_local_proc_processing_units == num_local_threads);
-    //printf("num_local_proc_processing_units: %d\n", this->num_local_proc_processing_units);
-    //for(int i=0; i < this->num_local_proc_processing_units; i++)
-        //printf("local_common_id: %d\n", this->local_proc_common_id[i]);
 
     delete[] num_threads_per_process;
     delete[] hostname_checksum_per_process;
@@ -109,6 +86,13 @@ Processing_resource::Processing_resource() {
 
 
 Processing_resource::~Processing_resource() {
+    MAP_UINT_VECTOR_T::iterator it;
+
+    delete[] local_proc_common_id;
+    delete[] processing_units;
+    for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
+        it->second.clear();
+    computing_nodes.clear();
 }
 
 
@@ -133,31 +117,7 @@ int Processing_resource::identify_processing_units_by_hostname() {
     return current_common_id;
 }
 
-/*
-Workload_info* Processing_resource::search_grid_workload_info(int grid_id) {
 
-    for(int i = 0; i < this->grids_workload_info.size(); i++)
-        if(this->grids_workload_info[i]->grid_id == grid_id)
-            return this->grids_workload_info[i];
-
-    return NULL;
-}
-
-
-Workload_info* Processing_resource::search_or_add_grid_workload_info(int grid_id, int num_points) {
-
-    for(int i = 0; i < this->grids_workload_info.size(); i++)
-        if(this->grids_workload_info[i]->grid_id == grid_id)
-            return this->grids_workload_info[i];
-
-    this->grids_workload_info.push_back(new Workload_info(grid_id, num_points));
-    return this->grids_workload_info.back();
-}
-*/
-
-/*
- * 
- */
 void Processing_resource::pick_out_actived_processing_units(int num_total_actived_units, bool* is_actived) {
     double ratio;
     int i;
@@ -200,7 +160,6 @@ void Processing_resource::pick_out_actived_processing_units(int num_total_active
             it = computing_nodes.begin();
             i = 0;
         }
-
     }
 
     assert(num_actived_units = num_total_actived_units);
@@ -212,59 +171,18 @@ void Processing_resource::pick_out_actived_processing_units(int num_total_active
         for(int j=0; j < num_actived_units_per_node[i]; j ++)
             is_actived[it->second[j]->common_id] = true;
 
-    //current_workload_info->size_actived = num_actived_units;
-    //current_workload_info->update_actived_common_id();
-    //for(int i = 0; i < num_actived_units; i ++)
-    //    printf("updated_actived_common_id: %d\n", current_workload_info->actived_common_id[i]);
-    
     delete[] num_actived_units_per_node;
     delete[] zero_actived_nodes_index;
 }
-
-/*
-void Workload_info::update_actived_common_id()
-{
-    int i, j;
-    if(actived_common_id)
-        delete[] actived_common_id;
-
-    actived_common_id = new int[this->size_actived];
-    for(i = 0, j = 0; i < this->size; i++)
-        if(this->is_actived[i] == true)
-            actived_common_id[j++] = i;
-
-    assert(j == this->size_actived);
-}
-
-void Workload_info::update_workloads(int total_workload, vector<int> &ids, int min_workload_for_single_unit)
-{
-    double old_total_workload = 0.0;
-    double unassigned_workload = 0.0;
-
-    for(int i = 0; i < ids.size(); i++)
-        old_total_workload += this->workloads[ids[i]];
-
-    for(int i = 0; i < ids.size(); i++)
-        this->workloads[ids[i]] = this->workloads[ids[i]] * total_workload / old_total_workload;
-
-    for(int i = 0; i < ids.size(); i++)
-        if(this->workloads[ids[i]] < min_workload_for_single_unit) {
-            unassigned_workload += this->workloads[ids[i]];
-            ids.erase(ids.begin() + i);
-        }
-
-    assert(!0.0 > 0);
-    if(unassigned_workload > 0)
-        for(int i = 0; i < ids.size(); i++)
-            this->workloads[ids[i]] += unassigned_workload / ids.size();
-}
-*/
 
 
 void Processing_resource::print_all_nodes_info()
 {
     for(int i = 0; i < this->num_total_processing_units; i++)
-        printf("hostname: %u\nproc_id: %d\nthread_id: %d\ncommon_id: %d\n========\n", this->processing_units[i]->hostname_checksum, this->processing_units[i]->process_id, this->processing_units[i]->thread_id, this->processing_units[i]->common_id);
+        printf("hostname: %u\nproc_id: %d\nthread_id: %d\ncommon_id: %d\n========\n", this->processing_units[i]->hostname_checksum, 
+                                                                                      this->processing_units[i]->process_id, 
+                                                                                      this->processing_units[i]->thread_id, 
+                                                                                      this->processing_units[i]->common_id);
 }
 
 void Process_thread_manager::get_hostname(char *hostname, int len) {
@@ -298,5 +216,5 @@ int Process_thread_manager::get_openmp_size() {
 int Process_thread_manager::allgather(void *sendbuf, int sendcount, MPI_Datatype sendtype, 
                                       void *recvbuf, int recvcount, MPI_Datatype recvtype,
                                       MPI_Comm comm) {
-    MPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);// Haven't been tested
+    MPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
 }

@@ -53,7 +53,7 @@ int Component::generate_delaunay_trianglulation(int grid_id)
 
     if(!this->proc_resource)
         this->proc_resource = new Processing_resource();
-    this->proc_resource->print_all_nodes_info();
+    //this->proc_resource->print_all_nodes_info();
 
     if(operating_grid->have_delaunay_trianglulation())
         return 0;
