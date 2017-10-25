@@ -85,17 +85,25 @@ private:
     void update_workloads(int, vector<int>&);
 public:
     Delaunay_grid_decomposition(int, Processing_resource*);
+    Delaunay_grid_decomposition(int, Processing_resource*, int);
     ~Delaunay_grid_decomposition();
     int generate_grid_decomposition();
     int expand_boundry();
     int generate_delaunay_triangulizition();
     vector<Search_tree_node*> get_local_leaf_nodes() {return this->local_leaf_nodes; };
+    int generate_trianglulation_for_local_decomp();
+    int generate_trianglulation_for_whole_grid();
 };
 
 
 class Grid_info_manager {
+private:
+    double *coord_values[2];
+    int num_points;
 public:
     /* for unittest */
+    Grid_info_manager();
+    virtual ~Grid_info_manager();
     virtual double** get_grid_coord_values(int);
     virtual int get_grid_num_points(int);
     virtual void get_grid_boundry(int, double*, double*, double*, double*);

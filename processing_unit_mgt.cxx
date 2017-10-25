@@ -165,6 +165,8 @@ void Processing_resource::pick_out_actived_processing_units(int num_total_active
     int *num_actived_units_per_node, *zero_actived_nodes_index;
     MAP_UINT_VECTOR_T::iterator it;
 
+    assert(num_total_actived_units <= this->num_total_processing_units);
+
     ratio = ((double)num_total_actived_units/this->num_total_processing_units);
     num_actived_units = 0; 
 
