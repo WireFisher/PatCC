@@ -217,4 +217,5 @@ int Process_thread_manager::allgather(void *sendbuf, int sendcount, MPI_Datatype
                                       void *recvbuf, int recvcount, MPI_Datatype recvtype,
                                       MPI_Comm comm) {
     MPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
+    return 0;
 }

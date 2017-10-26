@@ -1,5 +1,7 @@
 #include "component.h"
+#include <cassert>
 #define DEFAULT_MIN_NUM_POINTS 100
+
 Grid* Component::search_grid_by_id(int id)
 {
     for(int i = 0; i < this->grids.size(); i++)
@@ -12,7 +14,7 @@ Grid* Component::search_grid_by_id(int id)
 int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
 {
     int min_num_points_per_chunk, ret;
-    bool do_sequentially;
+    bool do_sequentially = false;
     if(this->delaunay_triangulation)
         return 0;
 
@@ -42,21 +44,21 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         this->delaunay_triangulation = new Delaunay_grid_decomposition(this->grid_id, NULL, 0);
         this->delaunay_triangulation->generate_trianglulation_for_whole_grid();
     }
+    return 0;
 }
 
-int Component::generate_delaunay_trianglulation(int grid_id)
+void Component::generate_delaunay_trianglulation(int grid_id)
 {
     Grid *operating_grid;
     operating_grid = this->search_grid_by_id(grid_id);
-    if(!operating_grid)
-        return -1;
+    assert(operating_grid);
 
     if(!this->proc_resource)
         this->proc_resource = new Processing_resource();
     //this->proc_resource->print_all_nodes_info();
 
     if(operating_grid->have_delaunay_trianglulation())
-        return 0;
+        return;
 
     /* grid pretreatment */
 

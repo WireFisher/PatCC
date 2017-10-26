@@ -47,8 +47,8 @@ private:
     vector <Search_tree_node *> neighbors;
     //XY_triangulation_class *triangulation;
 public:    
-    int decompose_iteratively(double*, double **, int*, Boundry*, vector<int>*, int);
-    int decompose_with_certain_line(Midline, double**, int*);
+    void decompose_iteratively(double*, double **, int*, Boundry*, vector<int>*, int);
+    void decompose_with_certain_line(Midline, double**, int*);
 
     Search_tree_node(Search_tree_node*, double**, int, Boundry);
     ~Search_tree_node();
@@ -77,10 +77,10 @@ private:
     double* workloads;
     
     int rotate_grid();
-    int initialze_workload();
+    void initialze_workload();
     int assign_polars(bool, bool);
-    int decompose_common_node_recursively(Search_tree_node*);
-    int assign_cyclic_grid_for_single_unit();
+    void decompose_common_node_recursively(Search_tree_node*);
+    void assign_cyclic_grid_for_single_unit();
     bool have_local_processing_units_id(vector<int>);
     void update_workloads(int, vector<int>&);
 public:

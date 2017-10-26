@@ -34,6 +34,7 @@ Boundry& Boundry::operator= (Boundry& boundry) {
     min_lon = boundry.min_lon;
     max_lat = boundry.max_lat;
     max_lon = boundry.max_lon;
+    return *this;
 }
 
 
@@ -110,7 +111,7 @@ void Search_tree_node::update_processing_units_id(vector<int> proc_units_id)
 }
 
 
-int Search_tree_node::decompose_with_certain_line(Midline midline, double *child_cells_coord[4], int child_num_cells[2])
+void Search_tree_node::decompose_with_certain_line(Midline midline, double *child_cells_coord[4], int child_num_cells[2])
 {
     child_num_cells[0] = 0;
     child_num_cells[1] = 0;
@@ -127,12 +128,12 @@ int Search_tree_node::decompose_with_certain_line(Midline midline, double *child
 }
 
 
-int Search_tree_node::decompose_iteratively(double *workloads, double *child_cells_coord[4], int child_num_cells[2],
+void Search_tree_node::decompose_iteratively(double *workloads, double *child_cells_coord[4], int child_num_cells[2],
                                    Boundry child_boundry[2], vector<int> child_proc_units_id[2], int mode)
 {
     double length[2], boundry_values[4], child_total_workload[2];
     Midline midline;
-    int i, child_cells_global_index[2];
+    int i;
     int iteration_count;
 
     assert(this->processing_units_id.size() > 1);
@@ -292,10 +293,10 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 }
 
 
-int Delaunay_grid_decomposition::initialze_workload()
+void Delaunay_grid_decomposition::initialze_workload()
 {
     int max_num_processing_units, num_actived_processing_units;
-    int *actived_units_id, i, j;
+    int i, j;
     double average_workload;
     bool* actived_units_flag;
 
@@ -354,7 +355,7 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
 
 
 /* "common_node" means non-polar node */
-int Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_node *node)
+void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_node *node)
 {
     double *child_cells_coord[4];
     int child_num_cells[2];
@@ -366,7 +367,7 @@ int Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_n
         if(this->have_local_processing_units_id(node->processing_units_id)) {
             this->local_leaf_nodes.push_back(node);
         }
-        return 0;
+        return;
     }
     
     for(int i = 0; i < 4; i++)
@@ -391,7 +392,6 @@ int Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_n
         this->decompose_common_node_recursively(node->first_child);
     if(this->have_local_processing_units_id(node->third_child->processing_units_id)) 
         this->decompose_common_node_recursively(node->third_child);
-
 }
 
 
@@ -477,7 +477,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 }
 
 
-int Delaunay_grid_decomposition::assign_cyclic_grid_for_single_unit()
+void Delaunay_grid_decomposition::assign_cyclic_grid_for_single_unit()
 {
     double *child_cells_coord[4];
     Boundry child_boundry[2];
@@ -524,11 +524,6 @@ bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> chu
 int Delaunay_grid_decomposition::generate_grid_decomposition()
 {
     int num_south_polar, num_north_polar;
-    double *child_cells_coord[4];
-    Boundry child_boundry[2];
-    int child_num_cells[2];
-    vector<int> child_proc_id[2];
-    int i;
 
     this->initialze_workload();
     this->current_tree_node = this->search_tree_root;
@@ -551,14 +546,17 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 
 int Delaunay_grid_decomposition::rotate_grid()
 {
+    return 0;
 }
 
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
+    return 0;
 }
 
 int Delaunay_grid_decomposition::generate_trianglulation_for_whole_grid()
 {
+    return 0;
 }
 
 Grid_info_manager::Grid_info_manager()
