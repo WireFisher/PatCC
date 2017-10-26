@@ -58,6 +58,8 @@ int Component::generate_delaunay_trianglulation(int grid_id)
     if(operating_grid->have_delaunay_trianglulation())
         return 0;
 
+    /* grid pretreatment */
+
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
 }
 
