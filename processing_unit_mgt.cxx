@@ -127,6 +127,12 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
 
     assert(num_total_active_units <= this->num_total_processing_units);
 
+    if(num_total_active_units == this->num_total_processing_units) {
+        for(i = 0; i < this->num_total_processing_units; i++)
+            is_active[i] = true;
+        return;
+    }
+
     ratio = ((double)num_total_active_units/this->num_total_processing_units);
     num_active_units = 0; 
 

@@ -138,10 +138,12 @@ void check_active_units(Processing_resource *processing_info, int num_active_uni
 {
     Processing_unit **processing_units;
     int num_total_processing_units;
+    double ratio;
     
     processing_units = processing_info->get_processing_units();
     num_total_processing_units = processing_info->get_num_total_processing_units();
 
+    ratio = (double)num_active_units / total_num_threads;
     ASSERT_GE(num_total_processing_units, 0);
     ASSERT_LE(num_total_processing_units, total_num_threads);
     ASSERT_NE(processing_units, (void*)NULL);
@@ -173,13 +175,13 @@ void check_active_units(Processing_resource *processing_info, int num_active_uni
 
     int total_num_active = 0;
     for(int i = 0; i < num_checksums; i ++) {
-        ASSERT_LE(num_active[i], num_total[i]/2 + 1);
-        printf("%d: %d/%d\n", i, num_active[i], num_total[i]);
+        ASSERT_LE(num_active[i], num_total[i] * ratio + 1);
+        //printf("%d: %d/%d\n", i, num_active[i], num_total[i]);
         ASSERT_GE(num_active[i], 0);
         total_num_active += num_active[i];
     }
     ASSERT_EQ(total_num_active, num_active_units);
-    printf("Total: %d/%d\n", total_num_active, total_num_threads);
+    //printf("Total: %d/%d\n", total_num_active, total_num_threads);
 };
 
 TEST(ProcessingResourceTest, EmptyHostname) {
@@ -412,3 +414,34 @@ TEST(ProcessingResourceTest, ActivedUnitsLT2) {
     delete process_thread_mgr;
 };
 
+TEST(ProcessingResourceTest, ActivedUnitsEQ) {
+    int num_different_hostnames = 4;
+    int nums_thread[10] = {16, 32, 10, 40, 4, 11, 17, 1, 7, 19};
+    int max_num_threads_per_proc = 40;
+    int num_thread;
+    int total_num_threads = 0;
+    Processing_resource *proc_resrc;
+    bool *active_flag;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    num_thread = nums_thread[mpi_rank%10];
+    for(int i = 0; i < mpi_size; i++)
+        total_num_threads += nums_thread[i%10];
+
+    setup_dependency(get_different_hostname, num_thread);
+
+    proc_resrc = new Processing_resource();
+    general_check(proc_resrc, total_num_threads);
+    check_proc_units(proc_resrc, num_different_hostnames, max_num_threads_per_proc);
+
+    active_flag = new bool[total_num_threads];
+    proc_resrc->pick_out_active_processing_units(total_num_threads, active_flag);
+    check_active_units(proc_resrc, total_num_threads, total_num_threads, active_flag);
+
+    delete active_flag;
+    delete proc_resrc;
+    delete grid_info_mgr;
+    delete process_thread_mgr;
+};
