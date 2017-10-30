@@ -72,16 +72,16 @@ Search_tree_node::~Search_tree_node()
     delete this->expanded_boundry;
     delete[] this->local_cells_coord[0];
     delete[] this->local_cells_coord[1];
-    if(this->rotated_kernel_boundry)
+    if(this->rotated_kernel_boundry != NULL)
         delete this->rotated_kernel_boundry;
-    if(this->rotated_expanded_boundry)
+    if(this->rotated_expanded_boundry != NULL)
         delete this->rotated_expanded_boundry;
     //delete[] this->local_cells_global_index;
-    if(this->first_child)
+    if(this->first_child != NULL)
         delete this->first_child;
-    if(this->second_child)
+    if(this->second_child != NULL)
         delete this->second_child;
-    if(this->third_child)
+    if(this->third_child != NULL)
         delete this->third_child;
 }
 
@@ -256,7 +256,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
     this->search_tree_root = new Search_tree_node(NULL, coord_values, num_points, boundry);
-    this->active_common_id = NULL;
+    this->active_processing_common_id = NULL;
     this->workloads = NULL;
     //this->initialze_workload();
 }
@@ -279,7 +279,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
     this->search_tree_root = new Search_tree_node(NULL, coord_values, num_points, boundry);
-    this->active_common_id = NULL;
+    this->active_processing_common_id = NULL;
     this->workloads = NULL;
     //this->initialze_workload();
 }
@@ -288,7 +288,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
 Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 {
     delete this->search_tree_root;
-    delete[] this->active_common_id;
+    delete[] this->active_processing_common_id;
     delete[] this->workloads; 
 }
 
@@ -307,19 +307,19 @@ void Delaunay_grid_decomposition::initialze_workload()
     average_workload = (double)grid_info_mgr->get_grid_num_points(this->original_grid) / num_active_processing_units;
 
     active_units_flag = new bool[this->processing_info->get_num_total_processing_units()];
-    if(this->active_common_id)
-        delete[] this->active_common_id;
-    if(this->workloads)
+    if(this->active_processing_common_id != NULL)
+        delete[] this->active_processing_common_id;
+    if(this->workloads != NULL)
         delete[] this->workloads;
 
     this->processing_info->pick_out_active_processing_units(num_active_processing_units, active_units_flag);
 
-    this->active_common_id = new int[num_active_processing_units];
+    this->active_processing_common_id = new int[num_active_processing_units];
     this->workloads = new double[num_active_processing_units];
     for(i = 0, j = 0; i < this->processing_info->get_num_total_processing_units(); i++)
         if(active_units_flag[i]) {
             this->workloads[j] = average_workload;
-            this->active_common_id[j++] = i;
+            this->active_processing_common_id[j++] = i;
         }
 
     assert(j == num_active_processing_units);
@@ -455,7 +455,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             this->workloads[this->search_tree_root->processing_units_id.back()] -= child_num_cells[1];
             child_proc_id[0].push_back(this->search_tree_root->processing_units_id.back());
         }
-        if(this->search_tree_root->second_child)
+        if(this->search_tree_root->second_child != NULL)
             delete this->search_tree_root->second_child;
         this->search_tree_root->second_child = new Search_tree_node(this->search_tree_root, child_cells_coord,   child_num_cells[0], child_boundry[0]);
         this->search_tree_root->third_child  = new Search_tree_node(this->search_tree_root, child_cells_coord+2, child_num_cells[1], child_boundry[1]);
@@ -515,7 +515,7 @@ bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> chu
 {
     for(int i = 0; i < chunk_id.size(); i++)
         for(int j = 0; j < this->processing_info->get_num_local_proc_processing_units(); j++)
-            if(this->active_common_id[chunk_id[i]] == this->processing_info->get_local_proc_common_id()[j])
+            if(this->active_processing_common_id[chunk_id[i]] == this->processing_info->get_local_proc_common_id()[j])
                 return true;
 
     return false;
