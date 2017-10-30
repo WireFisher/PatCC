@@ -152,7 +152,6 @@ void check_active_units(Processing_resource *processing_info, int num_active_uni
     int current_node_index;
     int num_checksums = 0;
     bool have_this_checksum;
-    int current_active_common_id_index = 0;
 
     for(int i = 0; i < num_total_processing_units; i ++) {
         have_this_checksum = false;
@@ -175,12 +174,12 @@ void check_active_units(Processing_resource *processing_info, int num_active_uni
     int total_num_active = 0;
     for(int i = 0; i < num_checksums; i ++) {
         ASSERT_LE(num_active[i], num_total[i]/2 + 1);
-        //printf("%d: %d/%d\n", i, num_active[i], num_total[i]);
+        printf("%d: %d/%d\n", i, num_active[i], num_total[i]);
         ASSERT_GE(num_active[i], 0);
         total_num_active += num_active[i];
     }
     ASSERT_EQ(total_num_active, num_active_units);
-    //printf("Total: %d/%d\n", total_num_active, total_num_threads);
+    printf("Total: %d/%d\n", total_num_active, total_num_threads);
 };
 
 TEST(ProcessingResourceTest, EmptyHostname) {
@@ -351,7 +350,7 @@ TEST(ProcessingResourceTest, ThreadNumDifferent2) {
 
 TEST(ProcessingResourceTest, ActivedUnitsLT1) {
     int num_different_hostnames = 4;
-    int nums_thread[10] = {1, 1, 9, 1, 1, 1, 1, 1, 1, 1};
+    int nums_thread[10] = {1, 1, 4, 1, 1, 1, 1, 1, 1, 1};
     int max_num_threads_per_proc = 9;
     int num_thread;
     int total_num_threads = 0;

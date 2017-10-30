@@ -121,8 +121,8 @@ int Processing_resource::identify_processing_units_by_hostname() {
 void Processing_resource::pick_out_active_processing_units(int num_total_active_units, bool* is_active) {
     double ratio;
     int i;
-    int num_active_units, num_zero_active_nodes_index;
-    int *num_active_units_per_node, *zero_active_nodes_index;
+    int num_active_units;
+    int *num_active_units_per_node;
     MAP_UINT_VECTOR_T::iterator it;
 
     assert(num_total_active_units <= this->num_total_processing_units);
@@ -131,35 +131,28 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
     num_active_units = 0; 
 
     num_active_units_per_node = new int[computing_nodes.size()];
-    zero_active_nodes_index = new int[computing_nodes.size()];
-    num_zero_active_nodes_index = 0;
     for(it = computing_nodes.begin(), i = 0; it != computing_nodes.end(); it ++, i++) {
         num_active_units_per_node[i] = it->second.size() * ratio;
-        if(num_active_units_per_node[i] == 0) {
-            zero_active_nodes_index[num_zero_active_nodes_index++] = i;
-        }
+        if(num_active_units_per_node[i] == 0)
+            num_active_units_per_node[i] = 1;
         num_active_units += num_active_units_per_node[i];
     }
 
-    for(i = 0; i < num_zero_active_nodes_index; i++) {
-        if(num_active_units >= num_total_active_units)
+    for(it = computing_nodes.begin(), i = 0; it != computing_nodes.end(); it++, i++) {
+        if(num_active_units == num_total_active_units)
             break;
-        num_active_units += ++num_active_units_per_node[zero_active_nodes_index[i]];
-    }
-
-    it = computing_nodes.begin();
-    i = 0;
-    while(num_active_units < num_total_active_units) {
-        if(num_active_units_per_node[i] < it->second.size()) {
+        if(num_active_units < num_total_active_units) {
             num_active_units_per_node[i]++;
             num_active_units++;
         }
-        it ++;
-        i ++;
-        if(it == computing_nodes.end()) {
-            it = computing_nodes.begin();
-            i = 0;
+        else {
+            num_active_units_per_node[i]--;
+            num_active_units--;
         }
+#ifdef DEBUG
+        assert(num_active_units_per_node[i] >= 0);
+        assert(num_active_units_per_node[i] <= it->second.size());
+#endif
     }
 
     assert(num_active_units = num_total_active_units);
@@ -172,7 +165,6 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
             is_active[it->second[j]->common_id] = true;
 
     delete[] num_active_units_per_node;
-    delete[] zero_active_nodes_index;
 }
 
 
