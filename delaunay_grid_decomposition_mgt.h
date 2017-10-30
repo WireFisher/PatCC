@@ -73,7 +73,7 @@ private:
     //int *local_units_id;
     int min_num_points_per_chunk;
     bool is_cyclic;
-    int* actived_common_id;
+    int* active_common_id;
     double* workloads;
     
     int rotate_grid();

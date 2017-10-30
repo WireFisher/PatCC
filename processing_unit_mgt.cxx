@@ -118,41 +118,41 @@ int Processing_resource::identify_processing_units_by_hostname() {
 }
 
 
-void Processing_resource::pick_out_actived_processing_units(int num_total_actived_units, bool* is_actived) {
+void Processing_resource::pick_out_active_processing_units(int num_total_active_units, bool* is_active) {
     double ratio;
     int i;
-    int num_actived_units, num_zero_actived_nodes_index;
-    int *num_actived_units_per_node, *zero_actived_nodes_index;
+    int num_active_units, num_zero_active_nodes_index;
+    int *num_active_units_per_node, *zero_active_nodes_index;
     MAP_UINT_VECTOR_T::iterator it;
 
-    assert(num_total_actived_units <= this->num_total_processing_units);
+    assert(num_total_active_units <= this->num_total_processing_units);
 
-    ratio = ((double)num_total_actived_units/this->num_total_processing_units);
-    num_actived_units = 0; 
+    ratio = ((double)num_total_active_units/this->num_total_processing_units);
+    num_active_units = 0; 
 
-    num_actived_units_per_node = new int[computing_nodes.size()];
-    zero_actived_nodes_index = new int[computing_nodes.size()];
-    num_zero_actived_nodes_index = 0;
+    num_active_units_per_node = new int[computing_nodes.size()];
+    zero_active_nodes_index = new int[computing_nodes.size()];
+    num_zero_active_nodes_index = 0;
     for(it = computing_nodes.begin(), i = 0; it != computing_nodes.end(); it ++, i++) {
-        num_actived_units_per_node[i] = it->second.size() * ratio;
-        if(num_actived_units_per_node[i] == 0) {
-            zero_actived_nodes_index[num_zero_actived_nodes_index++] = i;
+        num_active_units_per_node[i] = it->second.size() * ratio;
+        if(num_active_units_per_node[i] == 0) {
+            zero_active_nodes_index[num_zero_active_nodes_index++] = i;
         }
-        num_actived_units += num_actived_units_per_node[i];
+        num_active_units += num_active_units_per_node[i];
     }
 
-    for(i = 0; i < num_zero_actived_nodes_index; i++) {
-        if(num_actived_units >= num_total_actived_units)
+    for(i = 0; i < num_zero_active_nodes_index; i++) {
+        if(num_active_units >= num_total_active_units)
             break;
-        num_actived_units += ++num_actived_units_per_node[zero_actived_nodes_index[i]];
+        num_active_units += ++num_active_units_per_node[zero_active_nodes_index[i]];
     }
 
     it = computing_nodes.begin();
     i = 0;
-    while(num_actived_units < num_total_actived_units) {
-        if(num_actived_units_per_node[i] < it->second.size()) {
-            num_actived_units_per_node[i]++;
-            num_actived_units++;
+    while(num_active_units < num_total_active_units) {
+        if(num_active_units_per_node[i] < it->second.size()) {
+            num_active_units_per_node[i]++;
+            num_active_units++;
         }
         it ++;
         i ++;
@@ -162,17 +162,17 @@ void Processing_resource::pick_out_actived_processing_units(int num_total_active
         }
     }
 
-    assert(num_actived_units = num_total_actived_units);
+    assert(num_active_units = num_total_active_units);
     
     for(i = 0; i < this->num_total_processing_units; i++)
-        is_actived[i] = false;
+        is_active[i] = false;
 
     for(it = computing_nodes.begin(), i = 0; it != computing_nodes.end(); it ++, i ++)
-        for(int j=0; j < num_actived_units_per_node[i]; j ++)
-            is_actived[it->second[j]->common_id] = true;
+        for(int j=0; j < num_active_units_per_node[i]; j ++)
+            is_active[it->second[j]->common_id] = true;
 
-    delete[] num_actived_units_per_node;
-    delete[] zero_actived_nodes_index;
+    delete[] num_active_units_per_node;
+    delete[] zero_active_nodes_index;
 }
 
 

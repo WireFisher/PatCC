@@ -134,7 +134,7 @@ void check_proc_units(Processing_resource *processing_info, int num_hostnames, i
     ASSERT_EQ(num_hostnames, num_checksums);
 };
 
-void check_actived_units(Processing_resource *processing_info, int num_actived_units, int total_num_threads, bool *active_flag)
+void check_active_units(Processing_resource *processing_info, int num_active_units, int total_num_threads, bool *active_flag)
 {
     Processing_unit **processing_units;
     int num_total_processing_units;
@@ -147,12 +147,12 @@ void check_actived_units(Processing_resource *processing_info, int num_actived_u
     ASSERT_NE(processing_units, (void*)NULL);
 
     unsigned int checksums[128];
-    int num_actived[128] = {0};
+    int num_active[128] = {0};
     int num_total[128] = {0};
     int current_node_index;
     int num_checksums = 0;
     bool have_this_checksum;
-    int current_actived_common_id_index = 0;
+    int current_active_common_id_index = 0;
 
     for(int i = 0; i < num_total_processing_units; i ++) {
         have_this_checksum = false;
@@ -168,19 +168,19 @@ void check_actived_units(Processing_resource *processing_info, int num_actived_u
         }
 
         if(active_flag[i])
-            num_actived[current_node_index] ++;
+            num_active[current_node_index] ++;
         num_total[current_node_index] ++;
     }
 
-    int total_num_actived = 0;
+    int total_num_active = 0;
     for(int i = 0; i < num_checksums; i ++) {
-        ASSERT_LE(num_actived[i], num_total[i]/2 + 1);
-        //printf("%d: %d/%d\n", i, num_actived[i], num_total[i]);
-        ASSERT_GE(num_actived[i], 0);
-        total_num_actived += num_actived[i];
+        ASSERT_LE(num_active[i], num_total[i]/2 + 1);
+        //printf("%d: %d/%d\n", i, num_active[i], num_total[i]);
+        ASSERT_GE(num_active[i], 0);
+        total_num_active += num_active[i];
     }
-    ASSERT_EQ(total_num_actived, num_actived_units);
-    //printf("Total: %d/%d\n", total_num_actived, total_num_threads);
+    ASSERT_EQ(total_num_active, num_active_units);
+    //printf("Total: %d/%d\n", total_num_active, total_num_threads);
 };
 
 TEST(ProcessingResourceTest, EmptyHostname) {
@@ -372,8 +372,8 @@ TEST(ProcessingResourceTest, ActivedUnitsLT1) {
     check_proc_units(proc_resrc, num_different_hostnames, max_num_threads_per_proc);
 
     active_flag = new bool[total_num_threads];
-    proc_resrc->pick_out_actived_processing_units(total_num_threads/2, active_flag);
-    check_actived_units(proc_resrc, total_num_threads/2, total_num_threads, active_flag);
+    proc_resrc->pick_out_active_processing_units(total_num_threads/2, active_flag);
+    check_active_units(proc_resrc, total_num_threads/2, total_num_threads, active_flag);
 
     delete active_flag;
     delete proc_resrc;
@@ -404,8 +404,8 @@ TEST(ProcessingResourceTest, ActivedUnitsLT2) {
     check_proc_units(proc_resrc, num_different_hostnames, max_num_threads_per_proc);
 
     active_flag = new bool[total_num_threads];
-    proc_resrc->pick_out_actived_processing_units(total_num_threads/2, active_flag);
-    check_actived_units(proc_resrc, total_num_threads/2, total_num_threads, active_flag);
+    proc_resrc->pick_out_active_processing_units(total_num_threads/2, active_flag);
+    check_active_units(proc_resrc, total_num_threads/2, total_num_threads, active_flag);
 
     delete active_flag;
     delete proc_resrc;

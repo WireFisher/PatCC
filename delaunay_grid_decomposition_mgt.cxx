@@ -256,7 +256,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
     this->search_tree_root = new Search_tree_node(NULL, coord_values, num_points, boundry);
-    this->actived_common_id = NULL;
+    this->active_common_id = NULL;
     this->workloads = NULL;
     //this->initialze_workload();
 }
@@ -279,7 +279,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
     this->search_tree_root = new Search_tree_node(NULL, coord_values, num_points, boundry);
-    this->actived_common_id = NULL;
+    this->active_common_id = NULL;
     this->workloads = NULL;
     //this->initialze_workload();
 }
@@ -288,45 +288,45 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
 Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 {
     delete this->search_tree_root;
-    delete[] this->actived_common_id;
+    delete[] this->active_common_id;
     delete[] this->workloads; 
 }
 
 
 void Delaunay_grid_decomposition::initialze_workload()
 {
-    int max_num_processing_units, num_actived_processing_units;
+    int max_num_processing_units, num_active_processing_units;
     int i, j;
     double average_workload;
-    bool* actived_units_flag;
+    bool* active_units_flag;
 
     assert(this->min_num_points_per_chunk > 0);
     max_num_processing_units = (grid_info_mgr->get_grid_num_points(this->original_grid) + this->min_num_points_per_chunk - 1) / this->min_num_points_per_chunk;
 
-    num_actived_processing_units = min(this->processing_info->get_num_total_processing_units(), max_num_processing_units);
-    average_workload = (double)grid_info_mgr->get_grid_num_points(this->original_grid) / num_actived_processing_units;
+    num_active_processing_units = min(this->processing_info->get_num_total_processing_units(), max_num_processing_units);
+    average_workload = (double)grid_info_mgr->get_grid_num_points(this->original_grid) / num_active_processing_units;
 
-    actived_units_flag = new bool[this->processing_info->get_num_total_processing_units()];
-    if(this->actived_common_id)
-        delete[] this->actived_common_id;
+    active_units_flag = new bool[this->processing_info->get_num_total_processing_units()];
+    if(this->active_common_id)
+        delete[] this->active_common_id;
     if(this->workloads)
         delete[] this->workloads;
 
-    this->processing_info->pick_out_actived_processing_units(num_actived_processing_units, actived_units_flag);
+    this->processing_info->pick_out_active_processing_units(num_active_processing_units, active_units_flag);
 
-    this->actived_common_id = new int[num_actived_processing_units];
-    this->workloads = new double[num_actived_processing_units];
+    this->active_common_id = new int[num_active_processing_units];
+    this->workloads = new double[num_active_processing_units];
     for(i = 0, j = 0; i < this->processing_info->get_num_total_processing_units(); i++)
-        if(actived_units_flag[i]) {
+        if(active_units_flag[i]) {
             this->workloads[j] = average_workload;
-            this->actived_common_id[j++] = i;
+            this->active_common_id[j++] = i;
         }
 
-    assert(j == num_actived_processing_units);
+    assert(j == num_active_processing_units);
 
-    this->search_tree_root->update_processing_units_id(num_actived_processing_units);
+    this->search_tree_root->update_processing_units_id(num_active_processing_units);
 
-    delete[] actived_units_flag;
+    delete[] active_units_flag;
 }
 
 
@@ -515,7 +515,7 @@ bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> chu
 {
     for(int i = 0; i < chunk_id.size(); i++)
         for(int j = 0; j < this->processing_info->get_num_local_proc_processing_units(); j++)
-            if(this->actived_common_id[chunk_id[i]] == this->processing_info->get_local_proc_common_id()[j])
+            if(this->active_common_id[chunk_id[i]] == this->processing_info->get_local_proc_common_id()[j])
                 return true;
 
     return false;
@@ -531,7 +531,7 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
     num_north_polar = grid_info_mgr->get_polar_points(this->original_grid, 'N');
     if(this->assign_polars(num_south_polar > 2, num_north_polar > 2))
         return 1;
-    //for(int i = 0; i < this->workload_info->size_actived; i++)
+    //for(int i = 0; i < this->workload_info->size_active; i++)
     //    printf("common_id: %d, workload: %lf\n", i, this->workload_info->workloads[i]);
 
     if(this->current_tree_node->processing_units_id.size() == 1 && grid_info_mgr->is_grid_cyclic(this->original_grid)) {

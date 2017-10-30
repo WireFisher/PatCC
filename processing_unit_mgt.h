@@ -47,7 +47,7 @@ private:
 public:
     Processing_resource();
     ~Processing_resource();
-    void pick_out_actived_processing_units(int, bool*);
+    void pick_out_active_processing_units(int, bool*);
     Processing_unit* get_processing_unit(int common_id) { return this->processing_units[common_id]; };
     Processing_unit** get_processing_units() { return this->processing_units; };
     int get_num_total_processing_units(){ return num_total_processing_units; };
