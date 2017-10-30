@@ -18,22 +18,6 @@ using std::map;
 class Processing_unit;
 typedef map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
 
-/*
-class Workload_info {
-public:
-    int grid_id;
-    int size;
-    bool *is_actived;
-    double *workloads;
-    int *actived_common_id;
-    int size_actived;
-
-    Workload_info(int, int);
-    ~Workload_info();
-    void update_actived_common_id();
-    void update_workloads(int, vector<int>&, int);
-};
-*/
 
 class Processing_unit {
 public:
@@ -43,8 +27,6 @@ public:
     int process_id;
     int thread_id;
     int common_id;
-    //vector<struct Workload_info*> grids_workload_info;
-    //struct Workload_info* current_grid_workload_info;
     Processing_unit(unsigned int checksum, int proc_id, int thread_id): hostname_checksum(checksum),
                                                                         process_id(proc_id),
                                                                         thread_id(thread_id) {};
@@ -55,12 +37,8 @@ class Processing_resource {
 private:
     int component_id;
     map <unsigned int, vector <Processing_unit*> > computing_nodes;
-    //vector<Workload_info*> grids_workload_info;
     Processing_unit **processing_units; //(All threads_info sorted by common_id)
-    //vector <struct Computing_node*> computing_nodes;
-    //int *processing_units_id_actived;
     int num_total_processing_units;
-    //Processing_unit **local_proc_processing_units; //(length is number of threads in local process)
     int *local_proc_common_id;
     int num_local_proc_processing_units;
     
@@ -70,16 +48,12 @@ public:
     Processing_resource();
     ~Processing_resource();
     void pick_out_actived_processing_units(int, bool*);
-    //Workload_info* search_grid_workload_info(int);
-    //Workload_info* search_or_add_grid_workload_info(int, int);
     Processing_unit* get_processing_unit(int common_id) { return this->processing_units[common_id]; };
     Processing_unit** get_processing_units() { return this->processing_units; };
     int get_num_total_processing_units(){ return num_total_processing_units; };
     int* get_local_proc_common_id(){ return local_proc_common_id; };
     int get_num_local_proc_processing_units(){ return num_local_proc_processing_units; };
     void print_all_nodes_info();
-    //int get_num_actived_processing_units(){ return num_actived_processing_units; };
-    //Processing_unit** get_local_proc_processing_units(){ return local_proc_processing_units; };
 };
 
 
@@ -92,21 +66,8 @@ public:
     Processing_resource* get_processing_info(int component_id) {return all_processing_info[component_id]; };
 };
 
-/*
-class Process_thread_manager_base
-{
-public:
-    virtual ~Process_thread_manager_base();
-    virtual void get_hostname(char*, int) = 0;
-    virtual int get_mpi_rank() = 0;
-    virtual int get_mpi_size() = 0;
-    virtual MPI_Comm get_mpi_comm() = 0;
-    virtual int get_openmp_size() = 0;
-    virtual int allgather(const void*, int, MPI_Datatype, void*, int, MPI_Datatype, MPI_Comm) = 0;
-};
-*/
 
-class Process_thread_manager //: public Process_thread_manager_base
+class Process_thread_manager
 {
 public:
     virtual ~Process_thread_manager();
