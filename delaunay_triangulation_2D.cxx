@@ -1,43 +1,55 @@
+/***************************************************************
+  *  Copyright (c) 2013, Tsinghua University.
+  *  This is a source file of C-Coupler.
+  *  This file was initially finished by Haoyu Yang,
+  *  supervised by Dr. Li Liu. If you have any problem,
+  *  please contact Dr. Li Liu via liuli-cess@tsinghua.edu.cn
+  ***************************************************************/
+
 #include "delaunay_triangulation_2D.h"
 #include <iostream>
 #include <cmath>
 #include <cassert>
-#include <vector>
 #include <algorithm>
 
-Vector2::Vector2()
+template <typename T>
+Vector2<T>::Vector2()
 {
     x = 0;
     y = 0;
 }
 
 template <typename T>
-Vector2::Vector2(T _x, T _y) 
+Vector2<T>::Vector2(T _x, T _y) 
 {
     x = _x;
     y = _y;
 }
 
-Vector2::Vector2(const Vector2 &v)
+template <typename T>
+Vector2<T>::Vector2(const Vector2 &v)
 {
     x = v.x;
     y = v.y;
 }
 
-void Vector2::set(const Vector2 &v)
+template <typename T>
+void Vector2<T>::set(const Vector2 &v)
 {
     x = v.x;
     y = v.y;
 }
 
-T Vector2::dist2(const Vector2 &v)
+template <typename T>
+T Vector2<T>::dist2(const Vector2 &v)
 {
     T dx = x - v.x;
     T dy = y - v.y;
     return dx * dx + dy * dy;	
 }
 
-float Vector2::dist(const Vector2 &v)
+template <typename T>
+float Vector2<T>::dist(const Vector2 &v)
 {
     return sqrtf(dist2(v));
 }
@@ -54,7 +66,6 @@ bool operator == (Vector2<T> v1, Vector2<T> v2)
 	return (v1.x == v2.x) && (v1.y == v2.y);
 }
 	
-
 template <class T>
 inline std::ostream &operator << (std::ostream &str, Edge<T> const &e)
 {
@@ -70,7 +81,7 @@ inline bool operator == (const Edge<T> & e1, const Edge<T> & e2)
 
 
 template <class T>
-bool Triangle::circumCircleContains(const Vector2<T> &v)
+bool Triangle<T>::circumCircleContains(const Vector2<T> &v)
 {
     float ab = (p1.x * p1.x) + (p1.y * p1.y);
     float cd = (p2.x * p2.x) + (p2.y * p2.y);
@@ -101,13 +112,9 @@ inline bool operator == (const Triangle<T> &t1, const Triangle<T> &t2)
 }
 
 
-using TriangleType = Triangle<T>;
-using EdgeType = Edge<T>;
-using VertexType = Vector2<T>;
-
 /*
 template <class T>
-const std::vector<TriangleType>& Delaunay::triangulate(std::vector<VertexType> &vertices)
+const std::vector<Triangle<T>>& Delaunay<T>::triangulate(std::vector<Vector2<T>> &vertices)
 {
     // Store the vertices localy
     _vertices = vertices;
@@ -132,22 +139,22 @@ const std::vector<TriangleType>& Delaunay::triangulate(std::vector<VertexType> &
     float midx = (minX + maxX) / 2.f;
     float midy = (minY + maxY) / 2.f;
 
-    VertexType p1(midx - 20 * deltaMax, midy - deltaMax);
-    VertexType p2(midx, midy + 20 * deltaMax);
-    VertexType p3(midx + 20 * deltaMax, midy - deltaMax);	
+    Vector2<T> p1(midx - 20 * deltaMax, midy - deltaMax);
+    Vector2<T> p2(midx, midy + 20 * deltaMax);
+    Vector2<T> p3(midx + 20 * deltaMax, midy - deltaMax);	
 
     //std::cout << "Super triangle " << std::endl << Triangle(p1, p2, p3) << std::endl;
     
     // Create a list of triangles, and add the supertriangle in it
-    _triangles.push_back(TriangleType(p1, p2, p3));
+    _triangles.push_back(Triangle<T>(p1, p2, p3));
 
     for(auto p = begin(vertices); p != end(vertices); p++)
     {
         //std::cout << "Traitement du point " << *p << std::endl;
         //std::cout << "_triangles contains " << _triangles.size() << " elements" << std::endl;	
 
-        std::vector<TriangleType> badTriangles;
-        std::vector<EdgeType> polygon;
+        std::vector<Triangle<T>> badTriangles;
+        std::vector<Edge<T>> polygon;
 
         for(auto t = begin(_triangles); t != end(_triangles); t++)
         {
@@ -167,7 +174,7 @@ const std::vector<TriangleType>& Delaunay::triangulate(std::vector<VertexType> &
             }
         }
 
-        _triangles.erase(std::remove_if(begin(_triangles), end(_triangles), [badTriangles](TriangleType &t){
+        _triangles.erase(std::remove_if(begin(_triangles), end(_triangles), [badTriangles](Triangle<T> &t){
             for(auto bt = begin(badTriangles); bt != end(badTriangles); bt++)
             {	
                 if(*bt == t)
@@ -179,7 +186,7 @@ const std::vector<TriangleType>& Delaunay::triangulate(std::vector<VertexType> &
             return false;
         }), end(_triangles));
 
-        std::vector<EdgeType> badEdges;
+        std::vector<Edge<T>> badEdges;
         for(auto e1 = begin(polygon); e1 != end(polygon); e1++)
         {
             for(auto e2 = begin(polygon); e2 != end(polygon); e2++)
@@ -195,7 +202,7 @@ const std::vector<TriangleType>& Delaunay::triangulate(std::vector<VertexType> &
             }
         }
 
-        polygon.erase(std::remove_if(begin(polygon), end(polygon), [badEdges](EdgeType &e){
+        polygon.erase(std::remove_if(begin(polygon), end(polygon), [badEdges](Edge<T> &e){
             for(auto it = begin(badEdges); it != end(badEdges); it++)
             {
                 if(*it == e)
@@ -205,11 +212,11 @@ const std::vector<TriangleType>& Delaunay::triangulate(std::vector<VertexType> &
         }), end(polygon));
 
         for(auto e = begin(polygon); e != end(polygon); e++)
-            _triangles.push_back(TriangleType(e->p1, e->p2, *p));
+            _triangles.push_back(Triangle<T>(e->p1, e->p2, *p));
     
     }
 
-    _triangles.erase(std::remove_if(begin(_triangles), end(_triangles), [p1, p2, p3](TriangleType &t){
+    _triangles.erase(std::remove_if(begin(_triangles), end(_triangles), [p1, p2, p3](Triangle<T> &t){
         return t.containsVertex(p1) || t.containsVertex(p2) || t.containsVertex(p3);
     }), end(_triangles));
 

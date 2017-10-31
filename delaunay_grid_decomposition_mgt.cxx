@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-using namespace std;
 
 #define DEFAULT_EXPANGDING_RATIO 0.1
 #define PDLN_TOLERABLE_ERROR 0.0001
@@ -303,7 +302,7 @@ void Delaunay_grid_decomposition::initialze_workload()
     assert(this->min_num_points_per_chunk > 0);
     max_num_processing_units = (grid_info_mgr->get_grid_num_points(this->original_grid) + this->min_num_points_per_chunk - 1) / this->min_num_points_per_chunk;
 
-    num_active_processing_units = min(this->processing_info->get_num_total_processing_units(), max_num_processing_units);
+    num_active_processing_units = std::min(this->processing_info->get_num_total_processing_units(), max_num_processing_units);
     average_workload = (double)grid_info_mgr->get_grid_num_points(this->original_grid) / num_active_processing_units;
 
     active_units_flag = new bool[this->processing_info->get_num_total_processing_units()];

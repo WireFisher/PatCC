@@ -20,61 +20,51 @@ class Vector2
 };
 
 
-template <class T>
+template <typename T>
 class Edge
 {
 	public:
-		using VertexType = Vector2<T>;
-		
-		Edge(const VertexType &p1, const VertexType &p2) : p1(p1), p2(p2) {};
+		Edge(const Vector2<T> &p1, const Vector2<T> &p2) : p1(p1), p2(p2) {};
 		Edge(const Edge &e) : p1(e.p1), p2(e.p2) {};
 
-		VertexType p1;
-		VertexType p2;
+		Vector2<T> p1;
+		Vector2<T> p2;
 };
 
-
-template <class T>
+template <typename T>
 class Triangle
 {
 	public:
-		using EdgeType = Edge<T>;
-		using VertexType = Vector2<T>;
-		
-		Triangle(const VertexType &_p1, const VertexType &_p2, const VertexType &_p3):	p1(_p1), p2(_p2), p3(_p3), e1(_p1, _p2), 
+		Triangle(const Vector2<T> &_p1, const Vector2<T> &_p2, const Vector2<T> &_p3):	p1(_p1), p2(_p2), p3(_p3), e1(_p1, _p2), 
                                                                                         e2(_p2, _p3), e3(_p3, _p1) {};
 	
-		bool containsVertex(const VertexType &v) { return p1 == v || p2 == v || p3 == v; };
+		bool containsVertex(const Vector2<T> &v) { return p1 == v || p2 == v || p3 == v; };
 		
-		bool circumCircleContains(const VertexType &v);
+		bool circumCircleContains(const Vector2<T> &v);
 	
-		VertexType p1;
-		VertexType p2;
-		VertexType p3;
-		EdgeType e1;				
-		EdgeType e2;
-		EdgeType e3;
+		Vector2<T> p1;
+		Vector2<T> p2;
+		Vector2<T> p3;
+		Edge<T> e1;				
+		Edge<T> e2;
+		Edge<T> e3;
 };
 
 
-template <class T>
+template <typename T>
 class Delaunay
 {
 	public:
-		using TriangleType = Triangle<T>;
-		using EdgeType = Edge<T>;
-		using VertexType = Vector2<T>;
+		const std::vector<Triangle<T> >& triangulate(std::vector<Vector2<T> > &vertices);
 		
-		const std::vector<TriangleType>& triangulate(std::vector<VertexType> &vertices);
-		
-		const std::vector<TriangleType>& getTriangles() const { return _triangles; };
-		const std::vector<EdgeType>& getEdges() const { return _edges; };
-		const std::vector<VertexType>& getVertices() const { return _vertices; };
+		const std::vector<Triangle<T> >& getTriangles() const { return _triangles; };
+		const std::vector<Edge<T> >& getEdges() const { return _edges; };
+		const std::vector<Vector2<T> >& getVertices() const { return _vertices; };
 
 	private:
-		std::vector<TriangleType> _triangles;
-		std::vector<EdgeType> _edges;
-		std::vector<VertexType> _vertices;
+		std::vector<Triangle<T> > _triangles;
+		std::vector<Edge<T> > _edges;
+		std::vector<Vector2<T> > _vertices;
 };
 
 #endif
