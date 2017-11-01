@@ -12,9 +12,9 @@
 #include <cassert>
 #include <algorithm>
 
-typedef std::vector<Vector2<T> > VECTOR_VECTOR2_T;
-typedef std::vector<Triangle<T> > VECTOR_TRIANGLE_T;
-typedef std::vector<Edge<T> > VECTOR_TRIANGLE_T;
+//typedef std::vector<Vector2<T> > std::vector<Vector2<T> >;
+//typedef std::vector<Triangle<T> > std::vector<Triangle<T> >;
+//typedef std::vector<Edge<T> > std::vector<Edge<T> >;
 
 template <typename T>
 Vector2<T>::Vector2()
@@ -116,10 +116,6 @@ inline bool operator == (const Triangle<T> &t1, const Triangle<T> &t2)
 }
 
 
-typedef std::vector<Vector2<T> > VECTOR_VECTOR2_T;
-typedef std::vector<Triangle<T> > VECTOR_TRIANGLE_T;
-typedef std::vector<Edge<T> > VECTOR_TRIANGLE_T;
-
 template <class T>
 const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Vector2<T> > &vertices)
 {
@@ -155,15 +151,15 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Vector2<T>
     // Create a list of triangles, and add the supertriangle in it
     _triangles.push_back(Triangle<T>(p1, p2, p3));
 
-    for(VECTOR_VECTOR2_T::iterator p = vertices.begin(); p != vertices.end(); p++)
+    for(typename std::vector<Vector2<T> >::iterator p = vertices.begin(); p != vertices.end(); p++)
     {
         //std::cout << "Traitement du point " << *p << std::endl;
         //std::cout << "_triangles contains " << _triangles.size() << " elements" << std::endl;	
 
-        std::vector<Triangle<T>> badTriangles;
-        std::vector<Edge<T>> polygon;
+        std::vector<Triangle<T> > badTriangles;
+        std::vector<Edge<T> > polygon;
 
-        for(VECTOR_TRIANGLE_T::iterator t = _triangles.begin(); t != _triangles.end(); t++)
+        for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end(); t++)
         {
             //std::cout << "Processing " << std::endl << *t << std::endl;
 
@@ -181,8 +177,14 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Vector2<T>
             }
         }
 
+        for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end(); t++)
+            for(typename std::vector<Triangle<T> >::iterator bt = badTriangles.begin(); bt != badTriangles.end(); bt++)
+                if(*bt == *t)
+                    _triangles.erase(t);
+        
+    /*    
         _triangles.erase(std::remove_if(_triangles.begin(), _triangles.end(), [badTriangles](Triangle<T> &t){
-            for(VECTOR_TRIANGLE_T::iterator bt = badTriangles.begin(); bt != badTriangles.end(); bt++)
+            for(std::vector<Triangle<T> >::iterator bt = badTriangles.begin(); bt != badTriangles.end(); bt++)
             {	
                 if(*bt == t)
                 {
@@ -192,11 +194,11 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Vector2<T>
             }
             return false;
         }), _triangles.end());
-
-        std::vector<Edge<T>> badEdges;
-        for(VECTOR_TRIANGLE_T::iterator e1 = polygon.begin(); e1 != polygon.end(); e1++)
+*/
+        std::vector<Edge<T> > badEdges;
+        for(typename std::vector<Edge<T> >::iterator e1 = polygon.begin(); e1 != polygon.end(); e1++)
         {
-            for(VECTOR_TRIANGLE_T::iterator e2 = polygon.begin(); e2 != polygon.end(); e2++)
+            for(typename std::vector<Edge<T> >::iterator e2 = polygon.begin(); e2 != polygon.end(); e2++)
             {
                 if(e1 == e2)
                     continue;
@@ -209,25 +211,34 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Vector2<T>
             }
         }
 
+        for(typename std::vector<Edge<T> >::iterator e = polygon.begin(); e != polygon.end(); e++)
+            for(typename std::vector<Edge<T> >::iterator it = badEdges.begin(); it != badEdges.end(); it++)
+                if(*it == e)
+                    polygon.erase(e);
+        /*
         polygon.erase(std::remove_if(polygon.begin(), polygon.end(), [badEdges](Edge<T> &e){
-            for(VECTOR_TRIANGLE_T::iterator it = badEdges.begin(); it != badEdges.end(); it++)
+            for(std::vector<Edge<T> >::iterator it = badEdges.begin(); it != badEdges.end(); it++)
             {
                 if(*it == e)
                     return true;
             }
             return false;
         }), polygon.end());
-
-        for(VECTOR_TRIANGLE_T::iterator e = polygon.begin(); e != polygon.end(); e++)
+        */
+        for(typename std::vector<Edge<T> >::iterator e = polygon.begin(); e != polygon.end(); e++)
             _triangles.push_back(Triangle<T>(e->p1, e->p2, *p));
     
     }
 
+    for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end(); t++)
+        if(t->containsVertex(p1) || t->containsVertex(p2) || t->containsVertex(p3))
+            _triangles.erase(t);
+    /*
     _triangles.erase(std::remove_if(_triangles.begin(), _triangles.end(), [p1, p2, p3](Triangle<T> &t){
         return t.containsVertex(p1) || t.containsVertex(p2) || t.containsVertex(p3);
     }), _triangles.end());
-
-    for(VECTOR_TRIANGLE_T::iterator t = _triangles.begin(); t != _triangles.end(); t++)
+    */
+    for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end(); t++)
     {
         _edges.push_back(t->e1);
         _edges.push_back(t->e2);
