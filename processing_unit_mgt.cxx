@@ -15,6 +15,7 @@
 #include <omp.h>
 
 #define MAX_HOSTNAME_LEN 32
+typedef map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
 
 /* BKDR Hash Function */
 unsigned int BKDRHash(char *str, unsigned int n)

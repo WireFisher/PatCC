@@ -16,7 +16,6 @@ using std::vector;
 using std::map;
 
 class Processing_unit;
-typedef map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
 
 
 class Processing_unit {
