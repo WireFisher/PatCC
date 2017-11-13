@@ -400,9 +400,8 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
 
     assert(node->processing_units_id.size() > 0);
     if(node->processing_units_id.size() == 1) {
-        if(this->have_local_processing_units_id(node->processing_units_id)) {
+        if(this->have_local_processing_units_id(node->processing_units_id))
             this->local_leaf_nodes.push_back(node);
-        }
         return;
     }
     
@@ -428,6 +427,47 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
         this->decompose_common_node_recursively(node->first_child);
     if(this->have_local_processing_units_id(node->third_child->processing_units_id)) 
         this->decompose_common_node_recursively(node->third_child);
+}
+
+
+bool Delaunay_grid_decomposition::region_overlap_with_tree_node(Boundry region, Search_tree_node *node)
+{
+}
+
+
+void Delaunay_grid_decomposition::search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node *node, Boundry region, vector<Search_tree_node*> &leaf_nodes_found)
+{
+    assert(node->processing_units_id.size() > 0);
+    if(node->processing_units_id.size() == 1) {
+        if(this->region_overlap_with_tree_node(region, node))
+            leaf_nodes_found.push_back(node);
+        return;
+    }
+
+    for(int i = 0; i < 4; i++)
+        child_cells_coord[i] = new double[node->num_local_kernel_cells];
+    
+    node->decompose_iteratively(this->workloads, child_cells_coord, child_num_cells, child_boundry, child_proc_id, PDLN_DECOMPOSE_COMMON_MODE);
+
+    node->first_child = new Search_tree_node(node, child_cells_coord,   child_num_cells[0], child_boundry[0]);
+    node->third_child = new Search_tree_node(node, child_cells_coord+2, child_num_cells[1], child_boundry[1]);
+
+    /* child_proc_id[0] can be modified by this->update_workloads */
+    this->update_workloads(child_num_cells[0], child_proc_id[0]);
+    this->update_workloads(child_num_cells[1], child_proc_id[1]);
+    node->first_child->update_processing_units_id(child_proc_id[0]);
+    node->third_child->update_processing_units_id(child_proc_id[1]);
+
+    for(int i = 0; i < 4; i++)
+        delete[] child_cells_coord[i];
+    //TODO: optimize new delete
+    //
+    if(this->region_overlap_with_tree_node(region, node->first_child))
+        this->search_leaf_nodes_overlapping_with_region_recursively(node->first_child, region, leaf_nodes_found);
+    if(this->region_overlap_with_tree_node(region, node->second_child))
+        this->search_leaf_nodes_overlapping_with_region_recursively(node->second_child, region, leaf_nodes_found);
+    if(this->region_overlap_with_tree_node(region, node->third_child))
+        this->search_leaf_nodes_overlapping_with_region_recursively(node->third_child, region, leaf_nodes_found);
 }
 
 
@@ -588,17 +628,45 @@ int Delaunay_grid_decomposition::rotate_grid()
 
 void Delaunay_grid_decomposition::transform_into_rectangle(Boundry inner_boundry, Boundry outer_boundry, Boundry sub_rectangle[4])
 {
-    x
+    sub_rectangle[0].min_lat = sub_rectangle[1].min_lat = outer_boundry.min_lat;
+    sub_rectangle[1].max_lon = sub_rectangle[2].max_lon = outer_boundry.max_lon;
+    sub_rectangle[2].max_lat = sub_rectangle[3].max_lat = outer_boundry.max_lat;
+    sub_rectangle[3].min_lon = sub_rectangle[0].min_lon = outer_boundry.min_lon;
+
+    sub_rectangle[0].max_lon = sub_rectangle[1].min_lon = inner_boundry.min_lon;
+    sub_rectangle[1].max_lat = sub_rectangle[2].min_lat = inner_boundry.min_lat;
+    sub_rectangle[2].min_lon = sub_rectangle[3].max_lon = inner_boundry.max_lon;
+    sub_rectangle[3].min_lat = sub_rectangle[0].max_lat = inner_boundry.max_lat;
 }
+
+
+void Delaunay_grid_decomposition::search_points_in_region(Boundry region, double *coord_values[2], int *num_points_found)
+{
+    vector<Search_tree_node*> leaf_nodes_found;
+    
+    *num_points_found = 0;
+    search_leaf_nodes_overlapping_with_region_recursively(this->search_tree_root, region, leaf_nodes_found);
+    for(unsigned int i = 0; i < leaf_nodes_found.size(); i++)
+        for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++)
+            if(leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] < region.max_lon &&
+               leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= region.min_lon &&
+               leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat &&
+               leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
+                coord_values[PDLN_LON][num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j];
+                coord_values[PDLN_LAT][num_points_found++] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
+            }
+}
+
 
 int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
 {
     Boundry old_boundry = *tree_node->expanded_boundry;
-    Boundry sub_rectangle[4];
+    Boundry sub_rectangles[4];
     double *local_cells_coord[2];
     int num_points_found;
 
     *tree_node->expanded_boundry = *tree_node->expanded_boundry * expanding_ratio;
+    //if(!is_syslic)
     tree_node->expanded_boundry->legalize(/* original grid boundry*/);
 
     if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.max_lat >= 90 && tree_node->expanded_boundry->max_lat >= 90)
@@ -606,15 +674,18 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.min_lat <= -90 && tree_node->expanded_boundry->min_lat <= -90)
         return 1;
 
-    transform_into_rectangle(old_boundry, *tree_node->expanded_boundry, sub_rectangle);
+    transform_into_rectangle(old_boundry, *tree_node->expanded_boundry, sub_rectangles);
 
     local_cells_coord[0] = new double[];
     local_cells_coord[1] = new double[];
     for(int i = 0; i < 4; i++){
         num_points_found = 0;
-        search_points_in_region(sub_rectangle[i], local_cells_coord, &num_points_found);
+        search_points_in_region(sub_rectangles[i], local_cells_coord, &num_points_found);
         tree_node->add_expanded_points(local_cells_coord, num_points_found);
     }
+
+    delete[] local_cells_coord[0];
+    delete[] local_cells_coord[1];
     return 0;
 }
 

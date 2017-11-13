@@ -96,6 +96,7 @@ private:
     int expand_tree_node_boundry(Search_tree_node*, double)
     void search_points_in_region(Boundry, double**, int*);
     void transform_into_rectangle(Boundry, Boundry, Boundry*);
+    void search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node*, Boundry, vector<Search_tree_node*>&);
 public:
     Delaunay_grid_decomposition(int, Processing_resource*);
     Delaunay_grid_decomposition(int, Processing_resource*, int);
