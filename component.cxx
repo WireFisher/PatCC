@@ -31,7 +31,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         }
         ret = this->delaunay_triangulation->generate_trianglulation_for_local_decomp();
         /* Return Values: 0 - success
-         *                1 - fail, normal decomp's expanded_boundry exceeded -/+90 
+         *                1 - fail, normal decomp's expanded_boundry exceeded -/+90 (expanding fail)
          *                2 - fail, polar  decomp's expanded_boundry exceeded threshold */
         if(ret == 2) {
             do_sequentially = true;
@@ -39,6 +39,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         }
     } while(ret);
 
+    //mpi allgather do_sequentially
     if(do_sequentially) { 
         if(this->delaunay_triangulation)
             delete this->delaunay_triangulation;

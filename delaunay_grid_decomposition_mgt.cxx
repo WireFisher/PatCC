@@ -27,13 +27,46 @@
 #define PDLN_SPOLAR_MAX_LAT -45.0
 #define PDLN_NPOLAR_MIN_LAT 45.0
 
+#define PDLN_NODE_TYPE_COMMON PDLN_DECOMPOSE_COMMON_MODE
+#define PDLN_NODE_TYPE_SPOLAR PDLN_DECOMPOSE_SPOLAR_MODE
+#define PDLN_NODE_TYPE_NPOLAR PDLN_DECOMPOSE_NPOLAR_MODE
 
-Boundry& Boundry::operator= (Boundry& boundry) {
+
+Boundry& Boundry::operator= (Boundry& boundry)
+{
     min_lat = boundry.min_lat;
     min_lon = boundry.min_lon;
     max_lat = boundry.max_lat;
     max_lon = boundry.max_lon;
     return *this;
+}
+
+
+Boundry& Boundry::operator* (double ratio)
+{
+    min_lat *= ratio;
+    min_lon *= ratio;
+    max_lat *= ratio;
+    max_lon *= ratio;
+    return *this;
+}
+
+
+void Boundry::legalize()
+{
+    min_lat = std::max(min_lat, -90.0);
+    min_lon = std::max(min_lon, 0.0);
+    max_lat = std::min(max_lat, 90.0);
+    max_lon = std::min(max_lon, 360.0);
+}
+
+
+void Boundry::legalize(Boundry outer_boundry)
+{
+    min_lat = std::max(min_lat, outer_boundry.min_lat);
+    min_lon = std::max(min_lon, outer_boundry.min_lon);
+    max_lat = std::min(max_lat, outer_boundry.max_lat);
+    max_lon = std::min(max_lon, outer_boundry.max_lon);
 }
 
 
@@ -46,7 +79,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     *this->kernel_boundry = *this->expanded_boundry = boundry;
     this->rotated_kernel_boundry = this->rotated_expanded_boundry = NULL;
 
-    this->expanding_ratio = DEFAULT_EXPANGDING_RATIO;
+    //this->expanding_ratio = DEFAULT_EXPANGDING_RATIO;
     this->midline.type = -1;
     this->midline.value = -361.0;
     this->local_cells_coord[0] = new double[num_points];
@@ -109,6 +142,10 @@ void Search_tree_node::update_processing_units_id(vector<int> proc_units_id)
     this->processing_units_id = proc_units_id;
 }
 
+
+int Search_tree_node::expand_boundry(double expanding_ratio)
+{
+}
 
 void Search_tree_node::decompose_with_certain_line(Midline midline, double *child_cells_coord[4], int child_num_cells[2])
 {
@@ -548,9 +585,66 @@ int Delaunay_grid_decomposition::rotate_grid()
     return 0;
 }
 
+
+void Delaunay_grid_decomposition::transform_into_rectangle(Boundry inner_boundry, Boundry outer_boundry, Boundry sub_rectangle[4])
+{
+    x
+}
+
+int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
+{
+    Boundry old_boundry = *tree_node->expanded_boundry;
+    Boundry sub_rectangle[4];
+    double *local_cells_coord[2];
+    int num_points_found;
+
+    *tree_node->expanded_boundry = *tree_node->expanded_boundry * expanding_ratio;
+    tree_node->expanded_boundry->legalize(/* original grid boundry*/);
+
+    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.max_lat >= 90 && tree_node->expanded_boundry->max_lat >= 90)
+        return 1;
+    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.min_lat <= -90 && tree_node->expanded_boundry->min_lat <= -90)
+        return 1;
+
+    transform_into_rectangle(old_boundry, *tree_node->expanded_boundry, sub_rectangle);
+
+    local_cells_coord[0] = new double[];
+    local_cells_coord[1] = new double[];
+    for(int i = 0; i < 4; i++){
+        num_points_found = 0;
+        search_points_in_region(sub_rectangle[i], local_cells_coord, &num_points_found);
+        tree_node->add_expanded_points(local_cells_coord, num_points_found);
+    }
+    return 0;
+}
+
+
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
-    return 0;
+    //TODO: openmp parallel
+    for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
+        int ret;
+        expanding_ratio = DEFAULT_EXPANGDING_RATIO;
+        //while(consistency check not passed) {
+            ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+            //mpi bcast ret (NOTE: local threads, using tag)
+            //if(one of the rets != 0) {
+            //    expand_fail = true;
+            //    break;
+            //}
+            if(local_leaf_nodes[i]->node_type) {
+                //if(expanded_boundry not in correct region)
+                //    return 2;
+                //rotate
+            }
+            //do 2D delaunay triangulation
+            local_leaf_nodes[i]->generate_local_triangulation();
+            //expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1
+        //}
+    }
+    //if(expand_fail)
+    //    return 1;
+    //return 0;
 }
 
 int Delaunay_grid_decomposition::generate_trianglulation_for_whole_grid()

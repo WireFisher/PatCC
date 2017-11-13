@@ -19,14 +19,19 @@ struct Midline {
     double value;
 };
 
-struct Boundry {
+class Boundry {
+public:
     double min_lat;
     double max_lat;
     double min_lon;
     double max_lon;
 
     Boundry& operator= (Boundry& boundry);
+    Boundry& operator* (double);
+    void legalize();
+    void legalize(Boundry);
 };
+
 
 class Search_tree_node {
 private:
@@ -37,16 +42,17 @@ private:
     Boundry *expanded_boundry;
     Boundry *rotated_kernel_boundry;
     Boundry *rotated_expanded_boundry;
-    double expanding_ratio;
+    //double expanding_ratio;
     Midline midline;
     double *local_cells_coord[2]; //(clean after having children)
-    int    *local_cells_global_index; //(kernel + expanded)
-    int    num_local_kernel_cells;
-    int    num_local_expanded_cells;
+    //int *local_cells_global_index; //(kernel + expanded)
+    int num_local_kernel_cells;
+    int num_local_expanded_cells;
+    int node_type;
     
     vector <int> processing_units_id;
     vector <Search_tree_node *> neighbors;
-    //XY_triangulation_class *triangulation;
+    2D_delaunay_triangulation *triangulation;
 public:    
     void decompose_iteratively(double*, double **, int*, Boundry*, vector<int>*, int);
     void decompose_with_certain_line(Midline, double**, int*);
@@ -55,6 +61,8 @@ public:
     ~Search_tree_node();
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
+    int generate_local_triangulation();
+    int expand_boundry(double);
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
     double** get_local_cells_coord(){return this->local_cells_coord; };
@@ -69,6 +77,7 @@ private:
     Search_tree_node *search_tree_root;
     Search_tree_node *current_tree_node;
     vector<Search_tree_node*> local_leaf_nodes;
+    vector<delaunay_triangulation*> local_triangulations;
     //int *num_local_nodes_per_thread;
     int num_total_nodes;
     //int *local_units_id;
@@ -84,12 +93,14 @@ private:
     void assign_cyclic_grid_for_single_unit();
     bool have_local_processing_units_id(vector<int>);
     void update_workloads(int, vector<int>&);
+    int expand_tree_node_boundry(Search_tree_node*, double)
+    void search_points_in_region(Boundry, double**, int*);
+    void transform_into_rectangle(Boundry, Boundry, Boundry*);
 public:
     Delaunay_grid_decomposition(int, Processing_resource*);
     Delaunay_grid_decomposition(int, Processing_resource*, int);
     ~Delaunay_grid_decomposition();
     int generate_grid_decomposition();
-    int expand_boundry();
     int generate_delaunay_triangulizition();
     vector<Search_tree_node*> get_local_leaf_nodes() {return this->local_leaf_nodes; };
     int generate_trianglulation_for_local_decomp();
