@@ -16,16 +16,19 @@
 #include <vector>
 
 #define DEFAULT_EXPANGDING_RATIO 0.1
-#define PDLN_TOLERABLE_ERROR 0.0001
+#define PDLN_EXPECTED_EXPANDING_LOOP_TIMES 3
+
+#define PDLN_SPOLAR_MAX_LAT -45.0
+#define PDLN_NPOLAR_MIN_LAT 45.0
+
 #define PDLN_MAX_ITER_COUNT 10
+
+#define PDLN_TOLERABLE_ERROR 0.0001
 #define PDLN_FLOAT_EQ_ERROR 1e-10
 
 #define PDLN_DECOMPOSE_COMMON_MODE 0
 #define PDLN_DECOMPOSE_SPOLAR_MODE 1
 #define PDLN_DECOMPOSE_NPOLAR_MODE 2
-
-#define PDLN_SPOLAR_MAX_LAT -45.0
-#define PDLN_NPOLAR_MIN_LAT 45.0
 
 #define PDLN_NODE_TYPE_COMMON PDLN_DECOMPOSE_COMMON_MODE
 #define PDLN_NODE_TYPE_SPOLAR PDLN_DECOMPOSE_SPOLAR_MODE
@@ -86,6 +89,8 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     this->local_cells_coord[1] = new double[num_points];
     memcpy(this->local_cells_coord[0], coord_value[0], num_points * sizeof(double));
     memcpy(this->local_cells_coord[1], coord_value[1], num_points * sizeof(double));
+    this->expanded_cells_coord[0] = this->expanded_cells_coord[1] = NULL;
+    this->len_expanded_cells_coord_buf = 0;
 
     /*
     this->local_cells_global_index = new int[num_points];
@@ -93,8 +98,10 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
         this->local_cells_global_index[i] = i;
     */
 
-    this->num_local_kernel_cells = this->num_local_expanded_cells = num_points;
-    //this->triangulation = NULL;
+    this->num_local_kernel_cells = num_points;
+    this->num_local_expanded_cells = 0;
+    this->node_type = PDLN_NODE_TYPE_COMMON;
+    this->triangulation = NULL;
 }
 
 
@@ -275,6 +282,27 @@ void Search_tree_node::decompose_iteratively(double *workloads, double *child_ce
 }
 
 
+void Search_tree_node::add_expanded_points(double *coord_value[2], int num_points)
+{
+    double *tmp_coord_value[2];
+    if(num_local_expanded_cells + num_points > len_expanded_cells_coord_buf) {
+        len_expanded_cells_coord_buf = num_local_expanded_cells + num_points * 4 * PDLN_EXPECTED_EXPANDING_LOOP_TIMES;
+        tmp_coord_value[0] = new double[len_expanded_cells_coord_buf];
+        tmp_coord_value[1] = new double[len_expanded_cells_coord_buf];
+        memcpy(tmp_coord_value[0], local_cells_coord[0], sizeof(double) * num_local_expanded_cells);
+        memcpy(tmp_coord_value[1], local_cells_coord[1], sizeof(double) * num_local_expanded_cells);
+        delete[] local_cells_coord[0];
+        delete[] local_cells_coord[1];
+        local_cells_coord[0] = tmp_coord_value[0];
+        local_cells_coord[1] = tmp_coord_value[1];
+    }
+    memcpy(local_cells_coord[0] + num_local_expanded_cells, coord_value[0], sizeof(double) * num_points);
+    memcpy(local_cells_coord[1] + num_local_expanded_cells, coord_value[1], sizeof(double) * num_points);
+    num_local_expanded_cells += num_points;
+    assert(num_local_expanded_cells >= num_points);
+}
+
+
 Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_num_points_per_chunk)
 {
     double **coord_values;
@@ -430,8 +458,14 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
 }
 
 
-bool Delaunay_grid_decomposition::region_overlap_with_tree_node(Boundry region, Search_tree_node *node)
+bool Delaunay_grid_decomposition::two_regions_overlap(Boundry region1, Boundry region2)
 {
+    if(region1.max_lat <= region2.min_lat || region1.min_lat >= region2.max_lat)
+        return false;
+    if(region1.max_lon <= region2.min_lon || region1.min_lon >= region2.max_lon)
+        return false;
+
+    return true;
 }
 
 
@@ -439,7 +473,7 @@ void Delaunay_grid_decomposition::search_leaf_nodes_overlapping_with_region_recu
 {
     assert(node->processing_units_id.size() > 0);
     if(node->processing_units_id.size() == 1) {
-        if(this->region_overlap_with_tree_node(region, node))
+        if(this->two_regions_overlap(region, *node->kernel_boundry))
             leaf_nodes_found.push_back(node);
         return;
     }
@@ -461,12 +495,13 @@ void Delaunay_grid_decomposition::search_leaf_nodes_overlapping_with_region_recu
     for(int i = 0; i < 4; i++)
         delete[] child_cells_coord[i];
     //TODO: optimize new delete
-    //
-    if(this->region_overlap_with_tree_node(region, node->first_child))
+
+    if(this->two_regions_overlap(region, *node->first_child->kernel_boundry))
         this->search_leaf_nodes_overlapping_with_region_recursively(node->first_child, region, leaf_nodes_found);
-    if(this->region_overlap_with_tree_node(region, node->second_child))
-        this->search_leaf_nodes_overlapping_with_region_recursively(node->second_child, region, leaf_nodes_found);
-    if(this->region_overlap_with_tree_node(region, node->third_child))
+    if(node->second_child != NULL)
+        if(this->two_regions_overlap(region, *node->second_child->kernel_boundry))
+            this->search_leaf_nodes_overlapping_with_region_recursively(node->second_child, region, leaf_nodes_found);
+    if(this->two_regions_overlap(region, *node->third_child->kernel_boundry))
         this->search_leaf_nodes_overlapping_with_region_recursively(node->third_child, region, leaf_nodes_found);
 }
 
@@ -503,6 +538,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         this->search_tree_root->first_child  = new Search_tree_node(this->search_tree_root, child_cells_coord,   child_num_cells[0], child_boundry[0]);
         this->search_tree_root->second_child = new Search_tree_node(this->search_tree_root, child_cells_coord+2, child_num_cells[1], child_boundry[1]);
 
+        this->search_tree_root->first_child->node_type = PDLN_NODE_TYPE_SPOLAR;
+
         this->update_workloads(child_num_cells[0], child_proc_id[0]);
         this->update_workloads(child_num_cells[1], child_proc_id[1]);
         this->search_tree_root->first_child->update_processing_units_id(child_proc_id[0]);
@@ -535,6 +572,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             delete this->search_tree_root->second_child;
         this->search_tree_root->second_child = new Search_tree_node(this->search_tree_root, child_cells_coord,   child_num_cells[0], child_boundry[0]);
         this->search_tree_root->third_child  = new Search_tree_node(this->search_tree_root, child_cells_coord+2, child_num_cells[1], child_boundry[1]);
+
+        this->search_tree_root->third_child->node_type = PDLN_NODE_TYPE_NPOLAR;
 
         this->update_workloads(child_num_cells[0], child_proc_id[0]);
         this->update_workloads(child_num_cells[1], child_proc_id[1]);
@@ -645,6 +684,9 @@ void Delaunay_grid_decomposition::search_points_in_region(Boundry region, double
     vector<Search_tree_node*> leaf_nodes_found;
     
     *num_points_found = 0;
+    if(fabs(region.min_lat - region.max_lat) < PDLN_FLOAT_EQ_ERROR || fabs(region.min_lon - region.max_lon) < PDLN_FLOAT_EQ_ERROR)
+        return;
+
     search_leaf_nodes_overlapping_with_region_recursively(this->search_tree_root, region, leaf_nodes_found);
     for(unsigned int i = 0; i < leaf_nodes_found.size(); i++)
         for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++)

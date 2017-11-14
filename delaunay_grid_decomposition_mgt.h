@@ -44,10 +44,12 @@ private:
     Boundry *rotated_expanded_boundry;
     //double expanding_ratio;
     Midline midline;
-    double *local_cells_coord[2]; //(clean after having children)
+    double *local_cells_coord[2]; //(clean after having children) //TODO:change name
+    double *expanded_cells_coord[2];
+    int len_expanded_cells_coord_buf;
     //int *local_cells_global_index; //(kernel + expanded)
-    int num_local_kernel_cells;
-    int num_local_expanded_cells;
+    int num_local_kernel_cells;//TODO:change name
+    int num_local_expanded_cells;//TODO:change name
     int node_type;
     
     vector <int> processing_units_id;
