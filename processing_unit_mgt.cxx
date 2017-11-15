@@ -75,7 +75,7 @@ Processing_resource::Processing_resource() {
 
     MAP_UINT_VECTOR_T::iterator it;
     for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
-        for(int i = 0; i < it->second.size(); i++)
+        for(unsigned int i = 0; i < it->second.size(); i++)
             if(it->second[i]->process_id == local_proc_id)
                 this->local_proc_common_id[this->num_local_proc_processing_units++] = it->second[i]->common_id;
 
@@ -100,7 +100,7 @@ Processing_resource::~Processing_resource() {
 int Processing_resource::identify_processing_units_by_hostname() {
 
     MAP_UINT_VECTOR_T::iterator it;
-    int i, current_common_id, num_total_proc_units;
+    unsigned int i, current_common_id, num_total_proc_units;
     
     current_common_id = 0;
     num_total_proc_units = 0;

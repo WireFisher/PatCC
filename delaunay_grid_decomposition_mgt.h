@@ -63,7 +63,7 @@ public:
     ~Search_tree_node();
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
-    int generate_local_triangulation();
+    void generate_local_triangulation();
     void add_expanded_points(double **, int);
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };

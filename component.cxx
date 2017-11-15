@@ -5,7 +5,7 @@
 
 Grid* Component::search_grid_by_id(int id)
 {
-    for(int i = 0; i < this->grids.size(); i++)
+    for(unsigned int i = 0; i < this->grids.size(); i++)
         if(grids[i]->get_grid_id() == id)
             return grids[i];
 

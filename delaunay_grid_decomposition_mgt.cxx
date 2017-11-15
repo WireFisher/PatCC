@@ -150,7 +150,7 @@ void Search_tree_node::update_processing_units_id(vector<int> proc_units_id)
 }
 
 
-int Search_tree_node::generate_local_triangulation()
+void Search_tree_node::generate_local_triangulation()
 {
     std::vector<Vector2<double> > points;
     //for(int i = 0; i < num_local_kernel_cells; i++)
@@ -184,7 +184,7 @@ void Search_tree_node::decompose_iteratively(double *workloads, double *child_ce
 {
     double length[2], boundry_values[4], child_total_workload[2];
     Midline midline;
-    int i;
+    unsigned int i;
     int iteration_count;
 
     assert(this->processing_units_id.size() > 1);
@@ -407,13 +407,13 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
     double old_total_workload = 0.0;
     double unassigned_workload = 0.0;
 
-    for(int i = 0; i < ids.size(); i++)
+    for(unsigned int i = 0; i < ids.size(); i++)
         old_total_workload += this->workloads[ids[i]];
 
-    for(int i = 0; i < ids.size(); i++)
+    for(unsigned int i = 0; i < ids.size(); i++)
         this->workloads[ids[i]] = this->workloads[ids[i]] * total_workload / old_total_workload;
 
-    for(int i = 0; i < ids.size(); i++)
+    for(unsigned int i = 0; i < ids.size(); i++)
         if(this->workloads[ids[i]] < this->min_num_points_per_chunk) {
             unassigned_workload += this->workloads[ids[i]];
             ids.erase(ids.begin() + i);
@@ -421,7 +421,7 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
 
     assert(!0.0 > 0);
     if(unassigned_workload > 0)
-        for(int i = 0; i < ids.size(); i++)
+        for(unsigned int i = 0; i < ids.size(); i++)
             this->workloads[ids[i]] += unassigned_workload / ids.size();
 }
 
@@ -641,7 +641,7 @@ void Delaunay_grid_decomposition::assign_cyclic_grid_for_single_unit()
 //TODO: get faster
 bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> chunk_id)
 {
-    for(int i = 0; i < chunk_id.size(); i++)
+    for(unsigned int i = 0; i < chunk_id.size(); i++)
         for(int j = 0; j < this->processing_info->get_num_local_proc_processing_units(); j++)
             if(this->active_processing_common_id[chunk_id[i]] == this->processing_info->get_local_proc_common_id()[j])
                 return true;
