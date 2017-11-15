@@ -11,8 +11,8 @@
 
 #define PDLN_LON 0
 #define PDLN_LAT 1
-#include "delaunay_triangulation_2D.h"
 #include "processing_unit_mgt.h"
+#include "delaunay_triangulation_2D.h"
 
 struct Midline {
     int type;

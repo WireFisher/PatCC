@@ -2,6 +2,10 @@
 #define H_DELAUNAY_2D
 
 #include <vector>
+#include <iostream>
+// #include <cmath>
+//#include <cassert>
+//#include <algorithm>
 
 template <typename T>
 class Vector2
@@ -45,19 +49,6 @@ class Vector2
 
 
 template <typename T>
-std::ostream &operator << (std::ostream &str, Vector2<T> const &point) 
-{
-	return str << "Point x: " << point.x << " y: " << point.y;
-}
-
-template <typename T>
-bool operator == (Vector2<T> v1, Vector2<T> v2)
-{
-	return (v1.x == v2.x) && (v1.y == v2.y);
-}
-
-
-template <typename T>
 class Edge
 {
 	public:
@@ -67,20 +58,6 @@ class Edge
 		Vector2<T> p1;
 		Vector2<T> p2;
 };
-
-
-template <class T>
-inline std::ostream &operator << (std::ostream &str, Edge<T> const &e)
-{
-	return str << "Edge " << e.p1 << ", " << e.p2;
-}
-
-template <class T>
-inline bool operator == (const Edge<T> & e1, const Edge<T> & e2)
-{
-	return 	(e1.p1 == e2.p1 && e1.p2 == e2.p2) ||
-			(e1.p1 == e2.p2 && e1.p2 == e2.p1);
-}
 
 
 template <typename T>
@@ -113,22 +90,6 @@ class Triangle
 		Edge<T> e2;
 		Edge<T> e3;
 };
-
-
-template <class T>
-inline std::ostream &operator << (std::ostream &str, const Triangle<T> & t)
-{
-	return str << "Triangle:" << std::endl << "\t" << t.p1 << std::endl << "\t" << t.p2 << std::endl << "\t" << t.p3 << std::endl << "\t" << t.e1 << std::endl << "\t" << t.e2 << std::endl << "\t" << t.e3 << std::endl;
-		
-}
-
-template <class T>
-inline bool operator == (const Triangle<T> &t1, const Triangle<T> &t2)
-{
-	return	(t1.p1 == t2.p1 || t1.p1 == t2.p2 || t1.p1 == t2.p3) &&
-			(t1.p2 == t2.p1 || t1.p2 == t2.p2 || t1.p2 == t2.p3) && 
-			(t1.p3 == t2.p1 || t1.p3 == t2.p2 || t1.p3 == t2.p3);
-}
 
 
 template <typename T>
@@ -231,7 +192,7 @@ class Delaunay
 
         for(typename std::vector<Edge<T> >::iterator e = polygon.begin(); e != polygon.end(); e++)
             for(typename std::vector<Edge<T> >::iterator it = badEdges.begin(); it != badEdges.end(); it++)
-                if(*it == e)
+                if(*it == *e)
                     polygon.erase(e);
         /*
         polygon.erase(std::remove_if(polygon.begin(), polygon.end(), [badEdges](Edge<T> &e){
@@ -275,5 +236,48 @@ class Delaunay
 		std::vector<Edge<T> > _edges;
 		std::vector<Vector2<T> > _vertices;
 };
+
+template <typename T>
+std::ostream & operator << (std::ostream &str, Vector2<T> const &point) 
+{
+	return str << "Point x: " << point.x << " y: " << point.y;
+}
+
+template <typename T>
+bool operator == (Vector2<T> v1, Vector2<T> v2)
+{
+	return (v1.x == v2.x) && (v1.y == v2.y);
+}
+
+
+template <class T>
+inline std::ostream &operator << (std::ostream &str, Edge<T> const &e)
+{
+	return str << "Edge " << e.p1 << ", " << e.p2;
+}
+
+template <class T>
+inline bool operator == (const Edge<T> & e1, const Edge<T> & e2)
+{
+	return 	(e1.p1 == e2.p1 && e1.p2 == e2.p2) ||
+			(e1.p1 == e2.p2 && e1.p2 == e2.p1);
+}
+
+
+template <class T>
+inline std::ostream &operator << (std::ostream &str, const Triangle<T> & t)
+{
+	return str << "Triangle:" << std::endl << "\t" << t.p1 << std::endl << "\t" << t.p2 << std::endl << "\t" << t.p3 << std::endl << "\t" << t.e1 << std::endl << "\t" << t.e2 << std::endl << "\t" << t.e3 << std::endl;
+		
+}
+
+template <class T>
+inline bool operator == (const Triangle<T> &t1, const Triangle<T> &t2)
+{
+	return	(t1.p1 == t2.p1 || t1.p1 == t2.p2 || t1.p1 == t2.p3) &&
+			(t1.p2 == t2.p1 || t1.p2 == t2.p2 || t1.p2 == t2.p3) && 
+			(t1.p3 == t2.p1 || t1.p3 == t2.p2 || t1.p3 == t2.p3);
+}
+
 
 #endif
