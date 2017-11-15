@@ -150,8 +150,16 @@ void Search_tree_node::update_processing_units_id(vector<int> proc_units_id)
 }
 
 
-int Search_tree_node::expand_boundry(double expanding_ratio)
+int Search_tree_node::generate_local_triangulation()
 {
+    std::vector<Vector2<double> > points;
+    //for(int i = 0; i < num_local_kernel_cells; i++)
+        //points.push_back(Vector2<double>(local_cells_coord[0][i], local_cells_coord[1][i]));
+    //for(int i = 0; i < num_local_expanded_cells; i++)
+        //points.push_back(Vector2<double>(expanded_cells_coord[0][i], expanded_cells_coord[1][i]));
+
+    this->triangulation = new Delaunay<double>();
+    this->triangulation->triangulate(points);
 }
 
 void Search_tree_node::decompose_with_certain_line(Midline midline, double *child_cells_coord[4], int child_num_cells[2])
@@ -471,6 +479,11 @@ bool Delaunay_grid_decomposition::two_regions_overlap(Boundry region1, Boundry r
 
 void Delaunay_grid_decomposition::search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node *node, Boundry region, vector<Search_tree_node*> &leaf_nodes_found)
 {
+    double *child_cells_coord[4];
+    int child_num_cells[2];
+    Boundry child_boundry[2];
+    vector<int> child_proc_id[2];
+
     assert(node->processing_units_id.size() > 0);
     if(node->processing_units_id.size() == 1) {
         if(this->two_regions_overlap(region, *node->kernel_boundry))
@@ -694,8 +707,8 @@ void Delaunay_grid_decomposition::search_points_in_region(Boundry region, double
                leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= region.min_lon &&
                leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat &&
                leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
-                coord_values[PDLN_LON][num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j];
-                coord_values[PDLN_LAT][num_points_found++] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
+                coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j];
+                coord_values[PDLN_LAT][(*num_points_found)++] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
             }
 }
 
@@ -704,7 +717,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 {
     Boundry old_boundry = *tree_node->expanded_boundry;
     Boundry sub_rectangles[4];
-    double *local_cells_coord[2];
+    double *expanded_cells_coord[2];
     int num_points_found;
 
     *tree_node->expanded_boundry = *tree_node->expanded_boundry * expanding_ratio;
@@ -718,16 +731,16 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
     transform_into_rectangle(old_boundry, *tree_node->expanded_boundry, sub_rectangles);
 
-    local_cells_coord[0] = new double[];
-    local_cells_coord[1] = new double[];
+    expanded_cells_coord[0] = new double[search_tree_root->num_local_kernel_cells]; //FIXME: buf too large
+    expanded_cells_coord[1] = new double[search_tree_root->num_local_kernel_cells];
     for(int i = 0; i < 4; i++){
         num_points_found = 0;
-        search_points_in_region(sub_rectangles[i], local_cells_coord, &num_points_found);
-        tree_node->add_expanded_points(local_cells_coord, num_points_found);
+        search_points_in_region(sub_rectangles[i], expanded_cells_coord, &num_points_found);
+        tree_node->add_expanded_points(expanded_cells_coord, num_points_found);
     }
 
-    delete[] local_cells_coord[0];
-    delete[] local_cells_coord[1];
+    delete[] expanded_cells_coord[0];
+    delete[] expanded_cells_coord[1];
     return 0;
 }
 
@@ -737,7 +750,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     //TODO: openmp parallel
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
         int ret;
-        expanding_ratio = DEFAULT_EXPANGDING_RATIO;
+        double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
         //while(consistency check not passed) {
             ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
             //mpi bcast ret (NOTE: local threads, using tag)
@@ -757,7 +770,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     }
     //if(expand_fail)
     //    return 1;
-    //return 0;
+    return 0;
 }
 
 int Delaunay_grid_decomposition::generate_trianglulation_for_whole_grid()

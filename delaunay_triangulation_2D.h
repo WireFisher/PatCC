@@ -67,4 +67,5 @@ class Delaunay
 		std::vector<Vector2<T> > _vertices;
 };
 
+//#include "delaunay_triangulation_2D.cxx"
 #endif

@@ -52,9 +52,9 @@ private:
     int num_local_expanded_cells;//TODO:change name
     int node_type;
     
-    vector <int> processing_units_id;
-    vector <Search_tree_node *> neighbors;
-    2D_delaunay_triangulation *triangulation;
+    vector<int> processing_units_id;
+    vector<Search_tree_node*> neighbors;
+    Delaunay<double> *triangulation;
 public:    
     void decompose_iteratively(double*, double **, int*, Boundry*, vector<int>*, int);
     void decompose_with_certain_line(Midline, double**, int*);
@@ -64,7 +64,7 @@ public:
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
     int generate_local_triangulation();
-    int expand_boundry(double);
+    void add_expanded_points(double **, int);
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
     double** get_local_cells_coord(){return this->local_cells_coord; };
@@ -79,7 +79,7 @@ private:
     Search_tree_node *search_tree_root;
     Search_tree_node *current_tree_node;
     vector<Search_tree_node*> local_leaf_nodes;
-    vector<delaunay_triangulation*> local_triangulations;
+    //vector<delaunay_triangulation*> local_triangulations;
     //int *num_local_nodes_per_thread;
     int num_total_nodes;
     //int *local_units_id;
@@ -95,10 +95,11 @@ private:
     void assign_cyclic_grid_for_single_unit();
     bool have_local_processing_units_id(vector<int>);
     void update_workloads(int, vector<int>&);
-    int expand_tree_node_boundry(Search_tree_node*, double)
+    int expand_tree_node_boundry(Search_tree_node*, double);
     void search_points_in_region(Boundry, double**, int*);
     void transform_into_rectangle(Boundry, Boundry, Boundry*);
     void search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node*, Boundry, vector<Search_tree_node*>&);
+    bool two_regions_overlap(Boundry, Boundry);
 public:
     Delaunay_grid_decomposition(int, Processing_resource*);
     Delaunay_grid_decomposition(int, Processing_resource*, int);
