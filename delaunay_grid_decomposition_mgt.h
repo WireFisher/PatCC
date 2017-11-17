@@ -55,16 +55,18 @@ private:
     vector<int> processing_units_id;
     vector<Search_tree_node*> neighbors;
     Delaunay<double> *triangulation;
-public:    
-    void decompose_iteratively(double*, double **, int*, Boundry*, vector<int>*, int);
-    void decompose_with_certain_line(Midline, double**, int*);
 
+public:    
     Search_tree_node(Search_tree_node*, double**, int, Boundry);
     ~Search_tree_node();
+    void decompose_iteratively(double*, double **, int*, Boundry*, vector<int>*, int);
+    void decompose_with_certain_line(Midline, double**, int*);
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
     void generate_local_triangulation();
     void add_expanded_points(double **, int);
+    void add_neighbors(vector<Search_tree_node*>);
+    bool check_expanded_triangle_consistency();
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
     double** get_local_cells_coord(){return this->local_cells_coord; };
@@ -96,7 +98,7 @@ private:
     bool have_local_processing_units_id(vector<int>);
     void update_workloads(int, vector<int>&);
     int expand_tree_node_boundry(Search_tree_node*, double);
-    void search_points_in_region(Boundry, double**, int*);
+    vector<Search_tree_node*> search_points_in_region(Boundry, double**, int*);
     void transform_into_rectangle(Boundry, Boundry, Boundry*);
     void search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node*, Boundry, vector<Search_tree_node*>&);
     bool two_regions_overlap(Boundry, Boundry);

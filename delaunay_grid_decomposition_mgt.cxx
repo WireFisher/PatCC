@@ -311,6 +311,22 @@ void Search_tree_node::add_expanded_points(double *coord_value[2], int num_point
 }
 
 
+void Search_tree_node::add_neighbors(vector<Search_tree_node*> neighbors)
+{
+    this->neighbors = neighbors;
+    for(unsigned int i = 0; i < neighbors.size(); i++)
+        if(find(this->neighbors.begin(), this->neighbors.end(), neighbors[i]) == this->neighbors.end())
+            this->neighbors.push_back(neighbors[i]);
+}
+
+
+bool Search_tree_node::check_expanded_triangle_consistency()
+{
+    if(this->triangulation == NULL)
+        return false;
+}
+
+
 Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_num_points_per_chunk)
 {
     double **coord_values;
@@ -692,13 +708,13 @@ void Delaunay_grid_decomposition::transform_into_rectangle(Boundry inner_boundry
 }
 
 
-void Delaunay_grid_decomposition::search_points_in_region(Boundry region, double *coord_values[2], int *num_points_found)
+vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_region(Boundry region, double *coord_values[2], int *num_points_found)
 {
     vector<Search_tree_node*> leaf_nodes_found;
     
     *num_points_found = 0;
     if(fabs(region.min_lat - region.max_lat) < PDLN_FLOAT_EQ_ERROR || fabs(region.min_lon - region.max_lon) < PDLN_FLOAT_EQ_ERROR)
-        return;
+        return leaf_nodes_found;
 
     search_leaf_nodes_overlapping_with_region_recursively(this->search_tree_root, region, leaf_nodes_found);
     for(unsigned int i = 0; i < leaf_nodes_found.size(); i++)
@@ -710,6 +726,7 @@ void Delaunay_grid_decomposition::search_points_in_region(Boundry region, double
                 coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j];
                 coord_values[PDLN_LAT][(*num_points_found)++] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
             }
+    return leaf_nodes_found;
 }
 
 
@@ -735,8 +752,10 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     expanded_cells_coord[1] = new double[search_tree_root->num_local_kernel_cells];
     for(int i = 0; i < 4; i++){
         num_points_found = 0;
-        search_points_in_region(sub_rectangles[i], expanded_cells_coord, &num_points_found);
+        vector<Search_tree_node*> leaf_nodes_found;
+        leaf_nodes_found = search_points_in_region(sub_rectangles[i], expanded_cells_coord, &num_points_found);
         tree_node->add_expanded_points(expanded_cells_coord, num_points_found);
+        tree_node->add_neighbors(leaf_nodes_found);
     }
 
     delete[] expanded_cells_coord[0];
@@ -751,7 +770,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
         int ret;
         double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
-        //while(consistency check not passed) {
+        while(!local_leaf_nodes[i]->check_expanded_triangle_consistency()) {
             ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
             //mpi bcast ret (NOTE: local threads, using tag)
             //if(one of the rets != 0) {
@@ -766,7 +785,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             //do 2D delaunay triangulation
             local_leaf_nodes[i]->generate_local_triangulation();
             //expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1
-        //}
+        }
     }
     //if(expand_fail)
     //    return 1;
