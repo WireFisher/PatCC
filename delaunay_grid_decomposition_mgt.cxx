@@ -152,7 +152,7 @@ void Search_tree_node::update_processing_units_id(vector<int> proc_units_id)
 
 void Search_tree_node::generate_local_triangulation()
 {
-    std::vector<Vector2<double> > points;
+    std::vector<Point<double> > points;
     //for(int i = 0; i < num_local_kernel_cells; i++)
         //points.push_back(Vector2<double>(local_cells_coord[0][i], local_cells_coord[1][i]));
     //for(int i = 0; i < num_local_expanded_cells; i++)

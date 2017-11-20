@@ -8,37 +8,37 @@
 //#include <algorithm>
 
 template <typename T>
-class Vector2
+class Point
 {
     public:
-        Vector2()
+        Point()
         {
             x = 0;
             y = 0;
         };
-        Vector2(T _x, T _y)
+        Point(T _x, T _y)
         {
             x = _x;
             y = _y;
         };
-        Vector2(const Vector2 &v)
+        Point(const Point &v)
         {
             x = v.x;
             y = v.y;
         };
-        void set(const Vector2 &v)
+        void set(const Point &v)
         {
             x = v.x;
             y = v.y;
         };
-        T dist2(const Vector2 &v)
+        T dist2(const Point &v)
         {
             T dx = x - v.x;
             T dy = y - v.y;
             return dx * dx + dy * dy;   
         };
 
-        float dist(const Vector2 &v)
+        float dist(const Point &v)
         {
             return sqrtf(dist2(v));
         };
@@ -52,11 +52,11 @@ template <typename T>
 class Edge
 {
     public:
-        Edge(const Vector2<T> &p1, const Vector2<T> &p2) : p1(p1), p2(p2) {};
+        Edge(const Point<T> &p1, const Point<T> &p2) : p1(p1), p2(p2) {};
         Edge(const Edge &e) : p1(e.p1), p2(e.p2) {};
 
-        Vector2<T> p1;
-        Vector2<T> p2;
+        Point<T> p1;
+        Point<T> p2;
 };
 
 
@@ -64,12 +64,12 @@ template <typename T>
 class Triangle
 {
     public:
-        Triangle(const Vector2<T> &_p1, const Vector2<T> &_p2, const Vector2<T> &_p3):  p1(_p1), p2(_p2), p3(_p3), e1(_p1, _p2), 
+        Triangle(const Point<T> &_p1, const Point<T> &_p2, const Point<T> &_p3):  p1(_p1), p2(_p2), p3(_p3), e1(_p1, _p2), 
                                                                                         e2(_p2, _p3), e3(_p3, _p1) {};
     
-        bool containsVertex(const Vector2<T> &v) { return p1 == v || p2 == v || p3 == v; };
+        bool containsVertex(const Point<T> &v) { return p1 == v || p2 == v || p3 == v; };
         
-        bool circumCircleContains(const Vector2<T> &v)
+        bool circumCircleContains(const Point<T> &v)
         {
             float ab = (p1.x * p1.x) + (p1.y * p1.y);
             float cd = (p2.x * p2.x) + (p2.y * p2.y);
@@ -83,9 +83,9 @@ class Triangle
             return dist <= circum_radius;
         };
     
-        Vector2<T> p1;
-        Vector2<T> p2;
-        Vector2<T> p3;
+        Point<T> p1;
+        Point<T> p2;
+        Point<T> p3;
         Edge<T> e1;             
         Edge<T> e2;
         Edge<T> e3;
@@ -96,7 +96,7 @@ template <typename T>
 class Delaunay
 {
     public:
-        const std::vector<Triangle<T> >& triangulate(std::vector<Vector2<T> > &vertices)
+        const std::vector<Triangle<T> >& triangulate(std::vector<Point<T> > &vertices)
         {
             // Store the vertices localy
             _vertices = vertices;
@@ -121,16 +121,16 @@ class Delaunay
             float midx = (minX + maxX) / 2.f;
             float midy = (minY + maxY) / 2.f;
 
-            Vector2<T> p1(midx - 20 * deltaMax, midy - deltaMax);
-            Vector2<T> p2(midx, midy + 20 * deltaMax);
-            Vector2<T> p3(midx + 20 * deltaMax, midy - deltaMax);   
+            Point<T> p1(midx - 20 * deltaMax, midy - deltaMax);
+            Point<T> p2(midx, midy + 20 * deltaMax);
+            Point<T> p3(midx + 20 * deltaMax, midy - deltaMax);   
 
             //std::cout << "Super triangle " << std::endl << Triangle(p1, p2, p3) << std::endl;
             
             // Create a list of triangles, and add the supertriangle in it
             _triangles.push_back(Triangle<T>(p1, p2, p3));
 
-            for(typename std::vector<Vector2<T> >::iterator p = vertices.begin(); p != vertices.end(); p++)
+            for(typename std::vector<Point<T> >::iterator p = vertices.begin(); p != vertices.end(); p++)
             {
                 //std::cout << "Traitement du point " << *p << std::endl;
                 //std::cout << "_triangles contains " << _triangles.size() << " elements" << std::endl; 
@@ -229,22 +229,22 @@ class Delaunay
 
         const std::vector<Triangle<T> >& getTriangles() const { return _triangles; };
         const std::vector<Edge<T> >& getEdges() const { return _edges; };
-        const std::vector<Vector2<T> >& getVertices() const { return _vertices; };
+        const std::vector<Point<T> >& getVertices() const { return _vertices; };
 
     private:
         std::vector<Triangle<T> > _triangles;
         std::vector<Edge<T> > _edges;
-        std::vector<Vector2<T> > _vertices;
+        std::vector<Point<T> > _vertices;
 };
 
 template <typename T>
-std::ostream & operator << (std::ostream &str, Vector2<T> const &point) 
+std::ostream & operator << (std::ostream &str, Point<T> const &point) 
 {
     return str << "Point x: " << point.x << " y: " << point.y;
 }
 
 template <typename T>
-bool operator == (Vector2<T> v1, Vector2<T> v2)
+bool operator == (Point<T> v1, Point<T> v2)
 {
     return (v1.x == v2.x) && (v1.y == v2.y);
 }
