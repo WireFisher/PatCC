@@ -118,9 +118,9 @@ TEST(GridDecompositionTest, GlobalMiddle) {
     char log_path[64];
     snprintf(log_path, 64, "log/GlobalMiddle_log.%d", mpi_rank);
     log_file = fopen(log_path, "w");
-    fprintf(log_file, "size: %d\n", grid_decomp->get_local_leaf_nodes().size());
-    for(int i = 0; i < grid_decomp->get_local_leaf_nodes().size(); i++) {
-        fprintf(log_file, "-%d: %d-\n",i ,grid_decomp->get_local_leaf_nodes()[i]->get_num_local_kernel_cells());
+    fprintf(log_file, "size: %zu\n", grid_decomp->get_local_leaf_nodes().size());
+    for(unsigned int i = 0; i < grid_decomp->get_local_leaf_nodes().size(); i++) {
+        fprintf(log_file, "-%u: %d-\n",i ,grid_decomp->get_local_leaf_nodes()[i]->get_num_local_kernel_cells());
         for(int j=0; j < grid_decomp->get_local_leaf_nodes()[i]->get_num_local_kernel_cells(); j++)
             fprintf(log_file, "  (%lf, %lf)\n", grid_decomp->get_local_leaf_nodes()[i]->get_local_cells_coord()[0][j], grid_decomp->get_local_leaf_nodes()[i]->get_local_cells_coord()[1][j]);
     }
