@@ -3,9 +3,6 @@
 
 #include <vector>
 #include <iostream>
-//#include <cmath>
-//#include <cassert>
-//#include <algorithm>
 
 
 template <typename T>
@@ -18,13 +15,7 @@ class Point
         Point(): x(0), y(0) {};
         Point(T _x, T _y): x(_x), y(_y) {};
         Point(const Point &v): x(v.x), y(v.y) {};
-        T dist2(const Point &v) { return (x - v.x) * (x - v.x) + (y - v.y) * (y - v.y); };
-        float dist(const Point &v) { return sqrtf(dist2(v)); };
-        /*void set(const Point &v)
-        {
-            x = v.x;
-            y = v.y;
-        };*/
+        float dist(const Point &v) { return sqrtf((x - v.x) * (x - v.x) + (y - v.y) * (y - v.y)); };
 
         T x;
         T y;
@@ -48,11 +39,10 @@ template <typename T>
 class Triangle
 {
     public:
-        Triangle(const Point<T> &_p1, const Point<T> &_p2, const Point<T> &_p3):  p1(_p1), p2(_p2), p3(_p3), e1(_p1, _p2), 
-                                                                                        e2(_p2, _p3), e3(_p3, _p1) {};
+        Triangle(const Point<T> &_p1, const Point<T> &_p2, const Point<T> &_p3): p1(_p1), p2(_p2), p3(_p3), e1(_p1, _p2), 
+                                                                                 e2(_p2, _p3), e3(_p3, _p1) {};
     
         bool containsVertex(const Point<T> &v) { return p1 == v || p2 == v || p3 == v; };
-        
         bool circumCircleContains(const Point<T> &);
     
         Point<T> p1;
@@ -85,6 +75,7 @@ class Delaunay
 {
     public:
         const std::vector<Triangle<T> >& triangulate(std::vector<Point<T> > &);
+        void create_relationships_from_vertices_to_triangles();
 
         const std::vector<Triangle<T> >& getTriangles() const { return _triangles; };
         const std::vector<Edge<T> >& getEdges() const { return _edges; };
@@ -95,6 +86,14 @@ class Delaunay
         std::vector<Edge<T> > _edges;
         std::vector<Point<T> > _vertices;
 };
+
+
+template <typename T>
+void Delaunay<T>::create_relationships_from_vertices_to_triangles()
+{
+    for(unsigned int i = 0; i < _triangles.size(); i++){
+    }
+}
 
 
 template <typename T>
