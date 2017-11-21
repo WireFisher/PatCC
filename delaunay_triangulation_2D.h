@@ -157,10 +157,12 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
             }
         }
 
-        for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end(); t++)
-            for(typename std::vector<Triangle<T> >::iterator bt = badTriangles.begin(); bt != badTriangles.end(); bt++)
-                if(*bt == *t)
+        for(typename std::vector<Triangle<T> >::iterator bt = badTriangles.begin(); bt != badTriangles.end(); bt++)
+            for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end(); t++)
+                if(*bt == *t) {
                     _triangles.erase(t);
+                    break;
+                }
         
     /*    
         _triangles.erase(std::remove_if(_triangles.begin(), _triangles.end(), [badTriangles](Triangle<T> &t){
@@ -191,10 +193,12 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
             }
         }
 
-        for(typename std::vector<Edge<T> >::iterator e = polygon.begin(); e != polygon.end(); e++)
-            for(typename std::vector<Edge<T> >::iterator it = badEdges.begin(); it != badEdges.end(); it++)
-                if(*it == *e)
+        for(typename std::vector<Edge<T> >::iterator it = badEdges.begin(); it != badEdges.end(); it++)
+            for(typename std::vector<Edge<T> >::iterator e = polygon.begin(); e != polygon.end(); e++)
+                if(*it == *e) {
                     polygon.erase(e);
+                    break;
+                }
         /*
         polygon.erase(std::remove_if(polygon.begin(), polygon.end(), [badEdges](Edge<T> &e){
             for(std::vector<Edge<T> >::iterator it = badEdges.begin(); it != badEdges.end(); it++)
@@ -210,9 +214,11 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
     
     }
 
-    for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end(); t++)
+    for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end();)
         if(t->containsVertex(p1) || t->containsVertex(p2) || t->containsVertex(p3))
             _triangles.erase(t);
+        else
+            t++;
     /*
     _triangles.erase(std::remove_if(_triangles.begin(), _triangles.end(), [p1, p2, p3](Triangle<T> &t){
         return t.containsVertex(p1) || t.containsVertex(p2) || t.containsVertex(p3);
