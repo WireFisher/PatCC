@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <iostream>
+//#include <unistd.h>
 
 
 template <typename T>
@@ -182,6 +183,8 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
         {
             for(typename std::vector<Edge<T> >::iterator e2 = polygon.begin(); e2 != polygon.end(); e2++)
             {
+                //printf("e1: %p, e2: %p. begin: %p, end: %p\n", e1, e2, polygon.begin(), polygon.end());
+                //sleep(0.1);
                 if(e1 == e2)
                     continue;
                 
