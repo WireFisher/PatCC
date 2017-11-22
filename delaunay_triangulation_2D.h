@@ -28,11 +28,11 @@ template <typename T>
 class Edge
 {
     public:
-        Edge(const Point<T> &p1, const Point<T> &p2) : p1(p1), p2(p2) {};
-        Edge(const Edge &e) : p1(e.p1), p2(e.p2) {};
+        Edge(Point<T> *p1, Point<T> *p2) : p1(p1), p2(p2) {};
+        Edge(const Edge e) : p1(e.p1), p2(e.p2) {};
 
-        Point<T> p1;
-        Point<T> p2;
+        Point<T> *p1;
+        Point<T> *p2;
 };
 
 
@@ -40,18 +40,29 @@ template <typename T>
 class Triangle
 {
     public:
-        Triangle(const Point<T> &_p1, const Point<T> &_p2, const Point<T> &_p3): p1(_p1), p2(_p2), p3(_p3), e1(_p1, _p2), 
-                                                                                 e2(_p2, _p3), e3(_p3, _p1) {};
+        Triangle(const Point<T> *_p1, const Point<T> *_p2, const Point<T> *_p3): p1(_p1), p2(_p2), p3(_p3)
+        {
+            e1 = new Edge<T>(_p1, _p2);
+            e2 = new Edge<T>(_p2, _p3);
+            e3 = new Edge<T>(_p3, _p1);
+        };
+
+        ~Triangle()
+        {
+            delete e1;
+            delete e2;
+            delete e3;
+        }
     
-        bool containsVertex(const Point<T> &v) { return p1 == v || p2 == v || p3 == v; };
+        bool containsVertex(const Point<T> &v) { return *p1 == v || *p2 == v || *p3 == v; };
         bool circumCircleContains(const Point<T> &);
     
-        Point<T> p1;
-        Point<T> p2;
-        Point<T> p3;
-        Edge<T> e1;             
-        Edge<T> e2;
-        Edge<T> e3;
+        Point<T> *p1;
+        Point<T> *p2;
+        Point<T> *p3;
+        Edge<T> *e1;             
+        Edge<T> *e2;
+        Edge<T> *e3;
 };
 
 
@@ -179,6 +190,7 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
         }), _triangles.end());
     */
         std::vector<Edge<T> > badEdges;
+        //printf("badEdges: %u, polygon: %u.\n", badEdges.size(), polygon.size());
         for(typename std::vector<Edge<T> >::iterator e1 = polygon.begin(); e1 != polygon.end(); e1++)
         {
             for(typename std::vector<Edge<T> >::iterator e2 = polygon.begin(); e2 != polygon.end(); e2++)
@@ -254,14 +266,14 @@ bool operator == (Point<T> v1, Point<T> v2)
 template <class T>
 inline std::ostream &operator << (std::ostream &str, Edge<T> const &e)
 {
-    return str << "Edge " << e.p1 << ", " << e.p2;
+    return str << "Edge " << *e.p1 << ", " << *e.p2;
 }
 
 template <class T>
 inline bool operator == (const Edge<T> & e1, const Edge<T> & e2)
 {
-    return  (e1.p1 == e2.p1 && e1.p2 == e2.p2) ||
-            (e1.p1 == e2.p2 && e1.p2 == e2.p1);
+    return  (*e1.p1 == *e2.p1 && *e1.p2 == *e2.p2) ||
+            (*e1.p1 == *e2.p2 && *e1.p2 == *e2.p1);
 }
 
 

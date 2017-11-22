@@ -61,15 +61,15 @@ void write_to_file(cv::Mat mat, char *filename)
 TEST(DelaunayTriangulationTest, Basic) {
     std::vector<Point<double> > points; 
     
-    for(int i = 0; i < 20; i++)
-        for(int j = 0; j < 20; j++)
-            points.push_back(Point<double>(0 + i * 10, 0 + j * 10));
+    for(int i = 0; i < 60; i++)
+        for(int j = 0; j < 60; j++)
+            points.push_back(Point<double>(0 + i * 20, 0 + j * 20));
 
     Delaunay<double> triangulation;
     triangulation.triangulate(points);
     std::vector<Edge<double> > edges = triangulation.getEdges();
 
-    cv::Mat mat = cv::Mat::zeros(220, 220, CV_8UC3);
+    cv::Mat mat = cv::Mat::zeros(1200, 1200, CV_8UC3);
     //createAlphaMat(mat);
     for(std::vector<Edge<double> >::iterator e = edges.begin(); e != edges.end(); e++)
         draw_line<double>(mat, e->p1, e->p2);
@@ -80,15 +80,15 @@ TEST(DelaunayTriangulationTest, Basic) {
 TEST(DelaunayTriangulationTest, Random) {
     std::vector<Point<double> > points; 
     
-    for(int i = 0; i < 20; i++)
-        for(int j = 0; j < 20; j++)
-            points.push_back(Point<double>(fRand(0.0, 219.0), fRand(0.0, 219.0)));
+    for(int i = 0; i < 60; i++)
+        for(int j = 0; j < 60; j++)
+            points.push_back(Point<double>(fRand(0.0, 2400.0), fRand(0.0, 2400.0)));
 
     Delaunay<double> triangulation;
     triangulation.triangulate(points);
     std::vector<Edge<double> > edges = triangulation.getEdges();
 
-    cv::Mat mat = cv::Mat::zeros(220, 220, CV_8UC3);
+    cv::Mat mat = cv::Mat::zeros(2400, 2400, CV_8UC3);
     //createAlphaMat(mat);
     for(std::vector<Edge<double> >::iterator e = edges.begin(); e != edges.end(); e++)
         draw_line<double>(mat, e->p1, e->p2);
