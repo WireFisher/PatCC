@@ -77,13 +77,8 @@ TEST(DelaunayTriangulationTest, Basic) {
     write_to_file(mat, "log/image1.png");
 };
 
-TEST(DelaunayTriangulationTest, Random) {
-    std::vector<Point<double> > points; 
-    
-    for(int i = 0; i < 60; i++)
-        for(int j = 0; j < 60; j++)
-            points.push_back(Point<double>(fRand(0.0, 2400.0), fRand(0.0, 2400.0)));
-
+static inline void do_triangulation_plot(std::vector<Point<double> > points, char* img_path)
+{
     Delaunay<double> triangulation;
     triangulation.triangulate(points);
     std::vector<Edge<double> > edges = triangulation.getEdges();
@@ -93,5 +88,43 @@ TEST(DelaunayTriangulationTest, Random) {
     for(std::vector<Edge<double> >::iterator e = edges.begin(); e != edges.end(); e++)
         draw_line<double>(mat, e->p1, e->p2);
 
-    write_to_file(mat, "log/image2.png");
+    write_to_file(mat, img_path);
+};
+
+TEST(DelaunayTriangulationTest, Random) {
+    std::vector<Point<double> > points;
+    std::vector<Point<double> > points_part;
+    
+    for(int i = 0; i < 60; i++)
+        for(int j = 0; j < 60; j++)
+            points.push_back(Point<double>(fRand(0.0, 2400.0), fRand(0.0, 2400.0)));
+
+    do_triangulation_plot(points, "log/image2-0.png");
+
+    for(unsigned int i = 0; i < points.size(); i++)
+        if(points[i].x < 1800 && points[i].y < 1800)
+            points_part.push_back(points[i]);
+
+    do_triangulation_plot(points_part, "log/image2-1.png");
+
+    points_part.clear();
+    for(unsigned int i = 0; i < points.size(); i++)
+        if(points[i].x > 600 && points[i].y > 600)
+            points_part.push_back(points[i]);
+
+    do_triangulation_plot(points_part, "log/image2-2.png");
+
+    points_part.clear();
+    for(unsigned int i = 0; i < points.size(); i++)
+        if(points[i].x > 600 && points[i].y < 1800)
+            points_part.push_back(points[i]);
+
+    do_triangulation_plot(points_part, "log/image2-3.png");
+
+    points_part.clear();
+    for(unsigned int i = 0; i < points.size(); i++)
+        if(points[i].x < 1800 && points[i].y > 600)
+            points_part.push_back(points[i]);
+
+    do_triangulation_plot(points_part, "log/image2-4.png");
 };
