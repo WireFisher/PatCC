@@ -69,13 +69,13 @@ class Triangle
 template <typename T>
 bool Triangle<T>::circumCircleContains(const Point<T> &v)
 {
-    float ab = (p1.x * p1.x) + (p1.y * p1.y);
-    float cd = (p2.x * p2.x) + (p2.y * p2.y);
-    float ef = (p3.x * p3.x) + (p3.y * p3.y);
+    float ab = (p1->x * p1->x) + (p1->y * p1->y);
+    float cd = (p2->x * p2->x) + (p2->y * p2->y);
+    float ef = (p3->x * p3->x) + (p3->y * p3->y);
 
-    float circum_x = (ab * (p3.y - p2.y) + cd * (p1.y - p3.y) + ef * (p2.y - p1.y)) / (p1.x * (p3.y - p2.y) + p2.x * (p1.y - p3.y) + p3.x * (p2.y - p1.y)) / 2.f;
-    float circum_y = (ab * (p3.x - p2.x) + cd * (p1.x - p3.x) + ef * (p2.x - p1.x)) / (p1.y * (p3.x - p2.x) + p2.y * (p1.x - p3.x) + p3.y * (p2.x - p1.x)) / 2.f;
-    float circum_radius = sqrtf(((p1.x - circum_x) * (p1.x - circum_x)) + ((p1.y - circum_y) * (p1.y - circum_y)));
+    float circum_x = (ab * (p3->y - p2->y) + cd * (p1->y - p3->y) + ef * (p2->y - p1->y)) / (p1->x * (p3->y - p2->y) + p2->x * (p1->y - p3->y) + p3->x * (p2->y - p1->y)) / 2.f;
+    float circum_y = (ab * (p3->x - p2->x) + cd * (p1->x - p3->x) + ef * (p2->x - p1->x)) / (p1->y * (p3->x - p2->x) + p2->y * (p1->x - p3->x) + p3->y * (p2->x - p1->x)) / 2.f;
+    float circum_radius = sqrtf(((p1->x - circum_x) * (p1->x - circum_x)) + ((p1->y - circum_y) * (p1->y - circum_y)));
 
     float dist = sqrtf(((v.x - circum_x) * (v.x - circum_x)) + ((v.y - circum_y) * (v.y - circum_y)));
     return dist <= circum_radius;
@@ -95,8 +95,8 @@ class Delaunay
 
     private:
         std::vector<Triangle<T> > _triangles;
-        std::vector<Edge<T> > _edges;
-        std::vector<Point<T> > _vertices;
+        std::vector<Edge<T>* > _edges;
+        std::vector<Point<T>* > _vertices;
 };
 
 
@@ -120,7 +120,7 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
     float maxX = minX;
     float maxY = minY;
 
-    for(std::size_t i = 0; i < vertices.size(); ++i) 
+    for(unsigned int i = 0; i < vertices.size(); ++i) 
     {
         if (vertices[i].x < minX) minX = vertices[i].x;
         if (vertices[i].y < minY) minY = vertices[i].y;
