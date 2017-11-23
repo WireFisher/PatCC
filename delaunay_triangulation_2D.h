@@ -29,7 +29,7 @@ class Edge
 {
     public:
         Edge(Point<T> *p1, Point<T> *p2) : p1(p1), p2(p2) {};
-        Edge(const Edge e) : p1(e.p1), p2(e.p2) {};
+        Edge(const Edge<T> &e) : p1(e.p1), p2(e.p2) {};
 
         Point<T> *p1;
         Point<T> *p2;
@@ -40,7 +40,7 @@ template <typename T>
 class Triangle
 {
     public:
-        Triangle(const Point<T> *_p1, const Point<T> *_p2, const Point<T> *_p3): p1(_p1), p2(_p2), p3(_p3)
+        Triangle(Point<T> *_p1, Point<T> *_p2, Point<T> *_p3): p1(_p1), p2(_p2), p3(_p3)
         {
             e1 = new Edge<T>(_p1, _p2);
             e2 = new Edge<T>(_p2, _p3);
@@ -95,7 +95,7 @@ class Delaunay
 
     private:
         std::vector<Triangle<T> > _triangles;
-        std::vector<Edge<T>* > _edges;
+        std::vector<Edge<T> > _edges;
         std::vector<Point<T>* > _vertices;
 };
 
@@ -112,7 +112,8 @@ template <typename T>
 const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> > &vertices)
 {
     // Store the vertices localy
-    _vertices = vertices;
+    for(unsigned int i = 0; i < vertices.size(); i++)
+        _vertices.push_back(new Point<T>(vertices[i]));
 
     // Determinate the super triangle
     float minX = vertices[0].x;
@@ -141,9 +142,10 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
     //std::cout << "Super triangle " << std::endl << Triangle(p1, p2, p3) << std::endl;
     
     // Create a list of triangles, and add the supertriangle in it
-    _triangles.push_back(Triangle<T>(p1, p2, p3));
+    _triangles.push_back(Triangle<T>(&p1, &p2, &p3));
 
-    for(typename std::vector<Point<T> >::iterator p = vertices.begin(); p != vertices.end(); p++)
+    //for(typename std::vector<Point<T> >::iterator p = vertices.begin(); p != vertices.end(); p++)
+    for(unsigned int point_idx = 0; point_idx < _vertices.size(); point_idx++)
     {
         //std::cout << "Traitement du point " << *p << std::endl;
         //std::cout << "_triangles contains " << _triangles.size() << " elements" << std::endl; 
@@ -155,13 +157,13 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
         {
             //std::cout << "Processing " << std::endl << *t << std::endl;
 
-            if(t->circumCircleContains(*p))
+            if(t->circumCircleContains(*_vertices[point_idx]))
             {
                 //std::cout << "Pushing bad triangle " << *t << std::endl;
                 badTriangles.push_back(*t);
-                polygon.push_back(t->e1);   
-                polygon.push_back(t->e2);   
-                polygon.push_back(t->e3);   
+                polygon.push_back(*t->e1);
+                polygon.push_back(*t->e2);
+                polygon.push_back(*t->e3);
             }
             else
             {
@@ -191,19 +193,21 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
     */
         std::vector<Edge<T> > badEdges;
         //printf("badEdges: %u, polygon: %u.\n", badEdges.size(), polygon.size());
-        for(typename std::vector<Edge<T> >::iterator e1 = polygon.begin(); e1 != polygon.end(); e1++)
+        //for(typename std::vector<Edge<T> >::iterator e1 = polygon.begin(); e1 != polygon.end(); e1++)
+        for(unsigned int e1_idx = 0 ; e1_idx < polygon.size(); e1_idx++)
         {
-            for(typename std::vector<Edge<T> >::iterator e2 = polygon.begin(); e2 != polygon.end(); e2++)
+            //for(typename std::vector<Edge<T> >::iterator e2 = polygon.begin(); e2 != polygon.end(); e2++)
+            for(unsigned int e2_idx = 0 ; e2_idx < polygon.size(); e2_idx++)
             {
                 //printf("e1: %p, e2: %p. begin: %p, end: %p\n", e1, e2, polygon.begin(), polygon.end());
                 //sleep(0.1);
-                if(e1 == e2)
+                if(e1_idx == e2_idx)
                     continue;
                 
-                if(*e1 == *e2)
+                if(polygon[e1_idx] == polygon[e2_idx])
                 {
-                    badEdges.push_back(*e1);    
-                    badEdges.push_back(*e2);    
+                    badEdges.push_back(polygon[e1_idx]);
+                    badEdges.push_back(polygon[e2_idx]);
                 }
             }
         }
@@ -225,7 +229,7 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
         }), polygon.end());
         */
         for(typename std::vector<Edge<T> >::iterator e = polygon.begin(); e != polygon.end(); e++)
-            _triangles.push_back(Triangle<T>(e->p1, e->p2, *p));
+            _triangles.push_back(Triangle<T>(e->p1, e->p2, _vertices[point_idx]));
     
     }
 
@@ -241,9 +245,9 @@ const std::vector<Triangle<T> >& Delaunay<T>::triangulate(std::vector<Point<T> >
     */
     for(typename std::vector<Triangle<T> >::iterator t = _triangles.begin(); t != _triangles.end(); t++)
     {
-        _edges.push_back(t->e1);
-        _edges.push_back(t->e2);
-        _edges.push_back(t->e3);
+        _edges.push_back(*t->e1);
+        _edges.push_back(*t->e2);
+        _edges.push_back(*t->e3);
     } 
 
     return _triangles;

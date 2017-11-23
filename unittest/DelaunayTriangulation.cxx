@@ -72,7 +72,7 @@ TEST(DelaunayTriangulationTest, Basic) {
     cv::Mat mat = cv::Mat::zeros(1200, 1200, CV_8UC3);
     //createAlphaMat(mat);
     for(std::vector<Edge<double> >::iterator e = edges.begin(); e != edges.end(); e++)
-        draw_line<double>(mat, e->p1, e->p2);
+        draw_line<double>(mat, *e->p1, *e->p2);
 
     write_to_file(mat, "log/image1.png");
 };
@@ -86,7 +86,7 @@ static inline void do_triangulation_plot(std::vector<Point<double> > points, cha
     cv::Mat mat = cv::Mat::zeros(2400, 2400, CV_8UC3);
     //createAlphaMat(mat);
     for(std::vector<Edge<double> >::iterator e = edges.begin(); e != edges.end(); e++)
-        draw_line<double>(mat, e->p1, e->p2);
+        draw_line<double>(mat, *e->p1, *e->p2);
 
     write_to_file(mat, img_path);
 };
