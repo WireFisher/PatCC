@@ -2,14 +2,8 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-#include "../processing_unit_mgt.h"
-#include "../delaunay_grid_decomposition_mgt.h"
-#include "../delaunay_triangulation_2D.h"
-
+#include "../delaunay_voronoi.h"
 #include <opencv2/opencv.hpp>
-
-extern Grid_info_manager *grid_info_mgr;
-extern Process_thread_manager *process_thread_mgr;
 
 using ::testing::Return;
 using ::testing::_;
@@ -36,12 +30,12 @@ void createAlphaMat(cv::Mat &mat)
 };
 
 template <typename T>
-void draw_line(cv::Mat img, Point<T> start, Point<T> end)
+void draw_line(cv::Mat img, Point start, Point end)
 {
     int thickness = 1;
     int line_type = cv::LINE_8;
 
-    cv::line(img, cv::Point(start.x, start.y), cv::Point(end.x, end.y), cv::Scalar(255, 255, 255), thickness, line_type);
+    cv::line(img, cv::Point(start.lon, start.lat), cv::Point(end.lon, end.lat), cv::Scalar(255, 255, 255), thickness, line_type);
 }
 
 void write_to_file(cv::Mat mat, char *filename)
@@ -57,7 +51,7 @@ void write_to_file(cv::Mat mat, char *filename)
     }
     fprintf(stdout, "Saved PNG file with alpha data.\n");
 }
-
+/*
 TEST(DelaunayTriangulationTest, Basic) {
     std::vector<Point<double> > points; 
     
@@ -76,31 +70,56 @@ TEST(DelaunayTriangulationTest, Basic) {
 
     write_to_file(mat, "log/image1.png");
 };
-
-static inline void do_triangulation_plot(std::vector<Point<double> > points, char* img_path)
+*/
+static inline void do_triangulation_plot(int num_points, double *lat_values, double *lon_values, 
+                                         double min_lon, double max_lon, double min_lat, double max_lat,
+                                         bool *redundant_cell_mark, char* img_path)
 {
+    /*
     Delaunay<double> triangulation;
     triangulation.triangulate(points);
     std::vector<Edge<double> > edges = triangulation.getEdges();
+    */
+    double *vertex_lon_values, *vertex_lat_values;
+    int num_vertexes;
+    std::vector<Pure_Edge> edges;
 
-    cv::Mat mat = cv::Mat::zeros(2400, 2400, CV_8UC3);
+    Delaunay_Voronoi* delau;
+
+    delau = new Delaunay_Voronoi(num_points, lat_values, lon_values, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, &vertex_lon_values, &vertex_lat_values, &num_vertexes);
+    edges = delau->get_all_delaunay_edge();
+
+    cv::Mat mat = cv::Mat::zeros(max_lat*10, max_lon*10, CV_8UC3);
     //createAlphaMat(mat);
-    for(std::vector<Edge<double> >::iterator e = edges.begin(); e != edges.end(); e++)
-        draw_line<double>(mat, *e->p1, *e->p2);
+    for(unsigned int i = 0; edges.size(); i++)
+        draw_line<double>(mat, edges[i].v[0], edges[i].v[1]);
 
     write_to_file(mat, img_path);
 };
 
 TEST(DelaunayTriangulationTest, Random) {
-    std::vector<Point<double> > points;
-    std::vector<Point<double> > points_part;
     
-    for(int i = 0; i < 60; i++)
-        for(int j = 0; j < 60; j++)
-            points.push_back(Point<double>(fRand(0.0, 2400.0), fRand(0.0, 2400.0)));
+    int num_points = 360;
+    double min_lat = 10.0;
+    double max_lat = 80.0;
+    double min_lon = 10.0;
+    double max_lon = 80.0;
+    double *lat, *lon;
+    bool *redundant_cell_mark;
 
-    do_triangulation_plot(points, "log/image2-0.png");
+    lat = new double[num_points];
+    lon = new double[num_points];
+    redundant_cell_mark = new bool[num_points];
 
+    for(int i = 0; i < num_points; i++) {
+        lat[i] = fRand(min_lat, max_lat);
+        lon[i] = fRand(min_lon, max_lon);
+        redundant_cell_mark[i] = false;
+    }
+
+    do_triangulation_plot(num_points, lat, lon, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image2-0.png");
+
+    /*
     for(unsigned int i = 0; i < points.size(); i++)
         if(points[i].x < 1800 && points[i].y < 1800)
             points_part.push_back(points[i]);
@@ -127,4 +146,5 @@ TEST(DelaunayTriangulationTest, Random) {
             points_part.push_back(points[i]);
 
     do_triangulation_plot(points_part, "log/image2-4.png");
+    */
 };

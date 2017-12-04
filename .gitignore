@@ -4,3 +4,5 @@
 pDelaunay
 run_all_test
 log/*
+tmp*
+backup/*
