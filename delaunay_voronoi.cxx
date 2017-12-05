@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <sys/time.h>
 
-
+#define PI 3.1415926
 #define FLOAT_ERROR 1e-10
 
 Delaunay_Voronoi *current_delaunay_voronoi = NULL; //thread safe?
@@ -159,12 +159,60 @@ Edge::~Edge()
 }
 
 
+double Delaunay_Voronoi::calculate_angle(const Point *center, const Point *p1, const Point *p2)
+{
+    double ax, ay, bx, by;
+    assert(center != p1 && center != p2);
+
+    ax = p1->x - center->x;
+    ay = p1->y - center->y;
+    bx = p2->x - center->x;
+    by = p2->y - center->y;
+    return acos((ax*bx+ay*by) / sqrt((ax*ax+ay*ay)*(bx*bx+by*by)));
+}
+
+
+const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const Point *p2, const Point *p3, const Point *p4)
+{
+    const Point *p = p1;
+    if(p2->x < p->x || (p2->x == p->x && p2->y < p->y)) p = p2;
+    if(p3->x < p->x || (p3->x == p->x && p3->y < p->y)) p = p3;
+    if(p4->x < p->x || (p4->x == p->x && p4->y < p->y)) p = p4;
+    return p;
+}
+
+
+bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
+{
+    double sum_angle_value;
+
+    sum_angle_value = calculate_angle(pt, edge->head, edge->tail) + calculate_angle(edge->twin_edge->prev_edge_in_triangle->head, edge->head, edge->tail);
+    if(sum_angle_value > PI)
+        return true;
+    if(sum_angle_value == PI){
+        if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
+           edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
+            return false;
+        else
+            return true;
+    }
+    return false;
+}
+
+
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
     if (!edge->twin_edge)
         return true;
 
-    return !edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
+    int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
+    if (ret == -1)
+        return true;
+
+    if (ret == 0)
+        return !is_angle_too_large(pt, edge);
+
+    return false;
 }
 
 
@@ -301,9 +349,21 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
 }
 
 
-bool Triangle::circum_circle_contains(Point *p)
+/*
+ * Input : Point to be checked
+ * Return:  1    point is in circum circle
+ *          0    point is on circum circle
+ *         -1    point is out of circum circle
+ */
+int Triangle::circum_circle_contains(Point *p)
 {
-    return sqrt(((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]))) <= circum_radius;
+    double dist = sqrt(((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1])));
+    if(dist < circum_radius)
+        return 1;
+    if(dist == circum_radius)
+        return 0;
+    if(dist > circum_radius)
+        return -1;
 }
 
 

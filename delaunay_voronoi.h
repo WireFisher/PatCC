@@ -92,7 +92,7 @@ class Triangle
         vector<Triangle*> children;
         double circum_center[2];
         double circum_radius;
-        bool circum_circle_contains(Point*);
+        int circum_circle_contains(Point*);
 
         Triangle(const Triangle &triangle);
         void initialize_triangle_with_edges(Edge*, Edge*, Edge*);
@@ -141,11 +141,14 @@ class Delaunay_Voronoi
         void get_convex_set(int, double*, double*, double, double, int &, int **);
         Triangle* initialize_super_triangle(int, double*, double*, bool*);
         void clear_triangle_containing_virtual_point();
+        bool is_angle_too_large(const Point *pt, const Edge *edge);
+        const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
+        double calculate_angle(const Point *, const Point *, const Point *);
 
     public:
         Delaunay_Voronoi(int, double*, double*, bool, double, double, double, double, bool*);
         ~Delaunay_Voronoi();
-        static bool is_triangle_legal(const Point *pt, const Edge *edge);
+        bool is_triangle_legal(const Point *pt, const Edge *edge);
         void legalize_triangles(Point *pt, Edge *edge, vector<Triangle*>*);
         Edge *allocate_edge(Point *head, Point *tail);
         Triangle *allocate_Triangle(Point*, Point*, Point*);
