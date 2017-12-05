@@ -66,6 +66,10 @@ double Point::calculate_distance(const Point *pt) const
     return sqrt(dx * dx + dy * dy);
 }
 
+Point::~Point()
+{
+}
+
 Point operator-(Point p1, Point p2)
 {
     return Point(p1.x - p2.x, p1.y - p2.y, -1);
@@ -150,6 +154,8 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
     if (!edge->twin_edge)
         return true;
 
+    return !edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
+    /*
     const Point *vi = edge->head;
     const Point *vj = edge->next_edge_in_triangle->head;
     const Point *vk = edge->twin_edge->prev_edge_in_triangle->head;
@@ -163,6 +169,7 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
     if (det(&temp_point1, &temp_point2, &temp_point3) >= FLOAT_ERROR)
         return false;
     else return true;
+    */
 }
 
 void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle*> *leaf_triangles)
@@ -291,7 +298,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     this->edge[2]->triangle = this;
 }
 
-bool Triangle::circumCircleContains(Point *p)
+bool Triangle::circum_circle_contains(Point *p)
 {
     return sqrt(((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]))) <= circum_radius;
 }
@@ -320,6 +327,32 @@ int Triangle::find_best_candidate_point()
     }
 
     return best_candidate_id;
+}
+
+void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, vector<Triangle*> *triangles)
+{
+    bool find_triangle;
+
+
+    for (int i = 0; i < pnts->size(); i ++) {
+        find_triangle = false;
+        for (int j = 0; j < triangles->size(); j ++) {
+            if (!((*triangles)[j])->is_leaf)
+                continue;
+            if ((*pnts)[i]->position_to_triangle(((*triangles)[j])) >= 0) {
+                (*pnts)[i]->current_triangle = (*triangles)[j];
+                (*triangles)[j]->remained_points_in_triangle.push_back((*pnts)[i]);
+                find_triangle = true;
+                break;
+            }
+        }
+        if (!find_triangle) 
+            if (is_global_grid)
+                //EXECUTION_REPORT(REPORT_ERROR, -1, false, "CoR may have bugs, please contact liuli-cess@tsinghua.edu.cn");
+                assert(false);
+            else //EXECUTION_REPORT(REPORT_ERROR, -1, false, "please enlarge the boundary of the regional grid"); 
+                assert(false);
+    }
 }
 
 void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
@@ -466,7 +499,7 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
 {
     double minX, maxX, minY, maxY;
     double dx, dy, deltaMax, midx, midy;
-    Point *p1, *p2, *p3;
+    Edge *e1, *e2, *e3;
     Triangle *super;
 
     assert(x != NULL);
@@ -488,12 +521,17 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
     midx = (minX + maxX) / 2.0;
     midy = (minY + maxY) / 2.0;
 
-    p1 = new Point(midx - 20 * deltaMax, midy - deltaMax, -1);
-    p2 = new Point(midx, midy + 20 * deltaMax , -1);
-    p3 = new Point(midx + 20 * deltaMax, midy - deltaMax, -1);
-    super = current_delaunay_voronoi->allocate_Triangle(current_delaunay_voronoi->allocate_edge(p1, p2),
-                                                        current_delaunay_voronoi->allocate_edge(p2, p3),
-                                                        current_delaunay_voronoi->allocate_edge(p3, p1));
+    virtual_point[0] = new Point(midx, midy + 20 * deltaMax , -1);
+    virtual_point[1] = new Point(midx - 20 * deltaMax, midy - deltaMax, -1);
+    virtual_point[2] = new Point(midx + 20 * deltaMax, midy - deltaMax, -1);
+
+    //e1 = current_delaunay_voronoi->allocate_edge(virtual_point[1], virtual_point[0]);
+    //e2 = current_delaunay_voronoi->allocate_edge(virtual_point[0], virtual_point[2]);
+    //e3 = current_delaunay_voronoi->allocate_edge(virtual_point[2], virtual_point[1]);
+    e1 = current_delaunay_voronoi->allocate_edge(virtual_point[0], virtual_point[1]);
+    e2 = current_delaunay_voronoi->allocate_edge(virtual_point[1], virtual_point[2]);
+    e3 = current_delaunay_voronoi->allocate_edge(virtual_point[2], virtual_point[0]);
+    super = current_delaunay_voronoi->allocate_Triangle(e1, e2, e3);
 
     cells = new Cell[num_points];
     for (int i = 0; i < num_points; i ++) {
@@ -531,7 +569,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *l
 
     /* Below is for testing */
     gettimeofday(&end, NULL);
-    printf("Delaunay Time: %ld\n", end.tv_sec - start.tv_sec);   
+    printf("Delaunay time consuming: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);   
 }
 
 Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
@@ -558,4 +596,19 @@ Triangle *Delaunay_Voronoi::allocate_Triangle(Edge *edge1, Edge *edge2, Edge *ed
     triangle_pool.push_back(new_triangle);
 
     return new_triangle;
+}
+
+
+vector<Edge*> Delaunay_Voronoi::get_all_delaunay_edge()
+{
+    vector<Edge*> all_edges;
+
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i ++)
+        if(result_leaf_triangles[i]->is_leaf) {
+            all_edges.push_back(result_leaf_triangles[i]->edge[0]);
+            all_edges.push_back(result_leaf_triangles[i]->edge[1]);
+            all_edges.push_back(result_leaf_triangles[i]->edge[2]);
+        }
+
+    return all_edges;
 }

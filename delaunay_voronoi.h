@@ -18,6 +18,11 @@
 #include <cmath>
 #include <iostream>
 
+#ifdef UNITTEST
+#include "gtest/gtest_prod.h"
+#include "opencv2/opencv.hpp"
+#endif
+
 using std::vector;
 
 class Edge;
@@ -28,6 +33,10 @@ class Triangle;
 class Point
 {
     private:
+#ifdef UNITTEST
+        FRIEND_TEST(DelaunayTriangulationTest, Random);
+        friend void draw_line(cv::Mat, Edge*, double, double, double, double);
+#endif
         friend class Delaunay_Voronoi;
         friend class Triangle;
         friend double det(const Point *, const Point *, const Point *);
@@ -50,6 +59,10 @@ class Point
 class Edge
 {
     private:
+#ifdef UNITTEST
+        FRIEND_TEST(DelaunayTriangulationTest, Random);
+        friend void draw_line(cv::Mat, Edge*, double, double, double, double);
+#endif
         friend class Triangle;
         friend class Delaunay_Voronoi;
         Point *head;
@@ -81,7 +94,7 @@ class Triangle
         vector<Triangle*> children;
         double circum_center[2];
         double circum_radius;
-        bool circumCircleContains(Point*);
+        bool circum_circle_contains(Point*);
 
         Triangle(const Triangle &triangle);
         void initialize_triangle_with_edges(Edge*, Edge*, Edge*);
@@ -116,6 +129,7 @@ class Delaunay_Voronoi
         vector<Edge*> edge_pool;
         bool is_global_grid;
         int num_cells;
+        Point *virtual_point[3];
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         Point *generate_boundary_point(double, double, Triangle*, bool);
@@ -136,8 +150,7 @@ class Delaunay_Voronoi
         Edge *allocate_edge(Point *head, Point *tail);
         Triangle *allocate_Triangle(Point*, Point*, Point*);
         Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
-
-
+        vector<Edge*> get_all_delaunay_edge();
 };
 
 #endif

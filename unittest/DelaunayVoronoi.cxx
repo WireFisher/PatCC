@@ -29,13 +29,16 @@ void createAlphaMat(cv::Mat &mat)
     }
 };
 
-template <typename T>
-void draw_line(cv::Mat img, Point start, Point end)
+void draw_line(cv::Mat img, Edge *e, double min_lon, double max_lon, double min_lat, double max_lat)
 {
     int thickness = 1;
     int line_type = cv::LINE_8;
 
-    cv::line(img, cv::Point(start.lon, start.lat), cv::Point(end.lon, end.lat), cv::Scalar(255, 255, 255), thickness, line_type);
+    /*if(e->head->x <= max_lon && e->head->x >= min_lon &&
+       e->head->y <= max_lat && e->head->y >= min_lat &&
+       e->tail->x <= max_lon && e->tail->x >= min_lon &&
+       e->tail->y <= max_lat && e->tail->y >= min_lat )*/
+        cv::line(img, cv::Point(e->head->x * 10, e->head->y * 10), cv::Point(e->tail->x * 10, e->tail->y * 10), cv::Scalar(255, 255, 255), thickness, line_type);
 }
 
 void write_to_file(cv::Mat mat, char *filename)
@@ -51,59 +54,34 @@ void write_to_file(cv::Mat mat, char *filename)
     }
     fprintf(stdout, "Saved PNG file with alpha data.\n");
 }
-/*
-TEST(DelaunayTriangulationTest, Basic) {
-    std::vector<Point<double> > points; 
-    
-    for(int i = 0; i < 60; i++)
-        for(int j = 0; j < 60; j++)
-            points.push_back(Point<double>(0 + i * 20, 0 + j * 20));
 
-    Delaunay<double> triangulation;
-    triangulation.triangulate(points);
-    std::vector<Edge<double> > edges = triangulation.getEdges();
-
-    cv::Mat mat = cv::Mat::zeros(1200, 1200, CV_8UC3);
-    //createAlphaMat(mat);
-    for(std::vector<Edge<double> >::iterator e = edges.begin(); e != edges.end(); e++)
-        draw_line<double>(mat, *e->p1, *e->p2);
-
-    write_to_file(mat, "log/image1.png");
-};
-*/
 static inline void do_triangulation_plot(int num_points, double *lat_values, double *lon_values, 
                                          double min_lon, double max_lon, double min_lat, double max_lat,
                                          bool *redundant_cell_mark, char* img_path)
 {
-    /*
-    Delaunay<double> triangulation;
-    triangulation.triangulate(points);
-    std::vector<Edge<double> > edges = triangulation.getEdges();
-    */
-    double *vertex_lon_values, *vertex_lat_values;
-    int num_vertexes;
-    std::vector<Pure_Edge> edges;
+    std::vector<Edge*> edges;
 
     Delaunay_Voronoi* delau;
 
-    delau = new Delaunay_Voronoi(num_points, lat_values, lon_values, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, &vertex_lon_values, &vertex_lat_values, &num_vertexes);
+    delau = new Delaunay_Voronoi(num_points, lat_values, lon_values, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
     edges = delau->get_all_delaunay_edge();
 
     cv::Mat mat = cv::Mat::zeros(max_lat*10, max_lon*10, CV_8UC3);
     //createAlphaMat(mat);
-    for(unsigned int i = 0; edges.size(); i++)
-        draw_line<double>(mat, edges[i].v[0], edges[i].v[1]);
+    for(unsigned int i = 0; i < edges.size(); i++) {
+        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat);
+    }
 
     write_to_file(mat, img_path);
 };
 
 TEST(DelaunayTriangulationTest, Random) {
     
-    int num_points = 360;
-    double min_lat = 10.0;
-    double max_lat = 80.0;
-    double min_lon = 10.0;
-    double max_lon = 80.0;
+    int num_points = 3600;
+    double min_lat = 0.0;
+    double max_lat = 350.0;
+    double min_lon = 0.0;
+    double max_lon = 350.0;
     double *lat, *lon;
     bool *redundant_cell_mark;
 
