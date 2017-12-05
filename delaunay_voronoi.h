@@ -11,8 +11,6 @@
 #ifndef __DELAUNAY_VORONOI_H__
 #define __DELAUNAY_VORONOI_H__
 
-
-//#include "remap_grid_class.h"
 #include <vector>
 #include <list>
 #include <cmath>

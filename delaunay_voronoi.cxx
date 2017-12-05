@@ -10,9 +10,8 @@
 Delaunay_Voronoi *current_delaunay_voronoi = NULL; //thread safe?
 
 /*
- *            o Center
- *            ^
- *           /
+ *           o Center
+ *           ^
  *          /
  *         /
  *     V1 o -----> o V2
@@ -37,6 +36,7 @@ double compute_three_2D_points_cross_product(double center_coord1_value,
     return vertexes_coord1_value_diff*center_vertex_coord2_value_diff - center_vertex_coord1_value_diff*vertexes_coord2_value_diff;
 }
 
+
 inline double det(const Point *pt1, const Point *pt2, const Point *pt3)
 {
 
@@ -46,10 +46,13 @@ inline double det(const Point *pt1, const Point *pt2, const Point *pt3)
     return compute_three_2D_points_cross_product(pt3->x, pt3->y, pt1->x, pt1->y, pt2->x, pt2->y);
 }
 
+
 Point::Point()
 {
     this->current_triangle = NULL;
 }
+
+
 Point::Point(double x, double y, int id)
 {
     this->x = x;
@@ -66,14 +69,17 @@ double Point::calculate_distance(const Point *pt) const
     return sqrt(dx * dx + dy * dy);
 }
 
+
 Point::~Point()
 {
 }
+
 
 Point operator-(Point p1, Point p2)
 {
     return Point(p1.x - p2.x, p1.y - p2.y, -1);
 }
+
 
 /**
  * Check point's position relative to an edge<pt1, pt2>
@@ -94,6 +100,7 @@ int Point::position_to_edge(const Point *pt1, const Point *pt2) const
         return 1;
     return -1;
 }
+
 
 /**
  * Check point's position relative to a triangle
@@ -136,6 +143,7 @@ Edge::Edge(Point *head, Point *tail)
     triangle = NULL;
 }
 
+
 Edge *Edge::generate_twins_edge()
 {
     Edge *twins_edge = current_delaunay_voronoi->allocate_edge(tail, head);
@@ -145,9 +153,11 @@ Edge *Edge::generate_twins_edge()
     return twins_edge;
 }
 
+
 Edge::~Edge()
 {
 }
+
 
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
@@ -155,22 +165,8 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
         return true;
 
     return !edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
-    /*
-    const Point *vi = edge->head;
-    const Point *vj = edge->next_edge_in_triangle->head;
-    const Point *vk = edge->twin_edge->prev_edge_in_triangle->head;
-
-    Point temp_point1, temp_point2, temp_point3;
-
-    temp_point1 = *vi - *pt;
-    temp_point2 = *vj - *pt;
-    temp_point3 = *vk - *pt;
-
-    if (det(&temp_point1, &temp_point2, &temp_point3) >= FLOAT_ERROR)
-        return false;
-    else return true;
-    */
 }
+
 
 void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle*> *leaf_triangles)
 {
@@ -205,12 +201,14 @@ void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle
     legalize_triangles(vr, ekj, leaf_triangles);
 }
 
+
 Triangle::Triangle()
 {
     edge[0] = NULL;
     edge[1] = NULL;
     edge[2] = NULL;
 }
+
 
 Triangle::Triangle(Point *point1, Point *point2, Point *point3)
 {
@@ -225,15 +223,18 @@ Triangle::Triangle(Point *point1, Point *point2, Point *point3)
     calulate_circum_circle();
 }
 
+
 Triangle::Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
 {
     initialize_triangle_with_edges(edge1, edge2, edge3);
     calulate_circum_circle();
 }
 
+
 Triangle::~Triangle()
 {
 }
+
 
 void Triangle::calulate_circum_circle()
 {
@@ -249,6 +250,7 @@ void Triangle::calulate_circum_circle()
                        (v[0]->y * (v[2]->x - v[1]->x) + v[1]->y * (v[0]->x - v[2]->x) + v[2]->y * (v[1]->x - v[0]->x)) / 2.f;
     circum_radius = sqrtf(((v[0]->x - circum_center[0]) * (v[0]->x - circum_center[0])) + ((v[0]->y - circum_center[1]) * (v[0]->y - circum_center[1])));
 }
+
 
 void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *edge3)
 {
@@ -298,10 +300,12 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     this->edge[2]->triangle = this;
 }
 
+
 bool Triangle::circum_circle_contains(Point *p)
 {
     return sqrt(((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]))) <= circum_radius;
 }
+
 
 int Triangle::find_best_candidate_point()
 {
@@ -364,6 +368,7 @@ void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, ve
                 assert(false);
     }
 }
+
 
 void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 {
@@ -535,13 +540,9 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
     virtual_point[1] = new Point(midx - 20 * deltaMax, midy - deltaMax, -1);
     virtual_point[2] = new Point(midx + 20 * deltaMax, midy - deltaMax, -1);
 
-    //e1 = current_delaunay_voronoi->allocate_edge(virtual_point[1], virtual_point[0]);
-    //e2 = current_delaunay_voronoi->allocate_edge(virtual_point[0], virtual_point[2]);
-    //e3 = current_delaunay_voronoi->allocate_edge(virtual_point[2], virtual_point[1]);
-    e1 = current_delaunay_voronoi->allocate_edge(virtual_point[0], virtual_point[1]);
-    e2 = current_delaunay_voronoi->allocate_edge(virtual_point[1], virtual_point[2]);
-    e3 = current_delaunay_voronoi->allocate_edge(virtual_point[2], virtual_point[0]);
-    super = current_delaunay_voronoi->allocate_Triangle(e1, e2, e3);
+    super = current_delaunay_voronoi->allocate_Triangle(current_delaunay_voronoi->allocate_edge(virtual_point[0], virtual_point[1]),
+                                                        current_delaunay_voronoi->allocate_edge(virtual_point[1], virtual_point[2]),
+                                                        current_delaunay_voronoi->allocate_edge(virtual_point[2], virtual_point[0]));
 
     cells = new Cell[num_points];
     for (int i = 0; i < num_points; i ++) {
@@ -568,7 +569,7 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 
 
 Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *lon_values, bool is_global_grid,
-                   double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark)
+                                   double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark)
 {
     Triangle *root;
     timeval start, end;
@@ -595,6 +596,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *l
     gettimeofday(&end, NULL);
     printf("Delaunay time consuming: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);   
 }
+
 
 Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
 {
