@@ -329,6 +329,16 @@ int Triangle::find_best_candidate_point()
     return best_candidate_id;
 }
 
+
+bool Triangle::contain_vertex(Point* pt)
+{
+    for(int i = 0; i < 3; i++)
+        if(v[i] == pt)
+            return true;
+    return false;
+}
+
+
 void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, vector<Triangle*> *triangles)
 {
     bool find_triangle;
@@ -545,6 +555,18 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
 
     return super;
 }
+
+
+void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
+{
+    for(vector<Triangle*>::iterator t = result_leaf_triangles.begin(); t != result_leaf_triangles.end(); )
+        if((*t)->contain_vertex(virtual_point[0]) || (*t)->contain_vertex(virtual_point[1]) || (*t)->contain_vertex(virtual_point[2]))
+            result_leaf_triangles.erase(t);
+        else
+            t++;
+}
+
+
 Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *lon_values, bool is_global_grid,
                    double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark)
 {
@@ -563,6 +585,8 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *l
     root = initialize_super_triangle(num_points, lat_values, lon_values, redundant_cell_mark);
 
     triangularization_process(root);
+
+    clear_triangle_containing_virtual_point();
 
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);

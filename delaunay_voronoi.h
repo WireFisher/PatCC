@@ -108,6 +108,7 @@ class Triangle
         void get_center_coordinates();
         int find_best_candidate_point();
         void check_and_set_twin_edge_relationship(Triangle*);
+        bool contain_vertex(Point*);
 
 };
 
@@ -141,6 +142,7 @@ class Delaunay_Voronoi
         void extract_vertex_coordinate_values(int, bool, double**, double**, int*);
         void get_convex_set(int, double*, double*, double, double, int &, int **);
         Triangle* initialize_super_triangle(int, double*, double*, bool*);
+        void clear_triangle_containing_virtual_point();
 
     public:
         Delaunay_Voronoi(int, double*, double*, bool, double, double, double, double, bool*);
