@@ -15,30 +15,12 @@ static double fRand(double fMin, double fMax)
     return fMin + f * (fMax - fMin);
 }
 
-void createAlphaMat(cv::Mat &mat)
-{
-    CV_Assert(mat.channels() == 4);
-    for (int i = 0; i < mat.rows; ++i) {
-        for (int j = 0; j < mat.cols; ++j) {
-            cv::Vec4b& bgra = mat.at<cv::Vec4b>(i, j);
-            bgra[0] = UCHAR_MAX; // Blue
-            bgra[1] = cv::saturate_cast<uchar>((float (mat.cols - j)) / ((float)mat.cols) * UCHAR_MAX); // Green
-            bgra[2] = cv::saturate_cast<uchar>((float (mat.rows - i)) / ((float)mat.rows) * UCHAR_MAX); // Red
-            bgra[3] = cv::saturate_cast<uchar>(0.5 * (bgra[1] + bgra[2])); // Alpha
-        }
-    }
-};
-
-void draw_line(cv::Mat img, Edge *e, double min_lon, double max_lon, double min_lat, double max_lat)
+void draw_line(cv::Mat img, Edge *e, double min_lon, double max_lon, double min_lat, double max_lat, cv::Scalar scalar)
 {
     int thickness = 1;
     int line_type = cv::LINE_8;
 
-    /*if(e->head->x <= max_lon && e->head->x >= min_lon &&
-       e->head->y <= max_lat && e->head->y >= min_lat &&
-       e->tail->x <= max_lon && e->tail->x >= min_lon &&
-       e->tail->y <= max_lat && e->tail->y >= min_lat )*/
-        cv::line(img, cv::Point(e->head->x * 10, e->head->y * 10), cv::Point(e->tail->x * 10, e->tail->y * 10), cv::Scalar(255, 255, 255), thickness, line_type);
+    cv::line(img, cv::Point(e->head->x * 10, e->head->y * 10), cv::Point(e->tail->x * 10, e->tail->y * 10), scalar, thickness, line_type);
 }
 
 void write_to_file(cv::Mat mat, char *filename)
@@ -63,26 +45,172 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
 
     Delaunay_Voronoi* delau;
 
-    delau = new Delaunay_Voronoi(num_points, lat_values, lon_values, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
+    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
     edges = delau->get_all_delaunay_edge();
 
     cv::Mat mat = cv::Mat::zeros(max_lat*10, max_lon*10, CV_8UC3);
-    //createAlphaMat(mat);
     for(unsigned int i = 0; i < edges.size(); i++) {
-        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat);
+        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(255, 255, 255));
     }
+
+    /*
+    edges = delau->get_all_legal_delaunay_edge();
+    for(unsigned int i = 0; i < edges.size(); i++) {
+        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(255, 0, 0));
+    }
+    */
 
     write_to_file(mat, img_path);
 };
 
+
+TEST(DelaunayTriangulationTest, Rectangle) {
+    int len_points = 10;
+    int num_points = len_points * len_points;
+    int num_part;
+    double min_lat = 0.0;
+    double max_lat = 150.0;
+    double min_lon = 0.0;
+    double max_lon = 150.0;
+    double *lat, *lon, *lat_part, *lon_part;
+    bool *redundant_cell_mark;
+
+    lat = new double[num_points];
+    lon = new double[num_points];
+    redundant_cell_mark = new bool[num_points];
+
+    for(int i = 0, index = 0; i < len_points; i++)
+        for(int j = 0; j < len_points; j++) {
+        lat[index] = 15 * i;
+        lon[index] = 15 * j;
+        redundant_cell_mark[index++] = false;
+    }
+
+    do_triangulation_plot(num_points, lat, lon, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image0-0.png");
+
+    lat_part = new double[num_points];
+    lon_part = new double[num_points];
+
+    /*
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] < min_lat+(max_lat-min_lat)*5.0/8.0 && lon[i] < min_lon+(max_lon-min_lon)*5.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-1.png");
+
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] < min_lat+(max_lat-min_lat)*5.0/8.0 && lon[i] > min_lon+(max_lon-min_lon)*3.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-2.png");
+
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] > min_lat+(max_lat-min_lat)*3.0/8.0 && lon[i] < min_lon+(max_lon-min_lon)*5.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-3.png");
+
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] > min_lat+(max_lat-min_lat)*3.0/8.0 && lon[i] > min_lon+(max_lon-min_lon)*3.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-4.png");
+    */
+
+    delete lat;
+    delete lon;
+    delete lat_part;
+    delete lon_part;
+};
+
+
+TEST(DelaunayTriangulationTest, ObliqueRectangle) {
+    int len_points = 10;
+    int num_points = len_points * len_points;
+    int num_part;
+    double min_lat = 0.0;
+    double max_lat = 150.0;
+    double min_lon = 0.0;
+    double max_lon = 315.0;
+    double *lat, *lon, *lat_part, *lon_part;
+    bool *redundant_cell_mark;
+
+    lat = new double[num_points];
+    lon = new double[num_points];
+    redundant_cell_mark = new bool[num_points];
+
+    for(int i = 0, index = 0; i < len_points; i++)
+        for(int j = 0; j < len_points; j++) {
+        lat[index] = 15 * i;
+        if(i%2 == 0)
+            lon[index] = 30 * j;
+        else
+            lon[index] = 15 + 30 * j;
+        redundant_cell_mark[index++] = false;
+    }
+
+    do_triangulation_plot(num_points, lat, lon, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-0.png");
+
+    lat_part = new double[num_points];
+    lon_part = new double[num_points];
+
+    /*
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] < min_lat+(max_lat-min_lat)*5.0/8.0 && lon[i] < min_lon+(max_lon-min_lon)*5.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-1.png");
+
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] < min_lat+(max_lat-min_lat)*5.0/8.0 && lon[i] > min_lon+(max_lon-min_lon)*3.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-2.png");
+
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] > min_lat+(max_lat-min_lat)*3.0/8.0 && lon[i] < min_lon+(max_lon-min_lon)*5.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-3.png");
+
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] > min_lat+(max_lat-min_lat)*3.0/8.0 && lon[i] > min_lon+(max_lon-min_lon)*3.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-4.png");
+    */
+
+    delete lat;
+    delete lon;
+    delete lat_part;
+    delete lon_part;
+};
+
+
 TEST(DelaunayTriangulationTest, Random) {
-    
     int num_points = 3600;
+    int num_part;
     double min_lat = 0.0;
     double max_lat = 350.0;
     double min_lon = 0.0;
     double max_lon = 350.0;
-    double *lat, *lon;
+    double *lat, *lon, *lat_part, *lon_part;
     bool *redundant_cell_mark;
 
     lat = new double[num_points];
@@ -97,32 +225,43 @@ TEST(DelaunayTriangulationTest, Random) {
 
     do_triangulation_plot(num_points, lat, lon, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image2-0.png");
 
-    /*
-    for(unsigned int i = 0; i < points.size(); i++)
-        if(points[i].x < 1800 && points[i].y < 1800)
-            points_part.push_back(points[i]);
+    lat_part = new double[num_points];
+    lon_part = new double[num_points];
 
-    do_triangulation_plot(points_part, "log/image2-1.png");
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] < min_lat+(max_lat-min_lat)*5.0/8.0 && lon[i] < min_lon+(max_lon-min_lon)*5.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image2-1.png");
 
-    points_part.clear();
-    for(unsigned int i = 0; i < points.size(); i++)
-        if(points[i].x > 600 && points[i].y > 600)
-            points_part.push_back(points[i]);
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] < min_lat+(max_lat-min_lat)*5.0/8.0 && lon[i] > min_lon+(max_lon-min_lon)*3.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image2-2.png");
 
-    do_triangulation_plot(points_part, "log/image2-2.png");
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] > min_lat+(max_lat-min_lat)*3.0/8.0 && lon[i] < min_lon+(max_lon-min_lon)*5.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image2-3.png");
 
-    points_part.clear();
-    for(unsigned int i = 0; i < points.size(); i++)
-        if(points[i].x > 600 && points[i].y < 1800)
-            points_part.push_back(points[i]);
+    num_part = 0;
+    for(int i = 0; i < num_points; i++)
+        if(lat[i] > min_lat+(max_lat-min_lat)*3.0/8.0 && lon[i] > min_lon+(max_lon-min_lon)*3.0/8.0) {
+            lat_part[num_part]   = lat[i];
+            lon_part[num_part++] = lon[i];
+        }
+    do_triangulation_plot(num_part, lat_part, lon_part, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image2-4.png");
 
-    do_triangulation_plot(points_part, "log/image2-3.png");
-
-    points_part.clear();
-    for(unsigned int i = 0; i < points.size(); i++)
-        if(points[i].x < 1800 && points[i].y > 600)
-            points_part.push_back(points[i]);
-
-    do_triangulation_plot(points_part, "log/image2-4.png");
-    */
+    delete lat;
+    delete lon;
+    delete lat_part;
+    delete lon_part;
 };

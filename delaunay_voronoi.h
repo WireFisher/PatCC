@@ -32,8 +32,7 @@ class Point
 {
     private:
 #ifdef UNITTEST
-        FRIEND_TEST(DelaunayTriangulationTest, Random);
-        friend void draw_line(cv::Mat, Edge*, double, double, double, double);
+        friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
 #endif
         friend class Delaunay_Voronoi;
         friend class Triangle;
@@ -58,8 +57,7 @@ class Edge
 {
     private:
 #ifdef UNITTEST
-        FRIEND_TEST(DelaunayTriangulationTest, Random);
-        friend void draw_line(cv::Mat, Edge*, double, double, double, double);
+        friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
 #endif
         friend class Triangle;
         friend class Delaunay_Voronoi;
@@ -145,15 +143,19 @@ class Delaunay_Voronoi
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
         double calculate_angle(const Point *, const Point *, const Point *);
 
+        bool is_triangle_legal(const Point *pt, const Edge *edge);
+        bool is_triangle_legal(const Triangle *);
+
     public:
         Delaunay_Voronoi(int, double*, double*, bool, double, double, double, double, bool*);
         ~Delaunay_Voronoi();
-        bool is_triangle_legal(const Point *pt, const Edge *edge);
         void legalize_triangles(Point *pt, Edge *edge, vector<Triangle*>*);
         Edge *allocate_edge(Point *head, Point *tail);
         Triangle *allocate_Triangle(Point*, Point*, Point*);
         Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
         vector<Edge*> get_all_delaunay_edge();
+        vector<Edge*> get_all_legal_delaunay_edge();
+        bool is_all_leaf_triangle_legal();
 };
 
 #endif

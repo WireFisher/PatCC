@@ -5,7 +5,7 @@
 #include <sys/time.h>
 
 #define PI 3.1415926
-#define FLOAT_ERROR 1e-10
+#define FLOAT_ERROR 1e-5
 
 Delaunay_Voronoi *current_delaunay_voronoi = NULL; //thread safe?
 
@@ -39,9 +39,7 @@ double compute_three_2D_points_cross_product(double center_coord1_value,
 
 inline double det(const Point *pt1, const Point *pt2, const Point *pt3)
 {
-
 //    return (pt1.lon-pt3.lon)*(pt2.lat-pt3.lat) - (pt1.lat-pt3.lat)*(pt2.lon-pt3.lon);
-
 //    return compute_three_3D_points_cross_product(pt3->x, pt3->y, pt3->z, pt1->x, pt1->y, pt1->z, pt2->x, pt2->y, pt2->z);
     return compute_three_2D_points_cross_product(pt3->x, pt3->y, pt1->x, pt1->y, pt2->x, pt2->y);
 }
@@ -162,7 +160,7 @@ Edge::~Edge()
 double Delaunay_Voronoi::calculate_angle(const Point *center, const Point *p1, const Point *p2)
 {
     double ax, ay, bx, by;
-    assert(center != p1 && center != p2);
+    assert(center != p1 && center != p2) ;
 
     ax = p1->x - center->x;
     ay = p1->y - center->y;
@@ -175,9 +173,9 @@ double Delaunay_Voronoi::calculate_angle(const Point *center, const Point *p1, c
 const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const Point *p2, const Point *p3, const Point *p4)
 {
     const Point *p = p1;
-    if(p2->x < p->x || (p2->x == p->x && p2->y < p->y)) p = p2;
-    if(p3->x < p->x || (p3->x == p->x && p3->y < p->y)) p = p3;
-    if(p4->x < p->x || (p4->x == p->x && p4->y < p->y)) p = p4;
+    if(p2->x < p->x || (std::fabs(p2->x - p->x) < FLOAT_ERROR && p2->y < p->y)) p = p2;
+    if(p3->x < p->x || (std::fabs(p3->x - p->x) < FLOAT_ERROR && p3->y < p->y)) p = p3;
+    if(p4->x < p->x || (std::fabs(p4->x - p->x) < FLOAT_ERROR && p4->y < p->y)) p = p4;
     return p;
 }
 
@@ -187,15 +185,15 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
     double sum_angle_value;
 
     sum_angle_value = calculate_angle(pt, edge->head, edge->tail) + calculate_angle(edge->twin_edge->prev_edge_in_triangle->head, edge->head, edge->tail);
-    if(sum_angle_value > PI)
-        return true;
-    if(sum_angle_value == PI){
+    if(std::fabs(sum_angle_value - PI) < FLOAT_ERROR){
         if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
            edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
             return false;
         else
             return true;
     }
+    if(sum_angle_value > PI)
+        return true;
     return false;
 }
 
@@ -213,6 +211,25 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
         return !is_angle_too_large(pt, edge);
 
     return false;
+}
+
+
+bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
+{
+    for(int i = 0; i < 3; i++)
+        if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i]))
+            return false;
+    return true;
+}
+
+
+bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
+{
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
+        if(result_leaf_triangles[i]->is_leaf)
+            if(!is_triangle_legal(result_leaf_triangles[i]))
+                return false;
+    return true;
 }
 
 
@@ -358,11 +375,11 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
 int Triangle::circum_circle_contains(Point *p)
 {
     double dist = sqrt(((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1])));
-    if(dist < circum_radius)
-        return 1;
-    if(dist == circum_radius)
+    if(std::fabs(dist - circum_radius) < FLOAT_ERROR)
         return 0;
-    if(dist > circum_radius)
+    else if(dist < circum_radius)
+        return 1;
+    else // (dist > circum_radius)
         return -1;
 }
 
@@ -628,13 +645,13 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 }
 
 
-Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *lon_values, bool is_global_grid,
+Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, bool is_global_grid,
                                    double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark)
 {
     Triangle *root;
     timeval start, end;
     int i, j;
-    bool cyclic = min_lon==0 && max_lon==360;
+    bool cyclic = min_lon==0 && max_lon==360; // double ==?
 
     gettimeofday(&start, NULL);
     current_delaunay_voronoi = this;
@@ -643,7 +660,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *l
 
     this->is_global_grid = is_global_grid;
 
-    root = initialize_super_triangle(num_points, lat_values, lon_values, redundant_cell_mark);
+    root = initialize_super_triangle(num_points, x_values, y_values, redundant_cell_mark);
 
     triangularization_process(root);
 
@@ -652,9 +669,23 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *l
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
-    /* Below is for testing */
     gettimeofday(&end, NULL);
     printf("Delaunay time consuming: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);   
+
+    assert(is_all_leaf_triangle_legal());
+}
+
+
+Delaunay_Voronoi::~Delaunay_Voronoi()
+{
+    for (int i = 0; i < num_cells; i ++)
+        delete cells[i].center;
+    delete [] cells;
+    for (int i = 0; i < edge_pool.size(); i ++)
+        delete edge_pool[i];
+    for (int i = 0; i < triangle_pool.size(); i ++)
+        delete triangle_pool[i];
+    current_delaunay_voronoi = NULL;
 }
 
 
@@ -695,6 +726,22 @@ vector<Edge*> Delaunay_Voronoi::get_all_delaunay_edge()
             all_edges.push_back(result_leaf_triangles[i]->edge[1]);
             all_edges.push_back(result_leaf_triangles[i]->edge[2]);
         }
+
+    return all_edges;
+}
+
+
+vector<Edge*> Delaunay_Voronoi::get_all_legal_delaunay_edge()
+{
+    vector<Edge*> all_edges;
+
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i ++)
+        if(result_leaf_triangles[i]->is_leaf)
+            if(is_triangle_legal(result_leaf_triangles[i])) {
+                all_edges.push_back(result_leaf_triangles[i]->edge[0]);
+                all_edges.push_back(result_leaf_triangles[i]->edge[1]);
+                all_edges.push_back(result_leaf_triangles[i]->edge[2]);
+            }
 
     return all_edges;
 }
