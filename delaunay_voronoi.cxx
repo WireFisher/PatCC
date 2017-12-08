@@ -4,8 +4,8 @@
 #include <cstdio>
 #include <sys/time.h>
 
-#define PI 3.1415926
-#define FLOAT_ERROR 1e-5
+#define PI 3.14159265359
+#define FLOAT_ERROR 1e-8
 
 Delaunay_Voronoi *current_delaunay_voronoi = NULL; //thread safe?
 
@@ -92,11 +92,11 @@ int Point::position_to_edge(const Point *pt1, const Point *pt2) const
 {
     double res1 = det(pt1, pt2, this);
 
-    if (std::fabs(res1) <= FLOAT_ERROR)
+    if (std::fabs(res1) < FLOAT_ERROR)
         return 0;
-    if (res1 > 0)
+    else if (res1 > 0)
         return 1;
-    return -1;
+    else return -1;
 }
 
 
@@ -275,20 +275,6 @@ Triangle::Triangle()
 }
 
 
-Triangle::Triangle(Point *point1, Point *point2, Point *point3)
-{
-    if (point1->position_to_edge(point2, point3) == 1)
-        initialize_triangle_with_edges(current_delaunay_voronoi->allocate_edge(point1,point2),
-                                       current_delaunay_voronoi->allocate_edge(point2,point3),
-                                       current_delaunay_voronoi->allocate_edge(point3,point1));
-    else initialize_triangle_with_edges(current_delaunay_voronoi->allocate_edge(point3,point2),
-                                        current_delaunay_voronoi->allocate_edge(point2,point1),
-                                        current_delaunay_voronoi->allocate_edge(point1,point3));
-
-    calulate_circum_circle();
-}
-
-
 Triangle::Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
 {
     initialize_triangle_with_edges(edge1, edge2, edge3);
@@ -333,6 +319,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     //                 "points given to construct triangle are on the same line.");
     assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
+    //printf("%p, %p | %p, %p | %p, %p\n", edge1->head, edge1->tail, edge2->head, edge2->tail, edge3->head, edge3->tail);
     assert(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
        
     v[0] = pt1;
@@ -672,7 +659,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     gettimeofday(&end, NULL);
     printf("Delaunay time consuming: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);   
 
-    assert(is_all_leaf_triangle_legal());
+    //assert(is_all_leaf_triangle_legal());
 }
 
 
@@ -695,15 +682,6 @@ Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
     edge_pool.push_back(new_edge);
 
     return new_edge;
-}
-
-
-Triangle *Delaunay_Voronoi::allocate_Triangle(Point *point1, Point *point2, Point *point3)
-{
-    Triangle *new_triangle = new Triangle(point1, point2, point3);
-    triangle_pool.push_back(new_triangle);
-
-    return new_triangle;
 }
 
 

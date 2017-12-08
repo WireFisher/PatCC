@@ -98,7 +98,6 @@ class Triangle
 
     public:
         Triangle();
-        Triangle(Point*, Point*, Point*);
         Triangle(Edge*, Edge*, Edge*);
         ~Triangle();
         void get_center_coordinates();
@@ -151,7 +150,6 @@ class Delaunay_Voronoi
         ~Delaunay_Voronoi();
         void legalize_triangles(Point *pt, Edge *edge, vector<Triangle*>*);
         Edge *allocate_edge(Point *head, Point *tail);
-        Triangle *allocate_Triangle(Point*, Point*, Point*);
         Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
