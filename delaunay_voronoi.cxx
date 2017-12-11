@@ -203,6 +203,12 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
     if (!edge->twin_edge)
         return true;
 
+    if(!edge->twin_edge->triangle)
+        return true;
+
+    if(!edge->twin_edge->triangle->is_leaf)
+        return true;
+
     int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
     if (ret == -1)
         return true;
@@ -465,22 +471,30 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         Edge *e_can_v2 = e_v2_can->generate_twins_edge();
         Edge *e_v3_can = current_delaunay_voronoi->allocate_edge(triangle->v[2], best_candidate_point);
         Edge *e_can_v3 = e_v3_can->generate_twins_edge();
-        Triangle *t_v1_v2_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[0], e_v2_can, e_can_v1);
-        Triangle *t_v2_v3_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[1], e_v3_can, e_can_v2);
-        Triangle *t_v3_v1_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[2], e_v1_can, e_can_v3);
+        //Triangle *t_v1_v2_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[0], e_v2_can, e_can_v1);
+        //Triangle *t_v2_v3_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[1], e_v3_can, e_can_v2);
+        //Triangle *t_v3_v1_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[2], e_v1_can, e_can_v3);
+        Triangle *t_can_v1_v2 = current_delaunay_voronoi->allocate_Triangle(e_can_v1, triangle->edge[0], e_v2_can);
+        Triangle *t_can_v2_v3 = current_delaunay_voronoi->allocate_Triangle(e_can_v2, triangle->edge[1], e_v3_can);
+        Triangle *t_can_v3_v1 = current_delaunay_voronoi->allocate_Triangle(e_can_v3, triangle->edge[2], e_v1_can);
         leaf_triangles.push_back(triangle);
-        leaf_triangles.push_back(t_v1_v2_can);
-        leaf_triangles.push_back(t_v2_v3_can);
-        leaf_triangles.push_back(t_v3_v1_can);
+        leaf_triangles.push_back(t_can_v1_v2);
+        leaf_triangles.push_back(t_can_v2_v3);
+        leaf_triangles.push_back(t_can_v3_v1);
         triangle->reference_count ++;
-        t_v1_v2_can->reference_count ++;
-        t_v2_v3_can->reference_count ++;
-        t_v3_v1_can->reference_count ++;
-        legalize_triangles(best_candidate_point, triangle->edge[0], &leaf_triangles);
-        legalize_triangles(best_candidate_point, triangle->edge[1], &leaf_triangles);
-        legalize_triangles(best_candidate_point, triangle->edge[2], &leaf_triangles);
+        t_can_v1_v2->reference_count ++;
+        t_can_v2_v3->reference_count ++;
+        t_can_v3_v1->reference_count ++;
+        //legalize_triangles(best_candidate_point, triangle->edge[0], &leaf_triangles);
+        //legalize_triangles(best_candidate_point, triangle->edge[1], &leaf_triangles);
+        //legalize_triangles(best_candidate_point, triangle->edge[2], &leaf_triangles);
+        
+        /* t_can_v1_v2->v[0] is best_candidate_point, actually */
+        legalize_triangles(t_can_v1_v2->v[0], t_can_v1_v2->edge[1], &leaf_triangles);
+        legalize_triangles(t_can_v2_v3->v[0], t_can_v2_v3->edge[1], &leaf_triangles);
+        legalize_triangles(t_can_v3_v1->v[0], t_can_v3_v1->edge[1], &leaf_triangles);
     }
-    else {
+    else { // on the side
         Point *vi, *vj, *vk, *vl;
         Edge *eij, *ejk, *eki;
         Edge *eil, *elj, *eji;
@@ -504,11 +518,11 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
                 eij = triangle->edge[2];
                 break;
             default:
-                //EXECUTION_REPORT(REPORT_ERROR, -1, false, "remap software error2 in triangularization_process");
+                //EXECUTION_REPORT(REPORT_ERROR, -1, false, "point, which should be found in triangle, is outside of triangle");
                 assert(false);
                 break;
         }
-        //EXECUTION_REPORT(REPORT_ERROR, -1, best_candidate_point->position_to_edge(vi, vj) == 0, "remap software error3 in triangularization_process");
+        //EXECUTION_REPORT(REPORT_ERROR, -1, best_candidate_point->position_to_edge(vi, vj) == 0, "point, which should be on the edge, is not on the edge");
         assert(best_candidate_point->position_to_edge(vi, vj) == 0);
         if (eij->twin_edge != NULL)
             //EXECUTION_REPORT(REPORT_ERROR, -1, eij->twin_edge->triangle->is_leaf, "remap software error3 in triangularization_process");
@@ -522,8 +536,9 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
             elj = eil->next_edge_in_triangle;
             vl = elj->head;
         }
-        Edge *eri = current_delaunay_voronoi->allocate_edge(best_candidate_point, vi);
-        Edge *eir = eri->generate_twins_edge();
+        //Edge *eri = current_delaunay_voronoi->allocate_edge(best_candidate_point, vi);
+        //Edge *eir = eri->generate_twins_edge();
+        Edge *eir = current_delaunay_voronoi->allocate_edge(vi, best_candidate_point);
         Edge *erk = current_delaunay_voronoi->allocate_edge(best_candidate_point, vk);
         Edge *ekr = erk->generate_twins_edge();
         Edge *erj = current_delaunay_voronoi->allocate_edge(best_candidate_point, vj);
@@ -538,6 +553,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         legalize_triangles(best_candidate_point, ejk, &leaf_triangles);
         legalize_triangles(best_candidate_point, eki, &leaf_triangles); 
         if (eij->twin_edge != NULL) {
+            Edge *eri = eir->generate_twins_edge();
             Edge *ejr = erj->generate_twins_edge();
             Edge *erl = current_delaunay_voronoi->allocate_edge(best_candidate_point, vl);
             Edge *elr = erl->generate_twins_edge();
@@ -552,7 +568,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
             legalize_triangles(best_candidate_point, elj, &leaf_triangles);
         }
         else {
-            eir->twin_edge = NULL;
+            //eir->twin_edge = NULL;
         }
     }
 
