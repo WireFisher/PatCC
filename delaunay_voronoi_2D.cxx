@@ -1,4 +1,4 @@
-#include "delaunay_voronoi.h"
+#include "delaunay_voronoi_2D.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -673,7 +673,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
     gettimeofday(&end, NULL);
-    printf("Delaunay time consuming: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);   
+    printf("Delaunay time elapsed: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);   
 
     //assert(is_all_leaf_triangle_legal());
 }
