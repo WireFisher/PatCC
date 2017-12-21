@@ -12,7 +12,7 @@
 #define PDLN_LON 0
 #define PDLN_LAT 1
 #include "processing_unit_mgt.h"
-#include "delaunay_triangulation_2D.h"
+#include "delaunay_voronoi_2D.h"
 
 struct Midline {
     int type;
@@ -45,7 +45,7 @@ private:
     //double expanding_ratio;
     Midline midline;
     double *local_cells_coord[2]; //(clean after having children) //TODO:change name
-    double *expanded_cells_coord[2];
+    //double *expanded_cells_coord[2];
     int len_expanded_cells_coord_buf;
     //int *local_cells_global_index; //(kernel + expanded)
     int num_local_kernel_cells;//TODO:change name
@@ -54,7 +54,7 @@ private:
     
     vector<int> processing_units_id;
     vector<Search_tree_node*> neighbors;
-    Delaunay<double> *triangulation;
+    Delaunay_Voronoi *triangulation;
 
 public:    
     Search_tree_node(Search_tree_node*, double**, int, Boundry);
@@ -67,6 +67,7 @@ public:
     void add_expanded_points(double **, int);
     void add_neighbors(vector<Search_tree_node*>);
     bool check_expanded_triangle_consistency();
+    bool check_if_all_outer_edge_out_of_kernel_boundry();
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
     double** get_local_cells_coord(){return this->local_cells_coord; };
@@ -83,7 +84,7 @@ private:
     vector<Search_tree_node*> local_leaf_nodes;
     //vector<delaunay_triangulation*> local_triangulations;
     //int *num_local_nodes_per_thread;
-    int num_total_nodes;
+    //int num_total_nodes;
     //int *local_units_id;
     int min_num_points_per_chunk;
     bool is_cyclic;
@@ -102,6 +103,17 @@ private:
     void transform_into_rectangle(Boundry, Boundry, Boundry*);
     void search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node*, Boundry, vector<Search_tree_node*>&);
     bool two_regions_overlap(Boundry, Boundry);
+
+    /* different decompositon consistency checking */
+    bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
+    void compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
+    bool check_triangles_consistency(Triangle_Transport*, Triangle_Transport*, int);
+    //void get_triangles_intersecting_with_segment_from_remote(int, Point, Point, vector<Triangle_Transport>*);
+    
+    /* process thread communication */
+    int recv_triangles_from_remote(int, int, Triangle_Transport *, int, int);
+    void send_triangles_to_remote(int, int, Triangle_Transport *, int, int);
+
 public:
     Delaunay_grid_decomposition(int, Processing_resource*);
     Delaunay_grid_decomposition(int, Processing_resource*, int);

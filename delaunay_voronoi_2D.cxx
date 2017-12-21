@@ -73,12 +73,29 @@ Point::~Point()
 }
 
 
-Point operator-(Point p1, Point p2)
+Point operator - (Point p1, Point p2)
 {
     return Point(p1.x - p2.x, p1.y - p2.y, -1);
 }
 
 
+bool operator == (Point p1, Point p2)
+{
+    if(std::abs(p1.x - p2.x) < FLOAT_ERROR && 
+       std::abs(p1.y - p2.y) < FLOAT_ERROR )
+        return true;
+    else if(std::abs(std::abs(p1.x - p2.x) - 360.0) < FLOAT_ERROR &&
+            std::abs(std::abs(p1.y - p2.y) - 360.0) < FLOAT_ERROR )
+        return true;
+    else
+        return false;
+}
+
+
+bool operator != (Point p1, Point p2)
+{
+    return !(p1 == p2);
+}
 /**
  * Check point's position relative to an edge<pt1, pt2>
  * Points should be distinct
@@ -625,12 +642,21 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
                                                         current_delaunay_voronoi->allocate_edge(virtual_point[2], virtual_point[0]));
 
     cells = new Cell[num_points];
-    for (int i = 0; i < num_points; i ++) {
-        Point *point = new Point(x[i], y[i], i);
-        cells[i].center = point;
-        if (!redundant_cell_mark[i]) {
-            point->current_triangle = super;
-            super->remained_points_in_triangle.push_back(point);
+
+    if(redundant_cell_mark == NULL) {
+        for (int i = 0; i < num_points; i ++) {
+            cells[i].center = new Point(x[i], y[i], i);
+            cells[i].center->current_triangle = super;
+            super->remained_points_in_triangle.push_back(cells[i].center);
+        }
+    }
+    else {
+        for (int i = 0; i < num_points; i ++) {
+            cells[i].center = new Point(x[i], y[i], i);
+            if (!redundant_cell_mark[i]) {
+                cells[i].center->current_triangle = super;
+                super->remained_points_in_triangle.push_back(cells[i].center);
+            }
         }
     }
 
@@ -641,8 +667,12 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
 void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 {
     for(vector<Triangle*>::iterator t = result_leaf_triangles.begin(); t != result_leaf_triangles.end(); )
-        if((*t)->contain_vertex(virtual_point[0]) || (*t)->contain_vertex(virtual_point[1]) || (*t)->contain_vertex(virtual_point[2]))
+        if((*t)->contain_vertex(virtual_point[0]) || (*t)->contain_vertex(virtual_point[1]) || (*t)->contain_vertex(virtual_point[2])) {
+            (*t)->edge[0]->triangle = NULL;
+            (*t)->edge[1]->triangle = NULL;
+            (*t)->edge[2]->triangle = NULL;
             result_leaf_triangles.erase(t);
+        }
         else
             t++;
 }
@@ -738,4 +768,70 @@ vector<Edge*> Delaunay_Voronoi::get_all_legal_delaunay_edge()
             }
 
     return all_edges;
+}
+
+void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
+{
+    int current = 0;
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+        if(!result_leaf_triangles[i]->is_leaf)
+            continue;
+        if(result_leaf_triangles[i]->v[0]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) > 0 &&
+           result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[2]->position_to_edge(&head, &tail) > 0 )
+            continue;
+
+        /* two points of segment is in/on triangle */
+        if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
+            output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+            assert(current < buf_len);
+            continue;
+        }
+
+        /* segment is intersected with at least one edge of triangle */
+        for(int j = 0; j < 3; j++)
+            if(head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
+               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) <= 0) {
+                output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+                assert(current < buf_len);
+                break;
+            }
+    }
+    *num_triangles = current;
+}
+
+
+bool Delaunay_Voronoi::check_if_all_outer_edge_out_of_region(double min_x, double max_x, double min_y, double max_y)
+{
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
+        if(!result_leaf_triangles[i]->is_leaf)
+            for(int j = 0; j < 3; j++)
+                if(!result_leaf_triangles[i]->edge[j]->twin_edge || !result_leaf_triangles[i]->edge[j]->twin_edge->triangle)
+                    if(result_leaf_triangles[i]->edge[j]->head->x >= min_x && result_leaf_triangles[i]->edge[j]->head->x <= max_x &&
+                       result_leaf_triangles[i]->edge[j]->head->y >= min_y && result_leaf_triangles[i]->edge[j]->head->y <= max_y ||
+                       result_leaf_triangles[i]->edge[j]->tail->x >= min_x && result_leaf_triangles[i]->edge[j]->tail->x <= max_x &&
+                       result_leaf_triangles[i]->edge[j]->tail->y >= min_y && result_leaf_triangles[i]->edge[j]->tail->y <= max_y )
+                        return false;
+    return true;
+}
+
+
+Triangle_Transport::Triangle_Transport(Point p0, Point p1, Point p2)
+{
+    v[0] = p0;
+    v[1] = p1;
+    v[2] = p2;
+}
+
+
+bool operator == (Triangle_Transport t1, Triangle_Transport t2)
+{
+    assert(t1.v[0] != t1.v[1] && t1.v[1] != t1.v[2] && t1.v[2] != t1.v[0]);
+    assert(t2.v[0] != t2.v[1] && t2.v[1] != t2.v[2] && t2.v[2] != t2.v[0]); // NOTE: Should this assetion be here or somewhere?
+    if(t2.v[0] != t1.v[0] && t2.v[0] != t1.v[1] && t2.v[0] != t1.v[2])
+        return false;
+    if(t2.v[1] != t1.v[0] && t2.v[1] != t1.v[1] && t2.v[1] != t1.v[2])
+        return false;
+    if(t2.v[2] != t1.v[0] && t2.v[2] != t1.v[1] && t2.v[2] != t1.v[2])
+        return false;
+    return true;
 }

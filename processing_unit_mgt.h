@@ -13,14 +13,13 @@
 #include <map>
 #include <vector>
 using std::vector;
-using std::map;
 
 class Processing_unit;
 
 
 class Processing_unit {
 public:
-    friend class Processing_resource;
+    //friend class Processing_resource;
     //char *hostname;
     unsigned int hostname_checksum;
     int process_id;
@@ -32,14 +31,36 @@ public:
 };
 
 
+struct Thread_comm_packet {
+    const void *buf;
+    int len;
+    int src;
+    int dest;
+    int tag;
+
+    Thread_comm_packet(const void *_buf, int _len, int _src, int _dest, int _tag): buf(_buf),
+                                                                             len(_len),
+                                                                             src(_src),
+                                                                             dest(_dest),
+                                                                             tag(_tag) {};
+};
+
+
 class Processing_resource {
 private:
     int component_id;
-    map <unsigned int, vector <Processing_unit*> > computing_nodes;
+    std::map <unsigned int, vector <Processing_unit*> > computing_nodes;
     Processing_unit **processing_units; //(All threads_info sorted by common_id)
     int num_total_processing_units;
     int *local_proc_common_id;
     int num_local_proc_processing_units;
+
+    int local_process_id;
+    int num_total_processes;
+    MPI_Comm mpi_comm;
+    int num_local_threads;
+
+    vector<Thread_comm_packet> local_thread_comm;
     
     int identify_processing_units_by_hostname();
 
@@ -49,16 +70,24 @@ public:
     void pick_out_active_processing_units(int, bool*);
     Processing_unit* get_processing_unit(int common_id) { return this->processing_units[common_id]; };
     Processing_unit** get_processing_units() { return this->processing_units; };
-    int get_num_total_processing_units(){ return num_total_processing_units; };
-    int* get_local_proc_common_id(){ return local_proc_common_id; };
-    int get_num_local_proc_processing_units(){ return num_local_proc_processing_units; };
+    int get_num_total_processing_units() { return num_total_processing_units; };
+    int* get_local_proc_common_id() { return local_proc_common_id; };
+    int get_num_local_proc_processing_units() { return num_local_proc_processing_units; };
+    int get_local_process_id() { return local_process_id; };
+    int get_num_total_processes() { return num_total_processes; };
+    int get_num_local_threads() { return num_local_threads; };
+    MPI_Comm get_mpi_comm() { return mpi_comm; };
     void print_all_nodes_info();
+
+    /* communication */
+    bool send_to_local_thread(const void *, int, int, int, int, int);
+    int recv_from_local_thread(void *, int, int, int, int, int);
 };
 
 
 class Processing_resource_mgt {
 private:
-    map <int, Processing_resource*> all_processing_info;
+    std::map <int, Processing_resource*> all_processing_info;
 public:
     Processing_resource_mgt();
     ~Processing_resource_mgt();

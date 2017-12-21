@@ -8,14 +8,14 @@
 
 #include "processing_unit_mgt.h"
 #include <unistd.h>
-#include <map>
+//#include <map>
 #include <cstdio>
 #include <cstring>
 #include <cassert>
 #include <omp.h>
 
 #define MAX_HOSTNAME_LEN 32
-typedef map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
+typedef std::map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
 
 /* BKDR Hash Function */
 unsigned int BKDRHash(char *str, unsigned int n)
@@ -35,10 +35,8 @@ unsigned int BKDRHash(char *str, unsigned int n)
 
 Processing_resource::Processing_resource() {
     char hostname[MAX_HOSTNAME_LEN];
-    int local_proc_id, num_procs, num_local_threads;
     int *num_threads_per_process;
     unsigned int local_hostname_checksum, *hostname_checksum_per_process;
-    MPI_Comm comm;
 
     this->processing_units = NULL;
     this->component_id = -1;
@@ -48,26 +46,26 @@ Processing_resource::Processing_resource() {
 
     process_thread_mgr->get_hostname(hostname, MAX_HOSTNAME_LEN);
     local_hostname_checksum = BKDRHash(hostname, MAX_HOSTNAME_LEN);
-    local_proc_id = process_thread_mgr->get_mpi_rank();
-    num_procs = process_thread_mgr->get_mpi_size();
-    comm = process_thread_mgr->get_mpi_comm();
+    local_process_id = process_thread_mgr->get_mpi_rank();
+    num_total_processes = process_thread_mgr->get_mpi_size();
+    mpi_comm = process_thread_mgr->get_mpi_comm();
     num_local_threads = process_thread_mgr->get_openmp_size();
     
-    assert(num_procs > 0);
+    assert(num_total_processes > 0);
     if(num_local_threads <= 0)
         assert(false);
 
     this->local_proc_common_id = new int[num_local_threads];
-    num_threads_per_process = new int[num_procs];
-    hostname_checksum_per_process = new unsigned int[num_procs];
+    num_threads_per_process = new int[num_total_processes];
+    hostname_checksum_per_process = new unsigned int[num_total_processes];
 
-    process_thread_mgr->allgather(&num_local_threads, 1, MPI_INT, num_threads_per_process, 1, MPI_INT, comm);
-    process_thread_mgr->allgather(&local_hostname_checksum, 1, MPI_UNSIGNED, hostname_checksum_per_process, 1, MPI_UNSIGNED, comm);
+    process_thread_mgr->allgather(&num_local_threads, 1, MPI_INT, num_threads_per_process, 1, MPI_INT, mpi_comm);
+    process_thread_mgr->allgather(&local_hostname_checksum, 1, MPI_UNSIGNED, hostname_checksum_per_process, 1, MPI_UNSIGNED, mpi_comm);
     //MPI_Allgather();
-    //MPI_Allgather(&local_hostname_checksum, 1, MPI_UNSIGNED, hostname_checksum_per_process, 1, MPI_UNSIGNED, comm);
+    //MPI_Allgather(&local_hostname_checksum, 1, MPI_UNSIGNED, hostname_checksum_per_process, 1, MPI_UNSIGNED, mpi_comm);
     
     /* assume that "num_threads_per_process" and "hostname_checksum_per_process" are sorted by process id */
-    for(int i=0; i < num_procs; i ++)
+    for(int i=0; i < num_total_processes; i ++)
         for(int j=0; j < num_threads_per_process[i]; j ++) 
             computing_nodes[hostname_checksum_per_process[i]].push_back(new Processing_unit(hostname_checksum_per_process[i], i, j));
 
@@ -76,7 +74,7 @@ Processing_resource::Processing_resource() {
     MAP_UINT_VECTOR_T::iterator it;
     for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
         for(unsigned int i = 0; i < it->second.size(); i++)
-            if(it->second[i]->process_id == local_proc_id)
+            if(it->second[i]->process_id == local_process_id)
                 this->local_proc_common_id[this->num_local_proc_processing_units++] = it->second[i]->common_id;
 
     assert(num_local_proc_processing_units == num_local_threads);
@@ -172,6 +170,24 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
             is_active[it->second[j]->common_id] = true;
 
     delete[] num_active_units_per_node;
+}
+
+
+bool Processing_resource::send_to_local_thread(const void *buf, int count, int size, int src, int dst, int tag)
+{
+    local_thread_comm.push_back(Thread_comm_packet(buf, count*size, src, dst, tag));
+    return true;
+}
+
+
+int Processing_resource::recv_from_local_thread(void *buf, int max_count, int size, int src, int dst, int tag)
+{
+    for(unsigned int i = 0; i < local_thread_comm.size(); i++)
+        if(local_thread_comm[i].src == src && local_thread_comm[i].dest == dst && local_thread_comm[i].tag == tag) {
+            memcpy(buf, local_thread_comm[i].buf, std::min(max_count, local_thread_comm[i].len));
+            return std::min(max_count, local_thread_comm[i].len);
+        }
+    return -1;
 }
 
 

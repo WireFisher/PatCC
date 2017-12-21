@@ -26,18 +26,20 @@ using std::vector;
 class Edge;
 class Point;
 class Triangle;
-
+class Triangle_Transport;
 
 class Point
 {
-    private:
+    public:
 #ifdef UNITTEST
-        friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
+        //friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
 #endif
-        friend class Delaunay_Voronoi;
-        friend class Triangle;
-        friend double det(const Point *, const Point *, const Point *);
-        friend Point operator-(Point, Point);
+        //friend class Delaunay_Voronoi;
+        //friend class Triangle;
+        //friend class Delaunay_grid_decomposition;
+        //friend double det(const Point *, const Point *, const Point *);
+        //friend Point operator-(Point, Point);
+        //friend bool operator == (Point, Point);
         double x;    
         double y;
         int id;
@@ -45,7 +47,7 @@ class Point
 
     public:
         Point();
-        Point(double, double, int);
+        Point(double, double, int id=-1);
         ~Point();
         double calculate_distance(const Point*) const;
         int position_to_edge(const Point*, const Point*) const;
@@ -154,6 +156,17 @@ class Delaunay_Voronoi
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
         bool is_all_leaf_triangle_legal();
+        void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
+        bool check_if_all_outer_edge_out_of_region(double, double, double, double);
+};
+
+class Triangle_Transport
+{
+    public:
+        Point v[3];
+        Triangle_Transport() {};
+        Triangle_Transport(Point, Point, Point);
+        friend bool operator == (Triangle_Transport, Triangle_Transport);
 };
 
 #endif

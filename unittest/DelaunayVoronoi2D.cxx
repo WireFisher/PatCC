@@ -123,20 +123,18 @@ TEST(DelaunayTriangulationTest, Rectangle) {
 
     lat = new double[num_points];
     lon = new double[num_points];
-    redundant_cell_mark = new bool[num_points];
+    redundant_cell_mark = NULL;
 
     for(int i = 0, index = 0; i < len_points; i++)
         for(int j = 0; j < len_points; j++) {
         lat[index] = 15 * i;
         lon[index] = 15 * j;
-        redundant_cell_mark[index++] = false;
     }
 
     do_triangulation_plot(num_points, lat, lon, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-0.png");
 
     delete lat;
     delete lon;
-    delete redundant_cell_mark;
 };
 
 
@@ -212,12 +210,11 @@ TEST(DelaunayTriangulationTest, RandomMiddleSize) {
 
     lat = new double[num_points];
     lon = new double[num_points];
-    redundant_cell_mark = new bool[num_points];
+    redundant_cell_mark = NULL;
 
     for(int i = 0; i < num_points; i++) {
         lat[i] = fRand(min_lat, max_lat);
         lon[i] = fRand(min_lon, max_lon);
-        redundant_cell_mark[i] = false;
     }
 
     do_triangulation_plot(num_points, lat, lon, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image4-0.png");
@@ -261,7 +258,6 @@ TEST(DelaunayTriangulationTest, RandomMiddleSize) {
     delete lon;
     delete lat_part;
     delete lon_part;
-    delete redundant_cell_mark;
 };
 
 
@@ -277,17 +273,15 @@ TEST(DelaunayTriangulationTest, RandomLargeSize) {
 
     lat = new double[num_points];
     lon = new double[num_points];
-    redundant_cell_mark = new bool[num_points];
+    redundant_cell_mark = NULL;
 
     for(int i = 0; i < num_points; i++) {
         lat[i] = fRand(min_lat, max_lat);
         lon[i] = fRand(min_lon, max_lon);
-        redundant_cell_mark[i] = false;
     }
 
     do_triangulation_plot_small_part(num_points, lat, lon, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image5-0.png");
 
     delete lat;
     delete lon;
-    delete redundant_cell_mark;
 };
