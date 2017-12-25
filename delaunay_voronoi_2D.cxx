@@ -403,7 +403,7 @@ int Triangle::find_best_candidate_point()
     if (remained_points_in_triangle.size() == 0)
         return -1;
 
-    for (int i = 0; i < remained_points_in_triangle.size(); i ++) {
+    for (unsigned int i = 0; i < remained_points_in_triangle.size(); i ++) {
         min_dist = remained_points_in_triangle[i]->calculate_distance(v[0]);
         dist = remained_points_in_triangle[i]->calculate_distance(v[1]);
         if (min_dist > dist)
@@ -435,9 +435,9 @@ void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, ve
     bool find_triangle;
 
 
-    for (int i = 0; i < pnts->size(); i ++) {
+    for (unsigned int i = 0; i < pnts->size(); i ++) {
         find_triangle = false;
-        for (int j = 0; j < triangles->size(); j ++) {
+        for (unsigned int j = 0; j < triangles->size(); j ++) {
             if (!((*triangles)[j])->is_leaf)
                 continue;
             if ((*pnts)[i]->position_to_triangle(((*triangles)[j])) >= 0) {
@@ -447,12 +447,13 @@ void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, ve
                 break;
             }
         }
-        if (!find_triangle) 
+        if (!find_triangle) {
             if (is_global_grid)
                 //EXECUTION_REPORT(REPORT_ERROR, -1, false, "CoR may have bugs, please contact liuli-cess@tsinghua.edu.cn");
                 assert(false);
             else //EXECUTION_REPORT(REPORT_ERROR, -1, false, "please enlarge the boundary of the regional grid"); 
                 assert(false);
+        }
     }
 }
 
@@ -589,17 +590,17 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         }
     }
 
-    for (int i = 0; i < leaf_triangles.size(); i ++) {
+    for (unsigned int i = 0; i < leaf_triangles.size(); i ++) {
         if (leaf_triangles[i]->is_leaf)
             //EXECUTION_REPORT(REPORT_ERROR, -1, leaf_triangles[i]->remained_points_in_triangle.size() == 0, "remap software error1 in triangularization_process");
             assert(leaf_triangles[i]->remained_points_in_triangle.size() == 0);
     }
-    for (int i = 0; i < leaf_triangles.size(); i ++) {
+    for (unsigned int i = 0; i < leaf_triangles.size(); i ++) {
         if (leaf_triangles[i]->is_leaf)
             continue;
         distribute_points_into_triangles(&(leaf_triangles[i]->remained_points_in_triangle), &leaf_triangles);
     }       
-    for (int i = 0; i < leaf_triangles.size(); i ++)
+    for (unsigned int i = 0; i < leaf_triangles.size(); i ++)
         triangularization_process(leaf_triangles[i]);
 
     triangle->reference_count --;
@@ -611,7 +612,7 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
 {
     double minX, maxX, minY, maxY;
     double dx, dy, deltaMax, midx, midy;
-    Edge *e1, *e2, *e3;
+    //Edge *e1, *e2, *e3;
     Triangle *super;
 
     assert(x != NULL);
@@ -683,8 +684,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 {
     Triangle *root;
     timeval start, end;
-    int i, j;
-    bool cyclic = min_lon==0 && max_lon==360; // double ==?
+    //bool cyclic = min_lon==0 && max_lon==360; // double ==?
 
     gettimeofday(&start, NULL);
     current_delaunay_voronoi = this;
@@ -714,9 +714,9 @@ Delaunay_Voronoi::~Delaunay_Voronoi()
     for (int i = 0; i < num_cells; i ++)
         delete cells[i].center;
     delete [] cells;
-    for (int i = 0; i < edge_pool.size(); i ++)
+    for (unsigned int i = 0; i < edge_pool.size(); i ++)
         delete edge_pool[i];
-    for (int i = 0; i < triangle_pool.size(); i ++)
+    for (unsigned int i = 0; i < triangle_pool.size(); i ++)
         delete triangle_pool[i];
     current_delaunay_voronoi = NULL;
 }
@@ -806,10 +806,10 @@ bool Delaunay_Voronoi::check_if_all_outer_edge_out_of_region(double min_x, doubl
         if(!result_leaf_triangles[i]->is_leaf)
             for(int j = 0; j < 3; j++)
                 if(!result_leaf_triangles[i]->edge[j]->twin_edge || !result_leaf_triangles[i]->edge[j]->twin_edge->triangle)
-                    if(result_leaf_triangles[i]->edge[j]->head->x >= min_x && result_leaf_triangles[i]->edge[j]->head->x <= max_x &&
-                       result_leaf_triangles[i]->edge[j]->head->y >= min_y && result_leaf_triangles[i]->edge[j]->head->y <= max_y ||
-                       result_leaf_triangles[i]->edge[j]->tail->x >= min_x && result_leaf_triangles[i]->edge[j]->tail->x <= max_x &&
-                       result_leaf_triangles[i]->edge[j]->tail->y >= min_y && result_leaf_triangles[i]->edge[j]->tail->y <= max_y )
+                    if((result_leaf_triangles[i]->edge[j]->head->x >= min_x && result_leaf_triangles[i]->edge[j]->head->x <= max_x &&
+                        result_leaf_triangles[i]->edge[j]->head->y >= min_y && result_leaf_triangles[i]->edge[j]->head->y <= max_y) ||
+                       (result_leaf_triangles[i]->edge[j]->tail->x >= min_x && result_leaf_triangles[i]->edge[j]->tail->x <= max_x &&
+                        result_leaf_triangles[i]->edge[j]->tail->y >= min_y && result_leaf_triangles[i]->edge[j]->tail->y <= max_y))
                         return false;
     return true;
 }

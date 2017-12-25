@@ -331,13 +331,13 @@ void Search_tree_node::add_neighbors(vector<Search_tree_node*> neighbors)
     */
 }
 
+/*
 bool Search_tree_node::check_expanded_triangle_consistency()
 {
-/*
     if(this->triangulation == NULL)
         return false;
-*/
 }
+*/
 
 
 Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_num_points_per_chunk)
@@ -1034,6 +1034,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
 int Delaunay_grid_decomposition::generate_trianglulation_for_whole_grid()
 {
+    assert(false);
     return 0;
 }
 
@@ -1050,6 +1051,14 @@ Grid_info_manager::Grid_info_manager()
             coord_values[1][i * size + j] = -30.0 + 60.0 * i / size;
         } 
 }
+
+
+Grid_info_manager::Grid_info_manager(double *coord[2], int num)
+{
+
+}
+
+
 Grid_info_manager::~Grid_info_manager()
 {
     delete coord_values[0];

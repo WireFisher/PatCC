@@ -66,7 +66,7 @@ public:
     void generate_local_triangulation();
     void add_expanded_points(double **, int);
     void add_neighbors(vector<Search_tree_node*>);
-    bool check_expanded_triangle_consistency();
+    //bool check_expanded_triangle_consistency();
     bool check_if_all_outer_edge_out_of_kernel_boundry();
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
@@ -133,6 +133,7 @@ private:
 public:
     /* for unittest */
     Grid_info_manager();
+    Grid_info_manager(double *coord[2], int num);
     virtual ~Grid_info_manager();
     virtual double** get_grid_coord_values(int);
     virtual int get_grid_num_points(int);
