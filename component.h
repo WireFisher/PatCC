@@ -10,11 +10,12 @@ private:
     int grid_id;
     Delaunay_grid_decomposition *delaunay_triangulation;
 public:
-    Grid(int id):grid_id(id){};
+    Grid(int id):grid_id(id){ delaunay_triangulation = NULL; };
     ~Grid();
     int get_grid_id(){ return grid_id; };
     int generate_delaunay_trianglulation(Processing_resource*);
     bool have_delaunay_trianglulation(){return delaunay_triangulation != NULL; };
+    void plot_triangles_into_file();
 };
 
 class Component

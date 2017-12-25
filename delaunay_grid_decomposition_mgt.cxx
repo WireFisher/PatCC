@@ -91,6 +91,8 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     this->local_cells_coord[1] = new double[num_points];
     memcpy(this->local_cells_coord[0], coord_value[0], num_points * sizeof(double));
     memcpy(this->local_cells_coord[1], coord_value[1], num_points * sizeof(double));
+    //for(int i = 0; i < num_points; i++)
+    //    printf("%p: (%lf, %lf)\n", parent,  this->local_cells_coord[0][i], this->local_cells_coord[1][i]);
     //this->expanded_cells_coord[0] = this->expanded_cells_coord[1] = NULL;
     this->len_expanded_cells_coord_buf = 0;
 
@@ -159,6 +161,7 @@ void Search_tree_node::generate_local_triangulation()
     if(triangulation)
         delete triangulation;
 
+    //printf("num_local_kernel_cells: %d, num_local_expanded_cells: %d\n", num_local_kernel_cells, num_local_expanded_cells);
     if(rotated_expanded_boundry != NULL)
         triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
                                              local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], false,
@@ -304,17 +307,17 @@ void Search_tree_node::add_expanded_points(double *coord_value[2], int num_point
     double *tmp_coord_value[2];
     if(num_local_expanded_cells + num_points > len_expanded_cells_coord_buf) {
         len_expanded_cells_coord_buf = num_local_expanded_cells + num_points * 4 * PDLN_EXPECTED_EXPANDING_LOOP_TIMES;
-        tmp_coord_value[0] = new double[len_expanded_cells_coord_buf];
-        tmp_coord_value[1] = new double[len_expanded_cells_coord_buf];
-        memcpy(tmp_coord_value[0], local_cells_coord[0], sizeof(double) * num_local_expanded_cells);
-        memcpy(tmp_coord_value[1], local_cells_coord[1], sizeof(double) * num_local_expanded_cells);
+        tmp_coord_value[0] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
+        tmp_coord_value[1] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
+        memcpy(tmp_coord_value[0], local_cells_coord[0], sizeof(double) * (num_local_kernel_cells + num_local_expanded_cells));
+        memcpy(tmp_coord_value[1], local_cells_coord[1], sizeof(double) * (num_local_kernel_cells + num_local_expanded_cells));
         delete[] local_cells_coord[0];
         delete[] local_cells_coord[1];
         local_cells_coord[0] = tmp_coord_value[0];
         local_cells_coord[1] = tmp_coord_value[1];
     }
-    memcpy(local_cells_coord[0] + num_local_expanded_cells, coord_value[0], sizeof(double) * num_points);
-    memcpy(local_cells_coord[1] + num_local_expanded_cells, coord_value[1], sizeof(double) * num_points);
+    memcpy(local_cells_coord[0] + num_local_kernel_cells + num_local_expanded_cells, coord_value[0], sizeof(double) * num_points);
+    memcpy(local_cells_coord[1] + num_local_kernel_cells + num_local_expanded_cells, coord_value[1], sizeof(double) * num_points);
     num_local_expanded_cells += num_points;
     assert(num_local_expanded_cells >= num_points);
 }
@@ -356,6 +359,8 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     num_points = grid_info_mgr->get_grid_num_points(grid_id);
     grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
+    //for(int i = 0; i < num_points; i++)
+    //    printf("(%lf, %lf)\n", coord_values[0][i], coord_values[1][i]);
     this->search_tree_root = new Search_tree_node(NULL, coord_values, num_points, boundry);
     this->active_processing_common_id = NULL;
     this->workloads = NULL;
@@ -1038,6 +1043,16 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_whole_grid()
     return 0;
 }
 
+
+void Delaunay_grid_decomposition::plot_local_triangles(const char *perfix)
+{
+    for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
+        char filename[64];
+        sprintf(filename, "%54s_%d.png", perfix, local_leaf_nodes[i]->processing_units_id[0]);
+        local_leaf_nodes[i]->triangulation->plot_into_file(filename);
+    }
+}
+
 Grid_info_manager::Grid_info_manager()
 {
     int size = 300;
@@ -1047,8 +1062,8 @@ Grid_info_manager::Grid_info_manager()
     coord_values[1] = new double[num_points]();
     for(int i = 0; i < size; i++)
         for(int j = 0; j < size; j++) {
-            coord_values[0][i * size + j] = 90.0  + 90.0 * j / size;
-            coord_values[1][i * size + j] = -30.0 + 60.0 * i / size;
+            coord_values[0][i * size + j] =  0.0  + 359.0 * j / size;
+            coord_values[1][i * size + j] = -89.0 + 178.0 * i / size;
         } 
 }
 
@@ -1074,10 +1089,10 @@ int Grid_info_manager::get_grid_num_points(int grid_id)
 }
 void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
 {
-    *min_lat = -30.0;
-    *max_lat =  30.0;
-    *min_lon =  90.0;
-    *max_lon = 180.0;
+    *min_lat = -89.0;
+    *max_lat =  89.0;
+    *min_lon =   0.0;
+    *max_lon = 359.0;
 }
 int Grid_info_manager::get_polar_points(int grid_id, char polar)
 {

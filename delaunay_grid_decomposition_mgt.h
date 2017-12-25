@@ -123,6 +123,9 @@ public:
     vector<Search_tree_node*> get_local_leaf_nodes() {return this->local_leaf_nodes; };
     int generate_trianglulation_for_local_decomp();
     int generate_trianglulation_for_whole_grid();
+
+    /* debug */
+    void plot_local_triangles(const char*);
 };
 
 
