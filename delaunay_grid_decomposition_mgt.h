@@ -67,7 +67,7 @@ public:
     void add_expanded_points(double **, int);
     void add_neighbors(vector<Search_tree_node*>);
     //bool check_expanded_triangle_consistency();
-    bool check_if_all_outer_edge_out_of_kernel_boundry();
+    bool check_if_all_outer_edge_out_of_kernel_boundry(Boundry *);
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
     double** get_local_cells_coord(){return this->local_cells_coord; };
@@ -114,6 +114,9 @@ private:
     int recv_triangles_from_remote(int, int, Triangle_Transport *, int, int);
     void send_triangles_to_remote(int, int, Triangle_Transport *, int, int);
 
+    /* debug */
+    void print_tree_node_info_recursively(Search_tree_node*);
+
 public:
     Delaunay_grid_decomposition(int, Processing_resource*);
     Delaunay_grid_decomposition(int, Processing_resource*, int);
@@ -126,6 +129,7 @@ public:
 
     /* debug */
     void plot_local_triangles(const char*);
+    void print_whole_search_tree_info();
 };
 
 

@@ -219,9 +219,6 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
-    //int mpi_rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-    //    printf("rank_%d: doing is_triangle_legal\n", mpi_rank);
     if (!edge->twin_edge)
         return true;
 
@@ -232,11 +229,6 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
         return true;
 
     int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
-    /*    printf("rank_%d: circum_circle_contains: %d. [(%lf, %lf), (%lf, %lf), (%lf, %lf)] x (%lf, %lf)\n", mpi_rank, ret,
-                                                     edge->triangle->v[0]->x, edge->triangle->v[0]->y,
-                                                     edge->triangle->v[1]->x, edge->triangle->v[1]->y,
-                                                     edge->triangle->v[2]->x, edge->triangle->v[2]->y,
-                                                     edge->twin_edge->prev_edge_in_triangle->head->x, edge->twin_edge->prev_edge_in_triangle->head->y);*/
     if (ret == -1)
         return true;
 
@@ -351,13 +343,8 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     //EXECUTION_REPORT(REPORT_ERROR, -1, fabs(det(pt1, pt2, pt3)) > e && fabs(det(pt2, pt3, pt1)) > e && fabs(det(pt3, pt1, pt2)) > e,
     //                 "points given to construct triangle are on the same line.");
 
-    /*int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-        if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR))
-            printf("rank_%d: xxx (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", mpi_rank, pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);*/
     assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
-    //printf("%p, %p | %p, %p | %p, %p\n", edge1->head, edge1->tail, edge2->head, edge2->tail, edge3->head, edge3->tail);
     assert(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
        
     v[0] = pt1;
@@ -402,8 +389,6 @@ int Triangle::circum_circle_contains(Point *p)
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     double dist = sqrt(((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1])));
-    //printf("rank_%d: circum_circle_contains p: (%lf, %lf), circum_center: (%lf, %lf)\n", mpi_rank, p->x, p->y, circum_center[0], circum_center[1]);
-    //printf("rank_%d: circum_circle_contains dist: %lf, circum_radius: %lf\n", mpi_rank, dist, circum_radius);
     if(std::fabs(dist - circum_radius) < FLOAT_ERROR)
         return 0;
     else if(dist < circum_radius)
@@ -459,12 +444,6 @@ void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, ve
         for (unsigned int j = 0; j < triangles->size(); j ++) {
             if (!((*triangles)[j])->is_leaf)
                 continue;
-            /*
-            printf("Point(%lf, %lf) Triangle[(%lf, %lf), (%lf, %lf), (%lf, %lf)] = %d\n", (*pnts)[i]->x, (*pnts)[i]->y, (*triangles)[j]->v[0]->x, (*triangles)[j]->v[0]->y,
-                                                                                                                   (*triangles)[j]->v[1]->x, (*triangles)[j]->v[1]->y,
-                                                                                                                   (*triangles)[j]->v[2]->x, (*triangles)[j]->v[2]->y,
-                                                                                                                   (*pnts)[i]->position_to_triangle(((*triangles)[j])));
-                                                                                                                   */
             if ((*pnts)[i]->position_to_triangle(((*triangles)[j])) >= 0) {
                 (*pnts)[i]->current_triangle = (*triangles)[j];
                 (*triangles)[j]->remained_points_in_triangle.push_back((*pnts)[i]);
@@ -717,8 +696,6 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     gettimeofday(&start, NULL);
     current_delaunay_voronoi = this;
 
-    //for(int i = 0; i < num_points; i ++)
-    //    printf("(%lf, %lf)\n", x_values[i], y_values[i]);
 
     num_cells = num_points;
 
@@ -840,8 +817,11 @@ bool Delaunay_Voronoi::check_if_all_outer_edge_out_of_region(double min_x, doubl
                     if((result_leaf_triangles[i]->edge[j]->head->x >= min_x && result_leaf_triangles[i]->edge[j]->head->x <= max_x &&
                         result_leaf_triangles[i]->edge[j]->head->y >= min_y && result_leaf_triangles[i]->edge[j]->head->y <= max_y) ||
                        (result_leaf_triangles[i]->edge[j]->tail->x >= min_x && result_leaf_triangles[i]->edge[j]->tail->x <= max_x &&
-                        result_leaf_triangles[i]->edge[j]->tail->y >= min_y && result_leaf_triangles[i]->edge[j]->tail->y <= max_y))
+                        result_leaf_triangles[i]->edge[j]->tail->y >= min_y && result_leaf_triangles[i]->edge[j]->tail->y <= max_y)) {
+                        //printf("check_if_all_outer_edge_out_of_region: false\n");
                         return false;
+                    }
+    //printf("check_if_all_outer_edge_out_of_region: true\n");
     return true;
 }
 
