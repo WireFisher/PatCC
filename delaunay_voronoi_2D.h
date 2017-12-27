@@ -173,4 +173,6 @@ class Triangle_Transport
         friend bool operator == (Triangle_Transport, Triangle_Transport);
 };
 
+void plot_triangles_info_file(const char *filename, Triangle_Transport *t, int num);
+
 #endif

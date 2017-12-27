@@ -797,7 +797,9 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
 
         /* segment is intersected with at least one edge of triangle */
         for(int j = 0; j < 3; j++)
-            if(head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
+            if((head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ||
+               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ) &&
+               head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
                tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) <= 0) {
                 output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
                 assert(current < buf_len);
@@ -875,4 +877,36 @@ bool operator == (Triangle_Transport t1, Triangle_Transport t2)
     if(t2.v[2] != t1.v[0] && t2.v[2] != t1.v[1] && t2.v[2] != t1.v[2])
         return false;
     return true;
+}
+
+void plot_triangles_info_file(const char *prefix, Triangle_Transport *t, int num)
+{
+    int num_edges;
+    double *head_coord[2], *tail_coord[2];
+    char filename[128];
+
+    num_edges = 3 * num;
+    head_coord[0] = new double[num_edges];
+    head_coord[1] = new double[num_edges];
+    tail_coord[0] = new double[num_edges];
+    tail_coord[1] = new double[num_edges];
+
+    num_edges = 0;
+    for(int i = 0; i < num; i ++)
+        for(int j = 0; j < 3; j++) {
+            head_coord[0][num_edges] = t[i].v[j].x;
+            head_coord[1][num_edges] = t[i].v[j].y;
+            tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
+            tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
+        }
+
+    assert(num_edges%3 == 0);
+    snprintf(filename, 128, "%s.png", prefix);
+    plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
+
+    delete head_coord[0];
+    delete head_coord[1];
+    delete tail_coord[0];
+    delete tail_coord[1];
+
 }

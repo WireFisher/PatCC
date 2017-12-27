@@ -501,9 +501,9 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
         delete[] child_cells_coord[i];
     //TODO: optimize new delete
     
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    printf("[Rank%d]x[ST-INFO-PRE] p: %p, first: %p, third: %p\n", rank, node, node->first_child, node->third_child);
+    //int rank;
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //printf("[Rank%d]x[ST-INFO-PRE] p: %p, first: %p, third: %p\n", rank, node, node->first_child, node->third_child);
 
     if(this->have_local_processing_units_id(node->first_child->processing_units_id)) 
         this->decompose_common_node_recursively(node->first_child);
@@ -530,7 +530,7 @@ void Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *tree_
 
     coord_value[0][PDLN_LAT] = coord_value[0][PDLN_LON] = coord_value[1][PDLN_LAT] = coord_value[1][PDLN_LON] = PDLN_DOUBLE_INVALID_VALUE;
     if(fabs(tree_node1->kernel_boundry->min_lat - tree_node2->kernel_boundry->max_lat) < PDLN_FLOAT_EQ_ERROR) {
-        coord_value[0][PDLN_LAT] = coord_value[1][PDLN_LAT] = tree_node1->kernel_boundry->max_lat;
+        coord_value[0][PDLN_LAT] = coord_value[1][PDLN_LAT] = tree_node2->kernel_boundry->max_lat;
         coord_value[0][PDLN_LON] = std::max(tree_node1->kernel_boundry->min_lon, tree_node2->kernel_boundry->min_lon);
         coord_value[1][PDLN_LON] = std::min(tree_node1->kernel_boundry->max_lon, tree_node2->kernel_boundry->max_lon);
     }
@@ -539,14 +539,12 @@ void Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *tree_
         coord_value[0][PDLN_LON] = std::max(tree_node1->kernel_boundry->min_lon, tree_node2->kernel_boundry->min_lon);
         coord_value[1][PDLN_LON] = std::min(tree_node1->kernel_boundry->max_lon, tree_node2->kernel_boundry->max_lon);
     }
-    else if(fabs(tree_node1->kernel_boundry->min_lon - tree_node2->kernel_boundry->max_lon) < PDLN_FLOAT_EQ_ERROR ||
-            fabs(fabs(tree_node1->kernel_boundry->min_lon - tree_node2->kernel_boundry->max_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) {
+    else if(fabs(tree_node1->kernel_boundry->min_lon - tree_node2->kernel_boundry->max_lon) < PDLN_FLOAT_EQ_ERROR) {
         coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node2->kernel_boundry->max_lon;
         coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
         coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
     }
-    else if(fabs(tree_node1->kernel_boundry->max_lon - tree_node2->kernel_boundry->min_lon) < PDLN_FLOAT_EQ_ERROR ||
-            fabs(fabs(tree_node1->kernel_boundry->max_lon - tree_node2->kernel_boundry->min_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) {
+    else if(fabs(tree_node1->kernel_boundry->max_lon - tree_node2->kernel_boundry->min_lon) < PDLN_FLOAT_EQ_ERROR) {
         coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node1->kernel_boundry->max_lon;
         coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
         coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
@@ -578,10 +576,16 @@ void Delaunay_grid_decomposition::send_triangles_to_remote(int src_common_id, in
         processing_info->send_to_local_thread(triangles_buf, num_triangles, sizeof(Triangle_Transport),
                                               processing_info->get_processing_unit(src_common_id)->thread_id,
                                               processing_info->get_processing_unit(dst_common_id)->thread_id, tag);
-    else
+    else {
         MPI_Isend(triangles_buf, num_triangles*sizeof(Triangle_Transport), MPI_CHAR,
                   processing_info->get_processing_unit(dst_common_id)->process_id, 
                   tag, processing_info->get_mpi_comm(), &request);
+        //char filename[64];
+        //int rank;
+        //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        //snprintf(filename, 64, "log/sending_triangle_%dto%d", rank, processing_info->get_processing_unit(dst_common_id)->process_id);
+        //plot_triangles_info_file(filename, triangles_buf, num_triangles);
+    }
 }
 
 
@@ -686,6 +690,11 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         Point boundry_head, boundry_tail, boundry2_head, boundry2_tail;
         assert(leaf_node->neighbors[i]->processing_units_id.size() == 1);
         compute_common_boundry(leaf_node, leaf_node->neighbors[i], &boundry_head, &boundry_tail, &boundry2_head, &boundry2_tail);
+        /*
+        printf("[common boundary] %d -> %d: (%lf, %lf) -> (%lf, %lf)\n", leaf_node->processing_units_id[0],
+                                                                         leaf_node->neighbors[i]->processing_units_id[0],
+                                                                         boundry_head.x, boundry_head.y,
+                                                                         boundry_tail.x, boundry_tail.y);*/
         
         /* get triangles ,which the common boundry pass through, from leaf_node and its neighbor */
         if(boundry_head.x != PDLN_DOUBLE_INVALID_VALUE) { // Uncompleted determination
@@ -725,14 +734,22 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         }
     }
 
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     /* do comparision */
     for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
         if(num_local_triangle[i] != num_remote_triangle[i]) {
-            //printf("check_leaf_node_triangulation_consistency: false\n");
+            //char filename[64];
+            //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
+            //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
+            //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
+            //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
+            //exit(3);
+            printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i]->processing_units_id[0], num_local_triangle[i], num_remote_triangle[i]);
             return false;
         }
         if(!check_triangles_consistency(local_triangle[i], remote_triangle[i], num_local_triangle[i])) {
-            //printf("check_leaf_node_triangulation_consistency: false\n");
+            printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i]->processing_units_id[0]);
             return false;
         }
     }
@@ -743,7 +760,7 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         if(!check_triangles_consistency(extra_local_triangle[i], extra_remote_triangle[i], num_extra_local_triangle[i]))
             return false;
     }
-    //printf("check_leaf_node_triangulation_consistency: True\n");
+    printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
     return true;
 }
 
