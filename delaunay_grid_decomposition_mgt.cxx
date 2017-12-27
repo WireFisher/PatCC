@@ -17,7 +17,7 @@
 #include <tr1/unordered_map>
 //#include <hash_map>
 
-#define DEFAULT_EXPANGDING_RATIO 0.1
+#define DEFAULT_EXPANGDING_RATIO 0.2
 #define PDLN_EXPECTED_EXPANDING_LOOP_TIMES 3
 
 #define PDLN_SPOLAR_MAX_LAT -45.0
@@ -333,13 +333,16 @@ void Search_tree_node::add_expanded_points(double *coord_value[2], int num_point
 }
 
 
+bool operator == (pair<Search_tree_node*, bool> p1, Search_tree_node* p2)
+{
+    return p1.first == p2;
+}
+
 void Search_tree_node::add_neighbors(vector<Search_tree_node*> neighbors)
 {
-    //this->neighbors = neighbors;
-
     for(unsigned int i = 0; i < neighbors.size(); i++)
         if(find(this->neighbors.begin(), this->neighbors.end(), neighbors[i]) == this->neighbors.end())
-            this->neighbors.push_back(neighbors[i]);
+            this->neighbors.push_back(pair<Search_tree_node*, bool>(neighbors[i], false));
 }
 
 /*
@@ -530,38 +533,56 @@ void Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *tree_
 
     coord_value[0][PDLN_LAT] = coord_value[0][PDLN_LON] = coord_value[1][PDLN_LAT] = coord_value[1][PDLN_LON] = PDLN_DOUBLE_INVALID_VALUE;
     if(fabs(tree_node1->kernel_boundry->min_lat - tree_node2->kernel_boundry->max_lat) < PDLN_FLOAT_EQ_ERROR) {
-        coord_value[0][PDLN_LAT] = coord_value[1][PDLN_LAT] = tree_node2->kernel_boundry->max_lat;
-        coord_value[0][PDLN_LON] = std::max(tree_node1->kernel_boundry->min_lon, tree_node2->kernel_boundry->min_lon);
-        coord_value[1][PDLN_LON] = std::min(tree_node1->kernel_boundry->max_lon, tree_node2->kernel_boundry->max_lon);
+        if(std::max(tree_node1->kernel_boundry->min_lon, tree_node2->kernel_boundry->min_lon) < 
+           std::min(tree_node1->kernel_boundry->max_lon, tree_node2->kernel_boundry->max_lon)) {
+            coord_value[0][PDLN_LAT] = coord_value[1][PDLN_LAT] = tree_node2->kernel_boundry->max_lat;
+            coord_value[0][PDLN_LON] = std::max(tree_node1->kernel_boundry->min_lon, tree_node2->kernel_boundry->min_lon);
+            coord_value[1][PDLN_LON] = std::min(tree_node1->kernel_boundry->max_lon, tree_node2->kernel_boundry->max_lon);
+        }
     }
     else if(fabs(tree_node1->kernel_boundry->max_lat - tree_node2->kernel_boundry->min_lat) < PDLN_FLOAT_EQ_ERROR) {
-        coord_value[0][PDLN_LAT] = coord_value[1][PDLN_LAT] = tree_node1->kernel_boundry->max_lat;
-        coord_value[0][PDLN_LON] = std::max(tree_node1->kernel_boundry->min_lon, tree_node2->kernel_boundry->min_lon);
-        coord_value[1][PDLN_LON] = std::min(tree_node1->kernel_boundry->max_lon, tree_node2->kernel_boundry->max_lon);
+        if(std::max(tree_node1->kernel_boundry->min_lon, tree_node2->kernel_boundry->min_lon) <
+           std::min(tree_node1->kernel_boundry->max_lon, tree_node2->kernel_boundry->max_lon)) {
+            coord_value[0][PDLN_LAT] = coord_value[1][PDLN_LAT] = tree_node1->kernel_boundry->max_lat;
+            coord_value[0][PDLN_LON] = std::max(tree_node1->kernel_boundry->min_lon, tree_node2->kernel_boundry->min_lon);
+            coord_value[1][PDLN_LON] = std::min(tree_node1->kernel_boundry->max_lon, tree_node2->kernel_boundry->max_lon);
+        }
     }
     else if(fabs(tree_node1->kernel_boundry->min_lon - tree_node2->kernel_boundry->max_lon) < PDLN_FLOAT_EQ_ERROR) {
-        coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node2->kernel_boundry->max_lon;
-        coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
-        coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
+        if(std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat) <
+           std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat)) {
+            coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node2->kernel_boundry->max_lon;
+            coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
+            coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
+        }
     }
     else if(fabs(tree_node1->kernel_boundry->max_lon - tree_node2->kernel_boundry->min_lon) < PDLN_FLOAT_EQ_ERROR) {
-        coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node1->kernel_boundry->max_lon;
-        coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
-        coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
+        if(std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat) <
+           std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat)) {
+            coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node1->kernel_boundry->max_lon;
+            coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
+            coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
+        }
     }
     *boundry_head = Point(coord_value[0][PDLN_LON], coord_value[0][PDLN_LAT]);
     *boundry_tail = Point(coord_value[1][PDLN_LON], coord_value[1][PDLN_LAT]);
 
     coord_value[0][PDLN_LAT] = coord_value[0][PDLN_LON] = coord_value[1][PDLN_LAT] = coord_value[1][PDLN_LON] = PDLN_DOUBLE_INVALID_VALUE;
     if(fabs(fabs(tree_node1->kernel_boundry->min_lon - tree_node2->kernel_boundry->max_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) {
-        coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node2->kernel_boundry->max_lon;
-        coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
-        coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
+        if(std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat) < 
+           std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat)) {
+            coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node2->kernel_boundry->max_lon;
+            coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
+            coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
+        }
     }
     else if(fabs(fabs(tree_node1->kernel_boundry->max_lon - tree_node2->kernel_boundry->min_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) {
-        coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node1->kernel_boundry->max_lon;
-        coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
-        coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
+        if(std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat) <
+           std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat)) {
+            coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node1->kernel_boundry->max_lon;
+            coord_value[0][PDLN_LAT] = std::max(tree_node1->kernel_boundry->min_lat, tree_node2->kernel_boundry->min_lat);
+            coord_value[1][PDLN_LAT] = std::min(tree_node1->kernel_boundry->max_lat, tree_node2->kernel_boundry->max_lat);
+        }
     }
     *boundry2_head = Point(coord_value[0][PDLN_LON], coord_value[0][PDLN_LAT]);
     *boundry2_tail = Point(coord_value[1][PDLN_LON], coord_value[1][PDLN_LAT]);
@@ -580,11 +601,13 @@ void Delaunay_grid_decomposition::send_triangles_to_remote(int src_common_id, in
         MPI_Isend(triangles_buf, num_triangles*sizeof(Triangle_Transport), MPI_CHAR,
                   processing_info->get_processing_unit(dst_common_id)->process_id, 
                   tag, processing_info->get_mpi_comm(), &request);
-        //char filename[64];
-        //int rank;
-        //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        //snprintf(filename, 64, "log/sending_triangle_%dto%d", rank, processing_info->get_processing_unit(dst_common_id)->process_id);
-        //plot_triangles_info_file(filename, triangles_buf, num_triangles);
+        /*
+        char filename[64];
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        snprintf(filename, 64, "log/sending_triangle_%dto%d", rank, processing_info->get_processing_unit(dst_common_id)->process_id);
+        plot_triangles_info_file(filename, triangles_buf, num_triangles);
+        */
     }
 }
 
@@ -637,7 +660,10 @@ namespace std
 bool Delaunay_grid_decomposition::check_triangles_consistency(Triangle_Transport *triangles1, Triangle_Transport *triangles2, int num_triangles)
 {
     std::tr1::unordered_map<Triangle_Transport, bool> hash_table;
-    //__gnu_cxx::hash_map<Triangle_Transport, bool> hash_table;
+
+    if(num_triangles == 0)
+        return true;
+
     for(int i = 0; i < num_triangles; i++) {
         if(hash_table.find(triangles1[i]) != hash_table.end())
             assert(false); //triangles1 has redundant triangles
@@ -686,10 +712,12 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
 
     /* send local triangles to neighbors */
     for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
+        if(leaf_node->neighbors[i].second)
+            continue;
         /* compute shared boundry of leaf_node and its neighbor */
         Point boundry_head, boundry_tail, boundry2_head, boundry2_tail;
-        assert(leaf_node->neighbors[i]->processing_units_id.size() == 1);
-        compute_common_boundry(leaf_node, leaf_node->neighbors[i], &boundry_head, &boundry_tail, &boundry2_head, &boundry2_tail);
+        assert(leaf_node->neighbors[i].first->processing_units_id.size() == 1);
+        compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &boundry_head, &boundry_tail, &boundry2_head, &boundry2_tail);
         /*
         printf("[common boundary] %d -> %d: (%lf, %lf) -> (%lf, %lf)\n", leaf_node->processing_units_id[0],
                                                                          leaf_node->neighbors[i]->processing_units_id[0],
@@ -699,8 +727,8 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         /* get triangles ,which the common boundry pass through, from leaf_node and its neighbor */
         if(boundry_head.x != PDLN_DOUBLE_INVALID_VALUE) { // Uncompleted determination
             leaf_node->triangulation->get_triangles_intersecting_with_segment(boundry_head, boundry_tail, local_triangle[i], &num_local_triangle[i], triangle_buf_len);
-            //printf("[%d]x[Send---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i]->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
-            send_triangles_to_remote(leaf_node->processing_units_id[0], leaf_node->neighbors[i]->processing_units_id[0],
+            printf("[%d]x[Send---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
+            send_triangles_to_remote(leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0],
                                      local_triangle[i], num_local_triangle[i], PDLN_SET_MASK(iter));
         }
 
@@ -709,59 +737,74 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             extra_remote_triangle[num_extra_buf++] = new Triangle_Transport[triangle_buf_len];
             leaf_node->triangulation->get_triangles_intersecting_with_segment(boundry2_head, boundry2_tail, extra_local_triangle[i],
                                                                               &num_extra_local_triangle[i], triangle_buf_len);
-            //printf("[%d]x[Send-EX] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i]->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
-            send_triangles_to_remote(leaf_node->processing_units_id[0], leaf_node->neighbors[i]->processing_units_id[0],
+            printf("[%d]x[Send-EX] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
+            send_triangles_to_remote(leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0],
                                      extra_local_triangle[i], num_extra_local_triangle[i], PDLN_SET_MASK_EXTRA(iter));
         }
     }
 
     /* recv triangles from netghbors */
     for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
+        if(leaf_node->neighbors[i].second)
+            continue;
         Point boundry_head, boundry_tail, boundry2_head, boundry2_tail;
-        compute_common_boundry(leaf_node, leaf_node->neighbors[i], &boundry_head, &boundry_tail, &boundry2_head, &boundry2_tail);
+        compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &boundry_head, &boundry_tail, &boundry2_head, &boundry2_tail);
 
         if(boundry_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            //printf("[%d]x[Recv---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i]->processing_units_id[0], leaf_node->processing_units_id[0], triangle_buf_len, PDLN_SET_MASK(iter));
-            num_remote_triangle[i] = recv_triangles_from_remote(leaf_node->neighbors[i]->processing_units_id[0], leaf_node->processing_units_id[0],
+            printf("[%d]x[Recv---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0], triangle_buf_len, PDLN_SET_MASK(iter));
+            num_remote_triangle[i] = recv_triangles_from_remote(leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0],
                                                                 remote_triangle[i], triangle_buf_len, PDLN_SET_MASK(iter));
         }
 
         if(boundry2_head.x != PDLN_DOUBLE_INVALID_VALUE) {
             assert(extra_remote_triangle[i] != NULL);
-            //printf("[%d]x[Recv-EX] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i]->processing_units_id[0], leaf_node->processing_units_id[0], triangle_buf_len, PDLN_SET_MASK(iter));
-            num_extra_remote_triangle[i] = recv_triangles_from_remote(leaf_node->neighbors[i]->processing_units_id[0], leaf_node->processing_units_id[0],
+            printf("[%d]x[Recv-EX] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0], triangle_buf_len, PDLN_SET_MASK(iter));
+            num_extra_remote_triangle[i] = recv_triangles_from_remote(leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0],
                                                                       extra_remote_triangle[i], triangle_buf_len, PDLN_SET_MASK_EXTRA(iter));
         }
     }
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
     /* do comparision */
+    bool check_passed = true;
     for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
+        if(leaf_node->neighbors[i].second)
+            continue;
         if(num_local_triangle[i] != num_remote_triangle[i]) {
             //char filename[64];
             //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
             //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
             //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
             //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
-            //exit(3);
-            printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i]->processing_units_id[0], num_local_triangle[i], num_remote_triangle[i]);
-            return false;
+            
+            //printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], num_remote_triangle[i]);
+            check_passed = false;
+            continue;
         }
         if(!check_triangles_consistency(local_triangle[i], remote_triangle[i], num_local_triangle[i])) {
-            printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i]->processing_units_id[0]);
-            return false;
+            //printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
+            check_passed = false;
+            continue;
         }
+        leaf_node->neighbors[i].second = true;
     }
 
+    //FIXME: bool check
     for(int i = 0; i < num_extra_buf; i++) {
         if(num_extra_local_triangle[i] != num_extra_remote_triangle[i])
             return false;
         if(!check_triangles_consistency(extra_local_triangle[i], extra_remote_triangle[i], num_extra_local_triangle[i]))
             return false;
     }
-    printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
-    return true;
+
+    if(check_passed) {
+        //printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
+        return true;
+    }
+    else
+        return false;
 }
 
 
@@ -949,8 +992,6 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
     num_north_polar = grid_info_mgr->get_polar_points(this->original_grid, 'N');
     if(this->assign_polars(num_south_polar > 2, num_north_polar > 2))
         return 1;
-    //for(int i = 0; i < this->workload_info->size_active; i++)
-    //    printf("common_id: %d, workload: %lf\n", i, this->workload_info->workloads[i]);
 
     if(this->current_tree_node->processing_units_id.size() == 1 && grid_info_mgr->is_grid_cyclic(this->original_grid)) {
         this->assign_cyclic_grid_for_single_unit();
@@ -1027,7 +1068,6 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         num_points_found = 0;
         vector<Search_tree_node*> leaf_nodes_found;
         leaf_nodes_found = search_points_in_region(sub_rectangles[i], expanded_cells_coord, &num_points_found);
-        //printf("leaf_nodes_found.size(): %lu\n", leaf_nodes_found.size());
         tree_node->add_expanded_points(expanded_cells_coord, num_points_found);
         tree_node->add_neighbors(leaf_nodes_found);
     }
@@ -1066,7 +1106,6 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
     //TODO: openmp parallel
-    //printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
         int ret;
         double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
@@ -1079,7 +1118,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                                                                        local_leaf_nodes[0]->kernel_boundry->max_lon, local_leaf_nodes[0]->kernel_boundry->min_lat,
                                                                        local_leaf_nodes[0]->kernel_boundry->max_lat);
             for(unsigned int j = 0; j < local_leaf_nodes[0]->neighbors.size(); j++)
-                printf("%d=%p, ", local_leaf_nodes[0]->neighbors[j]->processing_units_id[0], local_leaf_nodes[0]->neighbors[j]);
+                printf("%d=%p, ", local_leaf_nodes[0]->neighbors[j].first->processing_units_id[0], local_leaf_nodes[0]->neighbors[j]);
             printf("]\n");
             
             printf("===========%d===========\n", iter);
@@ -1099,6 +1138,11 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             local_leaf_nodes[i]->generate_local_triangulation();
             //expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1
             iter++;
+            if(iter == 2) {
+                //plot_local_triangles("log/chunk");
+                MPI_Barrier(MPI_COMM_WORLD);
+                //exit(1);
+            }
         }
     }
     //if(expand_fail)
@@ -1145,17 +1189,28 @@ void Delaunay_grid_decomposition::print_whole_search_tree_info()
     print_tree_node_info_recursively(search_tree_root);
 }
 
+
+static double fRand(double fMin, double fMax)
+{
+    double f = (double)rand() / RAND_MAX;
+    return fMin + f * (fMax - fMin);
+}
+
+
 Grid_info_manager::Grid_info_manager()
 {
-    int size = 300;
+    int size = 100;
 
     num_points = size * size;
     coord_values[0] = new double[num_points]();
     coord_values[1] = new double[num_points]();
+    srand(0);
     for(int i = 0; i < size; i++)
         for(int j = 0; j < size; j++) {
             coord_values[0][i * size + j] =  0.0  + 359.0 * j / size;
             coord_values[1][i * size + j] = -89.0 + 178.0 * i / size;
+            //coord_values[0][i * size + j] = fRand(0.0, 359.0);
+            //coord_values[1][i * size + j] = fRand(-89.0, 89.0);
         } 
 }
 

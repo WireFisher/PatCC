@@ -14,6 +14,8 @@
 #include "processing_unit_mgt.h"
 #include "delaunay_voronoi_2D.h"
 
+using std::pair;
+
 struct Midline {
     int type;
     double value;
@@ -53,7 +55,7 @@ private:
     int node_type;
     
     vector<int> processing_units_id;
-    vector<Search_tree_node*> neighbors;
+    vector<pair<Search_tree_node*, bool> > neighbors;
     Delaunay_Voronoi *triangulation;
 
 public:    
