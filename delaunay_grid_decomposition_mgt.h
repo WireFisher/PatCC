@@ -47,9 +47,9 @@ private:
     //double expanding_ratio;
     Midline midline;
     double *local_cells_coord[2]; //(clean after having children) //TODO:change name
+    int *local_cells_global_index;
     //double *expanded_cells_coord[2];
     int len_expanded_cells_coord_buf;
-    //int *local_cells_global_index; //(kernel + expanded)
     int num_local_kernel_cells;//TODO:change name
     int num_local_expanded_cells;//TODO:change name
     int node_type;
@@ -59,14 +59,14 @@ private:
     Delaunay_Voronoi *triangulation;
 
 public:    
-    Search_tree_node(Search_tree_node*, double**, int, Boundry);
+    Search_tree_node(Search_tree_node*, double**, int*, int, Boundry);
     ~Search_tree_node();
-    void decompose_iteratively(double*, double **, int*, Boundry*, vector<int>*, int);
-    void decompose_with_certain_line(Midline, double**, int*);
+    void decompose_iteratively(double*, double **, int**, int*, Boundry*, vector<int>*, int);
+    void decompose_with_certain_line(Midline, double**, int**, int*);
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
     void generate_local_triangulation();
-    void add_expanded_points(double **, int);
+    void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
     //bool check_expanded_triangle_consistency();
     bool check_if_all_outer_edge_out_of_kernel_boundry(Boundry *);
@@ -101,7 +101,7 @@ private:
     bool have_local_processing_units_id(vector<int>);
     void update_workloads(int, vector<int>&);
     int expand_tree_node_boundry(Search_tree_node*, double);
-    vector<Search_tree_node*> search_points_in_region(Boundry, double**, int*);
+    vector<Search_tree_node*> search_points_in_region(Boundry, double**, int*, int*);
     void transform_into_rectangle(Boundry, Boundry, Boundry*);
     void search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node*, Boundry, vector<Search_tree_node*>&);
     bool two_regions_overlap(Boundry, Boundry);
@@ -118,9 +118,10 @@ private:
 
     /* debug */
     void print_tree_node_info_recursively(Search_tree_node*);
+    void save_ordered_triangles_into_file(Triangle_Transport *, int);
 
 public:
-    Delaunay_grid_decomposition(int, Processing_resource*);
+    //Delaunay_grid_decomposition(int, Processing_resource*);
     Delaunay_grid_decomposition(int, Processing_resource*, int);
     ~Delaunay_grid_decomposition();
     int generate_grid_decomposition();
@@ -132,6 +133,7 @@ public:
     /* debug */
     void plot_local_triangles(const char*);
     void print_whole_search_tree_info();
+    void merge_all_triangles();
 };
 
 

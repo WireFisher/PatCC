@@ -778,6 +778,25 @@ vector<Edge*> Delaunay_Voronoi::get_all_legal_delaunay_edge()
     return all_edges;
 }
 
+
+bool Delaunay_Voronoi::check_if_all_outer_edge_out_of_region(double min_x, double max_x, double min_y, double max_y)
+{
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
+        if(!result_leaf_triangles[i]->is_leaf)
+            for(int j = 0; j < 3; j++)
+                if(!result_leaf_triangles[i]->edge[j]->twin_edge || !result_leaf_triangles[i]->edge[j]->twin_edge->triangle)
+                    if((result_leaf_triangles[i]->edge[j]->head->x >= min_x && result_leaf_triangles[i]->edge[j]->head->x <= max_x &&
+                        result_leaf_triangles[i]->edge[j]->head->y >= min_y && result_leaf_triangles[i]->edge[j]->head->y <= max_y) ||
+                       (result_leaf_triangles[i]->edge[j]->tail->x >= min_x && result_leaf_triangles[i]->edge[j]->tail->x <= max_x &&
+                        result_leaf_triangles[i]->edge[j]->tail->y >= min_y && result_leaf_triangles[i]->edge[j]->tail->y <= max_y)) {
+                        //printf("check_if_all_outer_edge_out_of_region: false\n");
+                        return false;
+                    }
+    //printf("check_if_all_outer_edge_out_of_region: true\n");
+    return true;
+}
+
+
 void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
 {
     int current = 0;
@@ -816,21 +835,36 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
 }
 
 
-bool Delaunay_Voronoi::check_if_all_outer_edge_out_of_region(double min_x, double max_x, double min_y, double max_y)
+/* including triangles intersecting with boundary */
+void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, double min_y, double max_y, 
+                                               Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
 {
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
+    int current = 0;
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
-            for(int j = 0; j < 3; j++)
-                if(!result_leaf_triangles[i]->edge[j]->twin_edge || !result_leaf_triangles[i]->edge[j]->twin_edge->triangle)
-                    if((result_leaf_triangles[i]->edge[j]->head->x >= min_x && result_leaf_triangles[i]->edge[j]->head->x <= max_x &&
-                        result_leaf_triangles[i]->edge[j]->head->y >= min_y && result_leaf_triangles[i]->edge[j]->head->y <= max_y) ||
-                       (result_leaf_triangles[i]->edge[j]->tail->x >= min_x && result_leaf_triangles[i]->edge[j]->tail->x <= max_x &&
-                        result_leaf_triangles[i]->edge[j]->tail->y >= min_y && result_leaf_triangles[i]->edge[j]->tail->y <= max_y)) {
-                        //printf("check_if_all_outer_edge_out_of_region: false\n");
-                        return false;
-                    }
-    //printf("check_if_all_outer_edge_out_of_region: true\n");
-    return true;
+            continue;
+
+        bool in = true;
+        for(int j = 0; j < 3; j++)
+            if(!(result_leaf_triangles[i]->v[j]->x < max_x && result_leaf_triangles[i]->v[j]->x > min_x &&
+                 result_leaf_triangles[i]->v[j]->y < max_y && result_leaf_triangles[i]->v[j]->y > min_y)) {
+                in = false;
+                break;
+            }
+
+        if(in)
+            output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+    }
+    assert(current < buf_len);
+
+    get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, num_triangles, buf_len-current);
+    current += *num_triangles;
+    get_triangles_intersecting_with_segment(Point(max_x, min_y), Point(max_x, max_y), output_triangles+current, num_triangles, buf_len-current);
+    current += *num_triangles;
+    get_triangles_intersecting_with_segment(Point(max_x, max_y), Point(min_x, max_y), output_triangles+current, num_triangles, buf_len-current);
+    current += *num_triangles;
+    get_triangles_intersecting_with_segment(Point(min_x, max_y), Point(min_x, min_y), output_triangles+current, num_triangles, buf_len-current);
+    *num_triangles += current;
 }
 
 

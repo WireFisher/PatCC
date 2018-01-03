@@ -158,9 +158,9 @@ class Delaunay_Voronoi
         bool is_all_leaf_triangle_legal();
         void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
         bool check_if_all_outer_edge_out_of_region(double, double, double, double);
+        void get_triangles_in_region(double, double, double, double, Triangle_Transport *, int *, int);
 
         /* debug */
-
         void plot_into_file(const char*);
 };
 

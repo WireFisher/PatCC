@@ -112,7 +112,7 @@ TEST(GridDecompositionTest, GlobalMiddle) {
     Delaunay_grid_decomposition *grid_decomp;
     
     processing_info = new Processing_resource();
-    grid_decomp = new Delaunay_grid_decomposition(1, processing_info);
+    grid_decomp = new Delaunay_grid_decomposition(1, processing_info, 100);
     grid_decomp->generate_grid_decomposition();
     FILE *log_file;
     char log_path[64];
