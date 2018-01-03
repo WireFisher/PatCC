@@ -54,6 +54,11 @@ void Grid::plot_triangles_into_file()
     this->delaunay_triangulation->plot_local_triangles("log/chunk");
 }
 
+void Grid::merge_all_triangles()
+{
+    delaunay_triangulation->merge_all_triangles();
+}
+
 void Component::generate_delaunay_trianglulation(int grid_id)
 {
     Grid *operating_grid;
@@ -67,7 +72,8 @@ void Component::generate_delaunay_trianglulation(int grid_id)
     /* grid pretreatment */
 
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
-    operating_grid->plot_triangles_into_file();
+    //operating_grid->plot_triangles_into_file();
+    operating_grid->merge_all_triangles();
 }
 
 Grid_info_manager *grid_info_mgr;

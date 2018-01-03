@@ -16,6 +16,7 @@ public:
     int generate_delaunay_trianglulation(Processing_resource*);
     bool have_delaunay_trianglulation(){return delaunay_triangulation != NULL; };
     void plot_triangles_into_file();
+    void merge_all_triangles();
 };
 
 class Component

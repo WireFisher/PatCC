@@ -816,6 +816,7 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
         /* two points of segment is in/on triangle */
         if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
             output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+            //printf("boundary: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
             assert(current < buf_len);
             continue;
         }
@@ -827,6 +828,7 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
                head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
                tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) <= 0) {
                 output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+                //printf("boundary: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
                 assert(current < buf_len);
                 break;
             }
@@ -840,6 +842,8 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
                                                Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
 {
     int current = 0;
+
+    //printf("result_leaf_triangles.size: %lu\n", result_leaf_triangles.size());
     for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
@@ -852,10 +856,13 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
                 break;
             }
 
-        if(in)
+        if(in) {
             output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+            //printf("inner: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
+        }
     }
     assert(current < buf_len);
+    //printf("kernel: %d, buf_len: %d\n", current, buf_len);
 
     get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, num_triangles, buf_len-current);
     current += *num_triangles;

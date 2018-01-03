@@ -15,7 +15,7 @@
 #include <cmath>
 #include <vector>
 #include <tr1/unordered_map>
-//#include <hash_map>
+#include "merge_sort.h"
 
 #define DEFAULT_EXPANGDING_RATIO 0.2
 #define PDLN_EXPECTED_EXPANDING_LOOP_TIMES 3
@@ -1240,6 +1240,7 @@ void Delaunay_grid_decomposition::print_tree_node_info_recursively(Search_tree_n
         print_tree_node_info_recursively(node->third_child);
 }
 
+
 void Delaunay_grid_decomposition::print_whole_search_tree_info()
 {
     printf("[ID%d]x[ST-Info] ROOT %p\n", local_leaf_nodes[0]->processing_units_id[0], search_tree_root);
@@ -1247,9 +1248,65 @@ void Delaunay_grid_decomposition::print_whole_search_tree_info()
 }
 
 
+
+static inline void swap(Point *p1, Point *p2)
+{
+    Point tmp = *p1;
+    *p1 = *p2;
+    *p2 = tmp;
+}
+
+int compare_v2(const void* a, const void* b)
+{
+    Triangle_Transport t1 = *(const Triangle_Transport*)a;
+    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+
+    if(t1.v[2].id < t2.v[2].id) return -1;
+    if(t1.v[2].id > t2.v[2].id) return  1;
+    return 0;
+}
+
+int compare_v1(const void* a, const void* b)
+{
+    Triangle_Transport t1 = *(const Triangle_Transport*)a;
+    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+
+    if(t1.v[1].id < t2.v[1].id) return -1;
+    if(t1.v[1].id > t2.v[1].id) return  1;
+    return 0;
+}
+
+int compare_v0(const void* a, const void* b)
+{
+    Triangle_Transport t1 = *(const Triangle_Transport*)a;
+    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+
+    if(t1.v[0].id < t2.v[0].id) return -1;
+    if(t1.v[0].id > t2.v[0].id) return  1;
+    return 0;
+}
+
+static void radix_sort(Triangle_Transport *triangles, int num_triangles)
+{
+    assert(sizeof(Triangle_Transport) > sizeof(void *)/2);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v2);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v1);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v0);
+}
+
 void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Transport *triangles, int num_triangles)
 {
-    printf("%d, %d, %d\n", triangles[0].v[0].id, triangles[0].v[1].id, triangles[0].v[2].id);
+    for(int i = 0; i < num_triangles; i++) {
+        if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
+        if(triangles[i].v[1].id > triangles[i].v[2].id) swap(&triangles[i].v[1], &triangles[i].v[2]);
+        if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
+    }
+
+    radix_sort(triangles, num_triangles);
+
+    for(int i = 0; i < num_triangles; i++)
+        printf("%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
+
 }
 
 
@@ -1264,7 +1321,7 @@ void Delaunay_grid_decomposition::merge_all_triangles()
      * then any triangulation of the points has at most 2n − 2 − b triangles,
      * plus one exterior face */
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++)
-        local_buf_len += local_leaf_nodes[i]->num_local_kernel_cells * 2; 
+        local_buf_len += local_leaf_nodes[i]->num_local_kernel_cells * 3; 
 
     local_triangles = new Triangle_Transport[local_buf_len];
     num_local_triangles = 0;
@@ -1289,21 +1346,24 @@ void Delaunay_grid_decomposition::merge_all_triangles()
             assert(num_remote_triangles[i] > min_num_points_per_chunk/2);
             remote_buf_len += num_remote_triangles[i];
         }
-        remote_triangles = new Triangle_Transport[remote_buf_len + local_buf_len];
+        remote_triangles = new Triangle_Transport[remote_buf_len + num_local_triangles];
 
         int count = 0;
         for(int i = 1; i < processing_info->get_num_total_processes(); i++) {
             MPI_Recv(remote_triangles + count, num_remote_triangles[i] * sizeof(Triangle_Transport), MPI_CHAR, i, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm(), &status);
             int tmp_count;
             MPI_Get_count(&status, MPI_CHAR, &tmp_count);
+            //for(int j = 0; j < tmp_count/sizeof(Triangle_Transport); j++)
+            //    printf("%d, %d, %d\n", (remote_triangles + count)[j].v[0].id, (remote_triangles + count)[j].v[1].id, (remote_triangles + count)[j].v[2].id);
+            //printf("==============\n");
 #ifdef DEBUG
             assert(tmp_count % sizeof(Triangle_Transport) == 0);
 #endif
             count += tmp_count / sizeof(Triangle_Transport);
         }
         assert(count == remote_buf_len);
-        memcpy(remote_triangles + remote_buf_len, local_triangles, local_buf_len * sizeof(Triangle_Transport));
-        save_ordered_triangles_into_file(remote_triangles, remote_buf_len + local_buf_len);
+        memcpy(remote_triangles + remote_buf_len, local_triangles, num_local_triangles * sizeof(Triangle_Transport));
+        save_ordered_triangles_into_file(remote_triangles, remote_buf_len + num_local_triangles);
     }
     else {
         MPI_Send(&num_local_triangles, 1, MPI_INT, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
