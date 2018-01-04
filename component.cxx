@@ -1,5 +1,6 @@
 #include "component.h"
 #include <cassert>
+#include <cstdio>
 #define DEFAULT_MIN_NUM_POINTS 100
 #define MULTIPLICATION_COEFFICIENT 2
 
@@ -65,15 +66,16 @@ void Component::generate_delaunay_trianglulation(int grid_id)
     operating_grid = this->search_grid_by_id(grid_id);
     assert(operating_grid);
 
-    if(!this->proc_resource)
-        this->proc_resource = new Processing_resource();
+    this->proc_resource = new Processing_resource();
     //this->proc_resource->print_all_nodes_info();
 
     /* grid pretreatment */
 
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
     //operating_grid->plot_triangles_into_file();
-    operating_grid->merge_all_triangles();
+    //operating_grid->merge_all_triangles();
+    
+    delete this->proc_resource;
 }
 
 Grid_info_manager *grid_info_mgr;

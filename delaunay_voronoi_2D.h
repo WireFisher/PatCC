@@ -138,7 +138,7 @@ class Delaunay_Voronoi
         void generate_Voronoi_diagram();
         void extract_vertex_coordinate_values(int, bool, double**, double**, int*);
         void get_convex_set(int, double*, double*, double, double, int &, int **);
-        Triangle* initialize_super_triangle(int, double*, double*, bool*);
+        Triangle* initialize_super_triangle(int, double*, double*, int*, bool*);
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
@@ -148,8 +148,8 @@ class Delaunay_Voronoi
         bool is_triangle_legal(const Triangle *);
 
     public:
-        Delaunay_Voronoi(int, double*, double*, bool, double, double, double, double, bool*);
-        ~Delaunay_Voronoi();
+        Delaunay_Voronoi(int, double*, double*, int*, bool, double, double, double, double, bool*);
+        ~Delaunay_Voronoi( );
         void legalize_triangles(Point *pt, Edge *edge, vector<Triangle*>*);
         Edge *allocate_edge(Point *head, Point *tail);
         Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
@@ -161,7 +161,7 @@ class Delaunay_Voronoi
         void get_triangles_in_region(double, double, double, double, Triangle_Transport *, int *, int);
 
         /* debug */
-        void plot_into_file(const char*);
+        void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
 };
 
 class Triangle_Transport

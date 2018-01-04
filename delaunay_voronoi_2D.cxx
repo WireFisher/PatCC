@@ -612,7 +612,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 
 /* This function should be call only once for the root virtual triangle,
  * becase it will alloc new memory for all points and cells. */
-Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x, double *y, bool *redundant_cell_mark)
+Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x, double *y, int *index, bool *redundant_cell_mark)
 {
     double minX, maxX, minY, maxY;
     double dx, dy, deltaMax, midx, midy;
@@ -653,14 +653,14 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
 
     if(redundant_cell_mark == NULL) {
         for (int i = 0; i < num_points; i ++) {
-            cells[i].center = new Point(x[i], y[i], i);
+            cells[i].center = new Point(x[i], y[i], index[i]);
             cells[i].center->current_triangle = super;
             super->remained_points_in_triangle.push_back(cells[i].center);
         }
     }
     else {
         for (int i = 0; i < num_points; i ++) {
-            cells[i].center = new Point(x[i], y[i], i);
+            cells[i].center = new Point(x[i], y[i], index[i]);
             if (!redundant_cell_mark[i]) {
                 cells[i].center->current_triangle = super;
                 super->remained_points_in_triangle.push_back(cells[i].center);
@@ -686,7 +686,7 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 }
 
 
-Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, bool is_global_grid,
+Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, int *global_index, bool is_global_grid,
                                    double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark)
 {
     Triangle *root;
@@ -701,7 +701,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 
     this->is_global_grid = is_global_grid;
 
-    root = initialize_super_triangle(num_points, x_values, y_values, redundant_cell_mark);
+    root = initialize_super_triangle(num_points, x_values, y_values, global_index, redundant_cell_mark);
 
     triangularization_process(root);
 
@@ -875,7 +875,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
 }
 
 
-void Delaunay_Voronoi::plot_into_file(const char *filename)
+void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double max_x, double min_y, double max_y)
 {
     int num_edges;
     double *head_coord[2], *tail_coord[2];
@@ -897,7 +897,7 @@ void Delaunay_Voronoi::plot_into_file(const char *filename)
             }
 
     assert(num_edges%3 == 0);
-    plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
+    plot_edge_into_file(filename, head_coord, tail_coord, num_edges, min_x, max_x, min_y, max_y);
 
     delete head_coord[0];
     delete head_coord[1];

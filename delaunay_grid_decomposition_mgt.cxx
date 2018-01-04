@@ -171,12 +171,12 @@ void Search_tree_node::generate_local_triangulation()
     //printf("num_local_kernel_cells: %d, num_local_expanded_cells: %d\n", num_local_kernel_cells, num_local_expanded_cells);
     if(rotated_expanded_boundry != NULL)
         triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
-                                             local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], false,
+                                             local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], local_cells_global_index, false,
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
                                              rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
     else
         triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
-                                             local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], false,
+                                             local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], local_cells_global_index, false,
                                              expanded_boundry->min_lon, expanded_boundry->max_lon,
                                              expanded_boundry->min_lat, expanded_boundry->max_lat, NULL);
 }
@@ -1219,7 +1219,10 @@ void Delaunay_grid_decomposition::plot_local_triangles(const char *perfix)
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
         char filename[64];
         snprintf(filename, 64, "%s_%d.png", perfix, local_leaf_nodes[i]->processing_units_id[0]);
-        local_leaf_nodes[i]->triangulation->plot_into_file(filename);
+        local_leaf_nodes[i]->triangulation->plot_into_file(filename, local_leaf_nodes[i]->kernel_boundry->min_lon,
+                                                                     local_leaf_nodes[i]->kernel_boundry->max_lon,
+                                                                     local_leaf_nodes[i]->kernel_boundry->min_lat,
+                                                                     local_leaf_nodes[i]->kernel_boundry->max_lat);
     }
 }
 
@@ -1286,6 +1289,16 @@ int compare_v0(const void* a, const void* b)
     return 0;
 }
 
+int compare_int(const void* a, const void* b)
+{
+    int t1 = *(const int*)a;
+    int t2 = *(const int*)b;
+
+    if(t1 < t2) return -1;
+    if(t1 > t2) return  1;
+    return 0;
+}
+
 static void radix_sort(Triangle_Transport *triangles, int num_triangles)
 {
     assert(sizeof(Triangle_Transport) > sizeof(void *)/2);
@@ -1296,17 +1309,59 @@ static void radix_sort(Triangle_Transport *triangles, int num_triangles)
 
 void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Transport *triangles, int num_triangles)
 {
-    for(int i = 0; i < num_triangles; i++) {
+    int i, j;
+    for(i = 0; i < num_triangles; i++) {
         if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
         if(triangles[i].v[1].id > triangles[i].v[2].id) swap(&triangles[i].v[1], &triangles[i].v[2]);
         if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
     }
 
     radix_sort(triangles, num_triangles);
+    //plot_triangles_info_file("log/image_global_triangles1", triangles, num_triangles);
 
-    for(int i = 0; i < num_triangles; i++)
-        printf("%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
+    //for(int i = 0; i < num_triangles; i++)
+    //    printf("%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
+    for(i = 0, j = 1; j < num_triangles; j++) {
+        if(triangles[i].v[0].id == triangles[j].v[0].id &&
+           triangles[i].v[1].id == triangles[j].v[1].id &&
+           triangles[i].v[2].id == triangles[j].v[2].id)
+            continue;
+        else
+            triangles[++i] = triangles[j];
+    }
+    int num_different_triangles = i + 1;
+    //plot_triangles_info_file("log/image_global_triangles2", triangles, num_different_triangles);
+    //for(i = 0; i < num_different_triangles; i++)
+    //    printf("%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
+    
+    FILE *fp = fopen("log/global_triangles", "w");
+    for(i = 0; i < num_different_triangles; i++)
+        fprintf(fp, "%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
+    fclose(fp);
 
+    //char filename[64];
+    //snprintf(filename, 64, "log/image_global_triangles%d");
+    //plot_triangles_info_file("log/image_global_triangles", triangles, num_different_triangles);
+
+    /*
+    int test1[500], test2[500];
+
+    srand(0);
+    for(i = 0; i < 500; i++)
+        test1[i] = test2[i] = rand();
+
+    merge_sort(test1, 500, sizeof(int), compare_int);
+    fp = fopen("log/test1", "w");
+    for(i = 0; i < 500; i++)
+        fprintf(fp, "%d\n", test1[i]);
+    fclose(fp);
+
+    qsort(test2, 500, sizeof(int), compare_int);
+    fp = fopen("log/test2", "w");
+    for(i = 0; i < 500; i++)
+        fprintf(fp, "%d\n", test2[i]);
+    fclose(fp);
+    */
 }
 
 
@@ -1332,6 +1387,7 @@ void Delaunay_grid_decomposition::merge_all_triangles()
         num_local_triangles += num_triangles;
     }
 
+
     MPI_Barrier(processing_info->get_mpi_comm());
 
     if(processing_info->get_local_process_id() == 0) {
@@ -1353,6 +1409,11 @@ void Delaunay_grid_decomposition::merge_all_triangles()
             MPI_Recv(remote_triangles + count, num_remote_triangles[i] * sizeof(Triangle_Transport), MPI_CHAR, i, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm(), &status);
             int tmp_count;
             MPI_Get_count(&status, MPI_CHAR, &tmp_count);
+            
+            //char filename[64];
+            //snprintf(filename, 64, "log/process_local_triangles%d", i);
+            //plot_triangles_info_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_Transport));
+
             //for(int j = 0; j < tmp_count/sizeof(Triangle_Transport); j++)
             //    printf("%d, %d, %d\n", (remote_triangles + count)[j].v[0].id, (remote_triangles + count)[j].v[1].id, (remote_triangles + count)[j].v[2].id);
             //printf("==============\n");
