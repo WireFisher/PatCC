@@ -6,3 +6,4 @@ run_all_test
 log/*
 tmp*
 backup/*
+.DS_Store
