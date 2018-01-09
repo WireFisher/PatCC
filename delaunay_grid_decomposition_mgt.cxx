@@ -16,21 +16,22 @@
 #include <vector>
 #include <tr1/unordered_map>
 #include "merge_sort.h"
+#include "ccpl_utils.h"
 
-#define DEFAULT_EXPANGDING_RATIO 0.2
-#define PDLN_EXPECTED_EXPANDING_LOOP_TIMES 3
+#define DEFAULT_EXPANGDING_RATIO (0.2)
+#define PDLN_EXPECTED_EXPANDING_LOOP_TIMES (3)
 
-#define PDLN_SPOLAR_MAX_LAT -45.0
-#define PDLN_NPOLAR_MIN_LAT 45.0
+#define PDLN_SPOLAR_MAX_LAT (-45.0)
+#define PDLN_NPOLAR_MIN_LAT (45.0)
 
-#define PDLN_MAX_ITER_COUNT 10
+#define PDLN_MAX_ITER_COUNT (10)
 
-#define PDLN_TOLERABLE_ERROR 0.0001
-#define PDLN_FLOAT_EQ_ERROR 1e-10
+#define PDLN_TOLERABLE_ERROR (0.0001)
+#define PDLN_FLOAT_EQ_ERROR (1e-10)
 
-#define PDLN_DECOMPOSE_COMMON_MODE 0
-#define PDLN_DECOMPOSE_SPOLAR_MODE 1
-#define PDLN_DECOMPOSE_NPOLAR_MODE 2
+#define PDLN_DECOMPOSE_COMMON_MODE (0)
+#define PDLN_DECOMPOSE_SPOLAR_MODE (1)
+#define PDLN_DECOMPOSE_NPOLAR_MODE (2)
 
 #define PDLN_NODE_TYPE_COMMON PDLN_DECOMPOSE_COMMON_MODE
 #define PDLN_NODE_TYPE_SPOLAR PDLN_DECOMPOSE_SPOLAR_MODE
@@ -103,10 +104,12 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     memcpy(this->local_cells_coord[0], coord_value[0], num_points * sizeof(double));
     memcpy(this->local_cells_coord[1], coord_value[1], num_points * sizeof(double));
     memcpy(this->local_cells_global_index, global_index, num_points * sizeof(int));
+    this->len_expanded_cells_coord_buf = 0;
+    this->rotated_cells_coord[0] = this->rotated_cells_coord[1] = NULL;
+    this->num_rotated_cells = 0;
     //for(int i = 0; i < num_points; i++)
     //    printf("%p: (%lf, %lf)\n", parent,  this->local_cells_coord[0][i], this->local_cells_coord[1][i]);
     //this->expanded_cells_coord[0] = this->expanded_cells_coord[1] = NULL;
-    this->len_expanded_cells_coord_buf = 0;
 
     this->num_local_kernel_cells = num_points;
     this->num_local_expanded_cells = 0;
@@ -165,15 +168,27 @@ void Search_tree_node::update_processing_units_id(vector<int> proc_units_id)
 
 void Search_tree_node::generate_local_triangulation()
 {
-    if(triangulation)
+    if(triangulation != NULL)
         delete triangulation;
 
     //printf("num_local_kernel_cells: %d, num_local_expanded_cells: %d\n", num_local_kernel_cells, num_local_expanded_cells);
-    if(rotated_expanded_boundry != NULL)
-        triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
-                                             local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], local_cells_global_index, false,
-                                             rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
-                                             rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
+    if(rotated_expanded_boundry != NULL) {
+        if(redundant_cells_index.size() > 0) {
+            bool *redundent_mask = new bool[num_local_kernel_cells + num_local_expanded_cells]();
+            for(unsigned int i = 0; i < redundant_cells_index.size(); i++)
+                redundent_mask[redundant_cells_index[i]] = true;
+            triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
+                                                 rotated_cells_coord[PDLN_LON], rotated_cells_coord[PDLN_LAT], local_cells_global_index, false,
+                                                 rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
+                                                 rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, redundent_mask);
+            delete redundent_mask;
+        }
+        else
+            triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
+                                                 rotated_cells_coord[PDLN_LON], rotated_cells_coord[PDLN_LAT], local_cells_global_index, false,
+                                                 rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
+                                                 rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
+    }
     else
         triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
                                              local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], local_cells_global_index, false,
@@ -329,6 +344,16 @@ void Search_tree_node::add_expanded_points(double *coord_value[2], int *global_i
         local_cells_coord[0] = tmp_coord_value[0];
         local_cells_coord[1] = tmp_coord_value[1];
         local_cells_global_index = tmp_idx;
+        if(rotated_cells_coord[0] != NULL) {
+            tmp_coord_value[0] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
+            tmp_coord_value[1] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
+            memcpy(tmp_coord_value[0], rotated_cells_coord[0], sizeof(double) * (num_local_kernel_cells + num_local_expanded_cells));
+            memcpy(tmp_coord_value[1], rotated_cells_coord[1], sizeof(double) * (num_local_kernel_cells + num_local_expanded_cells));
+            delete[] rotated_cells_coord[0];
+            delete[] rotated_cells_coord[1];
+            rotated_cells_coord[0] = tmp_coord_value[0];
+            rotated_cells_coord[1] = tmp_coord_value[1];
+        }
     }
     memcpy(local_cells_coord[0] + num_local_kernel_cells + num_local_expanded_cells, coord_value[0], sizeof(double) * num_points);
     memcpy(local_cells_coord[1] + num_local_kernel_cells + num_local_expanded_cells, coord_value[1], sizeof(double) * num_points);
@@ -343,12 +368,14 @@ bool operator == (pair<Search_tree_node*, bool> p1, Search_tree_node* p2)
     return p1.first == p2;
 }
 
+
 void Search_tree_node::add_neighbors(vector<Search_tree_node*> neighbors)
 {
     for(unsigned int i = 0; i < neighbors.size(); i++)
         if(find(this->neighbors.begin(), this->neighbors.end(), neighbors[i]) == this->neighbors.end())
             this->neighbors.push_back(pair<Search_tree_node*, bool>(neighbors[i], false));
 }
+
 
 /*
 bool Search_tree_node::check_expanded_triangle_consistency()
@@ -357,6 +384,43 @@ bool Search_tree_node::check_expanded_triangle_consistency()
         return false;
 }
 */
+
+
+void Search_tree_node::generate_rotated_grid()
+{
+    if(rotated_cells_coord[0] == NULL) { /* first time to generate rotated grid */
+        rotated_cells_coord[0] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
+        rotated_cells_coord[1] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
+
+        for(int i = num_rotated_cells; i < num_local_kernel_cells + num_local_expanded_cells; i++)
+            rotate_sphere_coordinate(local_cells_coord[PDLN_LON][i], local_cells_coord[PDLN_LAT][i], rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
+
+        bool found_spolar_point = false;
+        bool found_npolar_point = false;
+        for(int i = num_rotated_cells; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
+            if(fabs(rotated_cells_coord[PDLN_LON][i] - 0) < PDLN_FLOAT_EQ_ERROR && fabs(rotated_cells_coord[PDLN_LAT][i] - 0) < PDLN_FLOAT_EQ_ERROR) {
+                if(found_npolar_point)
+                    redundant_cells_index.push_back(i);
+                else
+                    found_npolar_point = true;
+            }
+            if(fabs(rotated_cells_coord[PDLN_LON][i] - 180) < PDLN_FLOAT_EQ_ERROR && fabs(rotated_cells_coord[PDLN_LAT][i] - 0) < PDLN_FLOAT_EQ_ERROR) {
+                if(found_spolar_point)
+                    redundant_cells_index.push_back(i);
+                else
+                    found_npolar_point = true;
+            }
+        }
+        num_rotated_cells = num_local_kernel_cells + num_local_expanded_cells;
+
+        assert(redundant_cells_index.size() + 1 < num_local_kernel_cells + num_local_expanded_cells);
+    }
+    else {
+        for(int i = num_rotated_cells; i < num_local_kernel_cells + num_local_expanded_cells; i++)
+            rotate_sphere_coordinate(local_cells_coord[PDLN_LON][i], local_cells_coord[PDLN_LAT][i], rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
+        num_rotated_cells = num_local_kernel_cells + num_local_expanded_cells;
+    }
+}
 
 
 Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_num_points_per_chunk)
@@ -1186,10 +1250,12 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             //    expand_fail = true;
             //    break;
             //}
-            if(local_leaf_nodes[i]->node_type) {
-                //if(expanded_boundry not in correct region)
-                //    return 2;
-                //rotate
+            if(local_leaf_nodes[i]->node_type != PDLN_NODE_TYPE_COMMON) {
+                if(local_leaf_nodes[i]->node_type == PDLN_NODE_TYPE_NPOLAR && local_leaf_nodes[i]->expanded_boundry->min_lat < 0.0)
+                    return 2;
+                if(local_leaf_nodes[i]->node_type == PDLN_NODE_TYPE_SPOLAR && local_leaf_nodes[i]->expanded_boundry->max_lat > 0.0)
+                    return 2;
+                local_leaf_nodes[i]->generate_rotated_grid();
             }
             //do 2D delaunay triangulation
             local_leaf_nodes[i]->generate_local_triangulation();

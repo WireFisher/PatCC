@@ -47,12 +47,14 @@ private:
     //double expanding_ratio;
     Midline midline;
     double *local_cells_coord[2]; //(clean after having children) //TODO:change name
+    double *rotated_cells_coord[2];
     int *local_cells_global_index;
-    //double *expanded_cells_coord[2];
     int len_expanded_cells_coord_buf;
     int num_local_kernel_cells;//TODO:change name
     int num_local_expanded_cells;//TODO:change name
+    int num_rotated_cells; /* kernel + part of expanded */
     int node_type;
+    vector<int> redundant_cells_index; // local index
     
     vector<int> processing_units_id;
     vector<pair<Search_tree_node*, bool> > neighbors;
@@ -66,6 +68,7 @@ public:
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
     void generate_local_triangulation();
+    void generate_rotated_grid();
     void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
     //bool check_expanded_triangle_consistency();
