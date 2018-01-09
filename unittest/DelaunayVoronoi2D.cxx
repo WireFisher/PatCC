@@ -57,7 +57,13 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
     std::vector<Edge*> edges;
     Delaunay_Voronoi* delau;
 
-    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
+    int *index = new int[num_points];
+    for(int i = 0; i < num_points; i++)
+        index[i] = i;
+
+    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, index, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
+
+    delete index;
     edges = delau->get_all_delaunay_edge();
 
     cv::Mat mat = cv::Mat::zeros(max_lat*10, max_lon*10, CV_8UC3);
@@ -82,12 +88,17 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
 
 static inline void do_triangulation_plot_small_part(int num_points, double *lat_values, double *lon_values, 
                                                     double min_lon, double max_lon, double min_lat, double max_lat,
-                                                    bool *redundant_cell_mark,const char* img_path)
+                                                    bool *redundant_cell_mark, const char* img_path)
 {
     std::vector<Edge*> edges;
     Delaunay_Voronoi* delau;
 
-    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
+    int *index = new int[num_points];
+    for(int i = 0; i < num_points; i++)
+        index[i] = i;
+    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, index, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
+
+    delete index;
     edges = delau->get_all_delaunay_edge();
 
     cv::Mat mat = cv::Mat::zeros(max_lat*10, max_lon*10, CV_8UC3);
@@ -127,8 +138,8 @@ TEST(DelaunayTriangulationTest, Rectangle) {
 
     for(int i = 0, index = 0; i < len_points; i++)
         for(int j = 0; j < len_points; j++) {
-        lat[index] = 15 * i;
-        lon[index] = 15 * j;
+            lat[index] = 15 * i;
+            lon[index++] = 15 * j;
     }
 
     do_triangulation_plot(num_points, lat, lon, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark, "log/image1-0.png");
