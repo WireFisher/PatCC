@@ -275,6 +275,7 @@ void Search_tree_node::decompose_iteratively(double *workloads, double *child_ce
         for(i = 0, child_total_workload[1] = 0.0; i < child_proc_units_id[1].size(); i++)
             child_total_workload[1] += workloads[child_proc_units_id[1][i]];
 
+
         midline.value = boundry_values[midline.type] + length[midline.type] * child_total_workload[0] / (child_total_workload[0] + child_total_workload[1]);
         this->decompose_with_certain_line(midline, child_cells_coord, child_cells_idx, child_num_cells);
         assert(child_num_cells[0] != 0 && child_num_cells[1] != 0);
@@ -818,6 +819,10 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             //printf("[%d]x[Send---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
             send_triangles_to_remote(leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0],
                                      local_triangle[i], num_local_triangle[i], PDLN_SET_MASK(iter));
+            //MPI_Request request;
+            //MPI_Isend(local_triangle[i], num_local_triangle[i]*sizeof(Triangle_Transport), MPI_CHAR,
+            //          processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
+            //          PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), &request);
         }
 
         if(boundry2_head.x != PDLN_DOUBLE_INVALID_VALUE) { // Uncompleted determination
@@ -828,10 +833,14 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             //printf("[%d]x[Send-EX] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
             send_triangles_to_remote(leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0],
                                      extra_local_triangle[i], num_extra_local_triangle[i], PDLN_SET_MASK_EXTRA(iter));
+            //MPI_Request request;
+            //MPI_Isend(extra_local_triangle[i], num_extra_local_triangle[i]*sizeof(Triangle_Transport), MPI_CHAR,
+            //          processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
+            //          PDLN_SET_MASK_EXTRA(iter), processing_info->get_mpi_comm(), &request);
         }
     }
 
-    /* recv triangles from netghbors */
+    /* recv triangles from neighbors */
     for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
         if(leaf_node->neighbors[i].second)
             continue;
@@ -842,6 +851,7 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             //printf("[%d]x[Recv---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0], triangle_buf_len, PDLN_SET_MASK(iter));
             num_remote_triangle[i] = recv_triangles_from_remote(leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0],
                                                                 remote_triangle[i], triangle_buf_len, PDLN_SET_MASK(iter));
+            //printf("[%d]x[Recv+++] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0], triangle_buf_len, PDLN_SET_MASK(iter));
         }
 
         if(boundry2_head.x != PDLN_DOUBLE_INVALID_VALUE) {
@@ -985,7 +995,6 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             }
             child_boundry[0].max_lat = PDLN_SPOLAR_MAX_LAT;
             child_boundry[1].min_lat = PDLN_SPOLAR_MAX_LAT;
-            /* actually this->search_tree_root->processing_units_id[0] means 0 here. */
             this->workloads[this->search_tree_root->processing_units_id[0]] -= child_num_cells[0];
             child_proc_id[1].insert(child_proc_id[1].begin(), this->search_tree_root->processing_units_id[0]);
         }
@@ -994,7 +1003,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 
         this->search_tree_root->first_child->node_type = PDLN_NODE_TYPE_SPOLAR;
 
-        this->update_workloads(child_num_cells[0], child_proc_id[0]);
+        //this->update_workloads(child_num_cells[0], child_proc_id[0]);
         this->update_workloads(child_num_cells[1], child_proc_id[1]);
         this->search_tree_root->first_child->update_processing_units_id(child_proc_id[0]);
         this->search_tree_root->second_child->update_processing_units_id(child_proc_id[1]);
@@ -1032,7 +1041,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         this->search_tree_root->third_child->node_type = PDLN_NODE_TYPE_NPOLAR;
 
         this->update_workloads(child_num_cells[0], child_proc_id[0]);
-        this->update_workloads(child_num_cells[1], child_proc_id[1]);
+        //this->update_workloads(child_num_cells[1], child_proc_id[1]);
         this->search_tree_root->second_child->update_processing_units_id(child_proc_id[0]);
         this->search_tree_root->third_child->update_processing_units_id(child_proc_id[1]);
 
@@ -1227,6 +1236,8 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
     //TODO: openmp parallel
+    if(local_leaf_nodes.size() > 1)
+        printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
         int ret;
         double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
