@@ -83,6 +83,9 @@ Point operator - (Point p1, Point p2)
 
 bool operator == (Point p1, Point p2)
 {
+    if(p1.id != -1 && p2.id != -1)
+        return p1.id == p2.id;
+
     if(std::abs(p1.x - p2.x) < FLOAT_ERROR && 
        std::abs(p1.y - p2.y) < FLOAT_ERROR )
         return true;
@@ -343,6 +346,9 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     //EXECUTION_REPORT(REPORT_ERROR, -1, fabs(det(pt1, pt2, pt3)) > e && fabs(det(pt2, pt3, pt1)) > e && fabs(det(pt3, pt1, pt2)) > e,
     //                 "points given to construct triangle are on the same line.");
 
+    //if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR))
+    //    printf("(%lf, %lf), (%lf, %lf), (%lf, %lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
+    /* if there are unmarked redundant points, the assertion may fail */
     assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
     assert(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
@@ -916,7 +922,7 @@ Triangle_Transport::Triangle_Transport(Point p0, Point p1, Point p2)
 bool operator == (Triangle_Transport t1, Triangle_Transport t2)
 {
     assert(t1.v[0] != t1.v[1] && t1.v[1] != t1.v[2] && t1.v[2] != t1.v[0]);
-    assert(t2.v[0] != t2.v[1] && t2.v[1] != t2.v[2] && t2.v[2] != t2.v[0]); // NOTE: Should this assetion be here or somewhere?
+    assert(t2.v[0] != t2.v[1] && t2.v[1] != t2.v[2] && t2.v[2] != t2.v[0]); // NOTE: Should this assetion be here or somewhere else?
     if(t2.v[0] != t1.v[0] && t2.v[0] != t1.v[1] && t2.v[0] != t1.v[2])
         return false;
     if(t2.v[1] != t1.v[0] && t2.v[1] != t1.v[1] && t2.v[1] != t1.v[2])

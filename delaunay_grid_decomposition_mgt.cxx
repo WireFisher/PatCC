@@ -1517,7 +1517,7 @@ Grid_info_manager::Grid_info_manager()
     for(int i = 0; i < size; i++)
         for(int j = 0; j < size; j++) {
             coord_values[0][i * size + j] =  0.0  + 359.0 * j / size;
-            coord_values[1][i * size + j] = -89.0 + 178.0 * i / size;
+            coord_values[1][i * size + j] = -90.0 + 180.0 * i / size;
             //coord_values[0][i * size + j] = fRand(0.0, 359.0);
             //coord_values[1][i * size + j] = fRand(-89.0, 89.0);
         } 
@@ -1545,14 +1545,16 @@ int Grid_info_manager::get_grid_num_points(int grid_id)
 }
 void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
 {
-    *min_lat = -89.0;
-    *max_lat =  89.0;
+    //*min_lat = -89.0;
+    //*max_lat =  89.0;
+    *min_lat = -90.0;
+    *max_lat =  90.0;
     *min_lon =   0.0;
     *max_lon = 359.0;
 }
 int Grid_info_manager::get_polar_points(int grid_id, char polar)
 {
-    return 0;
+    return 3;
 }
 bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {

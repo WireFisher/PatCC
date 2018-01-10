@@ -72,7 +72,7 @@ void Component::generate_delaunay_trianglulation(int grid_id)
     /* grid pretreatment */
 
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
-    //operating_grid->plot_triangles_into_file();
+    operating_grid->plot_triangles_into_file();
     //operating_grid->merge_all_triangles();
     
     delete this->proc_resource;
