@@ -23,11 +23,13 @@ struct Midline {
 
 class Boundry {
 public:
-    double min_lat;
-    double max_lat;
     double min_lon;
     double max_lon;
+    double min_lat;
+    double max_lat;
 
+    Boundry() {};
+    Boundry(double l, double r, double b, double t): min_lon(l), max_lon(r), min_lat(b), max_lat(t) {};
     Boundry& operator= (Boundry& boundry);
     Boundry& operator* (double);
     void legalize();

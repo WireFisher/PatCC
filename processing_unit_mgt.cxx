@@ -156,7 +156,7 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
         }
 #ifdef DEBUG
         assert(num_active_units_per_node[i] >= 0);
-        assert(num_active_units_per_node[i] <= it->second.size());
+        assert((unsigned)num_active_units_per_node[i] <= it->second.size());
 #endif
     }
 

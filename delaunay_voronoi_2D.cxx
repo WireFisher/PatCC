@@ -346,8 +346,8 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     //EXECUTION_REPORT(REPORT_ERROR, -1, fabs(det(pt1, pt2, pt3)) > e && fabs(det(pt2, pt3, pt1)) > e && fabs(det(pt3, pt1, pt2)) > e,
     //                 "points given to construct triangle are on the same line.");
 
-    //if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR))
-    //    printf("(%lf, %lf), (%lf, %lf), (%lf, %lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
+    if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR))
+        printf("(%lf, %lf), (%lf, %lf), (%lf, %lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
     /* if there are unmarked redundant points, the assertion may fail */
     assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
@@ -618,7 +618,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 
 /* This function should be call only once for the root virtual triangle,
  * becase it will alloc new memory for all points and cells. */
-Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x, double *y, int *index, bool *redundant_cell_mark)
+Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x, double *y, bool *redundant_cell_mark)
 {
     double minX, maxX, minY, maxY;
     double dx, dy, deltaMax, midx, midy;
@@ -659,14 +659,14 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
 
     if(redundant_cell_mark == NULL) {
         for (int i = 0; i < num_points; i ++) {
-            cells[i].center = new Point(x[i], y[i], index[i]);
+            cells[i].center = new Point(x[i], y[i], i);
             cells[i].center->current_triangle = super;
             super->remained_points_in_triangle.push_back(cells[i].center);
         }
     }
     else {
         for (int i = 0; i < num_points; i ++) {
-            cells[i].center = new Point(x[i], y[i], index[i]);
+            cells[i].center = new Point(x[i], y[i], i);
             if (!redundant_cell_mark[i]) {
                 cells[i].center->current_triangle = super;
                 super->remained_points_in_triangle.push_back(cells[i].center);
@@ -692,7 +692,7 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 }
 
 
-Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, int *global_index, bool is_global_grid,
+Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, int *global_idx, bool is_global_grid,
                                    double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark)
 {
     Triangle *root;
@@ -707,7 +707,12 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 
     this->is_global_grid = is_global_grid;
 
-    root = initialize_super_triangle(num_points, x_values, y_values, global_index, redundant_cell_mark);
+    if(global_idx != NULL) {
+        global_index = new int[num_points];
+        memcpy(global_index, global_idx, num_points*sizeof(int));
+    }
+
+    root = initialize_super_triangle(num_points, x_values, y_values, redundant_cell_mark);
 
     triangularization_process(root);
 
@@ -821,7 +826,10 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
 
         /* two points of segment is in/on triangle */
         if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
-            output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+            output_triangles[current++] = Triangle_Transport(
+                                             Point(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, global_index[result_leaf_triangles[i]->v[0]->id]), 
+                                             Point(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, global_index[result_leaf_triangles[i]->v[1]->id]), 
+                                             Point(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, global_index[result_leaf_triangles[i]->v[2]->id]));
             //printf("boundary: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
             assert(current < buf_len);
             continue;
@@ -833,7 +841,10 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
                tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ) &&
                head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
                tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) <= 0) {
-                output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+                output_triangles[current++] = Triangle_Transport(
+                                             Point(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, global_index[result_leaf_triangles[i]->v[0]->id]), 
+                                             Point(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, global_index[result_leaf_triangles[i]->v[1]->id]), 
+                                             Point(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, global_index[result_leaf_triangles[i]->v[2]->id]));
                 //printf("boundary: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
                 assert(current < buf_len);
                 break;
@@ -909,6 +920,16 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
     delete head_coord[1];
     delete tail_coord[0];
     delete tail_coord[1];
+}
+
+
+void Delaunay_Voronoi::update_all_points_coord(double *x_values, double *y_values, int num)
+{
+    assert(num == num_cells);
+    for(int i = 0; i < num; i++) {
+        cells[i].center->x = x_values[i];
+        cells[i].center->y = y_values[i];
+    }
 }
 
 Triangle_Transport::Triangle_Transport(Point p0, Point p1, Point p2)

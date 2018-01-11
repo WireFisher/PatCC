@@ -128,6 +128,7 @@ class Delaunay_Voronoi
         bool is_global_grid;
         int num_cells;
         Point *virtual_point[3];
+        int *global_index;
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         Point *generate_boundary_point(double, double, Triangle*, bool);
@@ -138,7 +139,7 @@ class Delaunay_Voronoi
         void generate_Voronoi_diagram();
         void extract_vertex_coordinate_values(int, bool, double**, double**, int*);
         void get_convex_set(int, double*, double*, double, double, int &, int **);
-        Triangle* initialize_super_triangle(int, double*, double*, int*, bool*);
+        Triangle* initialize_super_triangle(int, double*, double*, bool*);
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
@@ -159,6 +160,7 @@ class Delaunay_Voronoi
         void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
         bool check_if_all_outer_edge_out_of_region(double, double, double, double);
         void get_triangles_in_region(double, double, double, double, Triangle_Transport *, int *, int);
+        void update_all_points_coord(double *, double *, int);
 
         /* debug */
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
