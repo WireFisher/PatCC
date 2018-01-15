@@ -907,7 +907,7 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
     if (is_grid_cyclic) {
         for (unsigned i = 0; i < cyclic_triangles.size(); i++) {
             Point *vl[3], *vr[3];
-            Edge *el[3], *er[3];
+            Edge *el[3];//*er[3];
             for (unsigned j = 0; j < 3; j++) {
                 if (cyclic_triangles[i]->v[j]->x < 180.0) {
                     vl[j] = cyclic_triangles[i]->v[j];
@@ -1170,7 +1170,7 @@ void plot_triangles_info_file(const char *prefix, std::vector<Triangle*> t)
     tail_coord[1] = new double[num_edges];
 
     num_edges = 0;
-    for(int i = 0; i < num; i ++)
+    for(unsigned i = 0; i < num; i ++)
         for(int j = 0; j < 3; j++) {
             head_coord[0][num_edges] = t[i]->v[j]->x;
             head_coord[1][num_edges] = t[i]->v[j]->y;

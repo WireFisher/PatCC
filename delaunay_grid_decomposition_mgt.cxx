@@ -409,7 +409,6 @@ bool Search_tree_node::check_expanded_triangle_consistency()
 
 void Search_tree_node::generate_rotated_grid()
 {
-    int old_num = num_rotated_cells;
     if(rotated_cells_coord[0] == NULL) { /* first time to generate rotated grid */
         rotated_cells_coord[0] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
         rotated_cells_coord[1] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
@@ -442,8 +441,7 @@ void Search_tree_node::generate_rotated_grid()
 
     /* recalculate expanded boundary */
     double top = -91.0, bot = 91.0, left = 540.0, right = -180.0;
-    //for(int i = old_num; i < num_rotated_cells; i++) {
-    for(int i = 0; i < num_rotated_cells; i++) {
+    for(int i = 0; i < num_rotated_cells; i++) { //TODO: i can be started from non-zero
         if (rotated_cells_coord[PDLN_LON][i] < left)  left = rotated_cells_coord[PDLN_LON][i];
         if (rotated_cells_coord[PDLN_LON][i] > right) right = rotated_cells_coord[PDLN_LON][i];
         if (rotated_cells_coord[PDLN_LAT][i] < bot) bot = rotated_cells_coord[PDLN_LAT][i];
@@ -899,8 +897,8 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
     }
 
     MPI_Status status;
-    //for(unsigned int i = 0; i < waiting_list.size(); i++)
-    //    MPI_Wait(waiting_list[i], &status);
+    for(unsigned int i = 0; i < waiting_list.size(); i++)
+        MPI_Wait(waiting_list[i], &status);
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
