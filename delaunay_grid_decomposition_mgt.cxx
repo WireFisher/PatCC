@@ -182,7 +182,7 @@ void Search_tree_node::generate_local_triangulation()
         lon = (expanded_boundry->max_lon + expanded_boundry->min_lon + 360.0) * 0.5;
         if (lon > 360.0) lon -= 360.0;
         if (std::abs(expanded_boundry->max_lat - 90.0) < PDLN_FLOAT_EQ_ERROR) {
-            rotate_sphere_coordinate(lon, 89.99, head_lon, head_lat);
+            rotate_sphere_coordinate(lon, 89.00, head_lon, head_lat);
             rotate_sphere_coordinate(lon, 20.00, tail_lon, tail_lat);
         }
         else {
@@ -195,6 +195,12 @@ void Search_tree_node::generate_local_triangulation()
         if(tail_lon > 360.0) tail_lon -= 360.0;
 
         std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
+
+        char filename[64];
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
+        plot_triangles_info_file(filename, cyclic_triangles);
 
         triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
         triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic(*expanded_boundry));

@@ -222,26 +222,43 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
+    double left = 178.0, right = 180.0;
+    //double left = 168.0, right = 170.0;
+    //int rank;
+    //if(Print_Error_info)
+    //    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (!edge->twin_edge) {
+        //if(Print_Error_info)
+        //    if(pt->x < right && pt->x > left && edge->head->x < right && edge->head->x > left && edge->tail->x < right && edge->tail->x > left)
+        //        printf("[%d] fast1 pt: (%lf, %lf), edge(%lf, %lf)--(%lf, %lf)\n", rank, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
         return true;
     }
 
     if(!edge->twin_edge->triangle) {
+        //if(Print_Error_info)
+        //    if(pt->x < right && pt->x > left && edge->head->x < right && edge->head->x > left && edge->tail->x < right && edge->tail->x > left)
+        //        printf("[%d] fast2 pt: (%lf, %lf), edge(%lf, %lf)--(%lf, %lf)\n", rank, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
         return true;
     }
 
     if(!edge->twin_edge->triangle->is_leaf) {
+        //if(Print_Error_info)
+        //    if(pt->x < right && pt->x > left && edge->head->x < right && edge->head->x > left && edge->tail->x < right && edge->tail->x > left) {
+        //        printf("[%d] fast3 pt: (%lf, %lf), edge(%lf, %lf)--(%lf, %lf)\n", rank, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
+        //        printf("[%d] ----- (%lf, %lf)-(%lf, %lf)-(%lf, %lf)\n", rank, edge->twin_edge->triangle->v[0]->x, edge->twin_edge->triangle->v[0]->y,
+        //                                                                      edge->twin_edge->triangle->v[1]->x, edge->twin_edge->triangle->v[1]->y,
+        //                                                                      edge->twin_edge->triangle->v[2]->x, edge->twin_edge->triangle->v[2]->y);
+        //    }
         return true;
     }
 
     //if(Print_Error_info)
     //printf("checking circle(%lf, %lf)-%lf: point: (%lf, %lf)\n", edge->triangle->circum_center[0], edge->triangle->circum_center[1], edge->triangle->circum_radius,
     //                                                             edge->twin_edge->prev_edge_in_triangle->head->x, edge->twin_edge->prev_edge_in_triangle->head->y);
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if(edge->triangle == NULL)
-        printf("[%d] find NULL: edge: %p, another 2 edge: %p, %p\npt:(%lf, %lf), edge: (%lf, %lf)--(%lf, %lf)\n", rank, edge,edge->next_edge_in_triangle, edge->prev_edge_in_triangle, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
     int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
+        //if(Print_Error_info)
+        //    if(pt->x < right && pt->x > left && edge->head->x < right && edge->head->x > left && edge->tail->x < right && edge->tail->x > left)
+        //        printf("[%d] contains_result: %d. pt: (%lf, %lf), edge(%lf, %lf)--(%lf, %lf)\n", rank, ret, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
     if (ret == -1) {
         //printf("is_triangle_legal: true\n");
         return true;
@@ -413,6 +430,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
         this->edge[2] = edge3;
     }
     else {
+        assert(false);
         v[1] = pt3;
         v[2] = pt2;
         this->edge[0] = edge3->twin_edge;
@@ -885,6 +903,9 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
         /* two points of segment is in/on triangle */
         if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
             triangles_found.push_back(result_leaf_triangles[i]);
+            if(Print_Error_info)
+                if(result_leaf_triangles[i]->v[0]->y > 0 && result_leaf_triangles[i]->v[1]->y > 0 && result_leaf_triangles[i]->v[2]->y > 0)
+                    printf("finding triangle: push1\n");
             continue;
         }
 
@@ -893,8 +914,14 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
             if((head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ||
                tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ) &&
                head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
-               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) <= 0) {
+               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) <= 0 &&
+               result_leaf_triangles[i]->v[j]->position_to_edge(&head, &tail) *
+               result_leaf_triangles[i]->v[(j+1)%3]->position_to_edge(&head, &tail) <= 0) {
                 triangles_found.push_back(result_leaf_triangles[i]);
+                if(Print_Error_info)
+                    if(result_leaf_triangles[i]->v[0]->y > 0 && result_leaf_triangles[i]->v[1]->y > 0 && result_leaf_triangles[i]->v[2]->y > 0)
+                        printf("finding triangle: push2 edge: (%lf, %lf)-(%lf, %lf)\n", result_leaf_triangles[i]->v[j]->x, result_leaf_triangles[i]->v[j]->y,
+                                                                                        result_leaf_triangles[i]->v[(j+1)%3]->x, result_leaf_triangles[i]->v[(j+1)%3]->y);
                 break;
             }
     }
@@ -904,7 +931,7 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
 
 std::vector<Triangle*> Delaunay_Voronoi::search_cyclic_triangles_for_rotated_grid(Point cyclic_boundary_head, Point cyclic_bounary_tail)
 {
-    //printf("(%lf, %lf) -> (%lf, %lf)\n", cyclic_boundary_head.x, cyclic_boundary_head.y, cyclic_bounary_tail.x, cyclic_bounary_tail.y);
+    printf("(%lf, %lf) -> (%lf, %lf)\n", cyclic_boundary_head.x, cyclic_boundary_head.y, cyclic_bounary_tail.x, cyclic_bounary_tail.y);
     return find_triangles_intersecting_with_segment(cyclic_boundary_head, cyclic_bounary_tail);
 }
 
@@ -1150,6 +1177,40 @@ void plot_triangles_info_file(const char *prefix, Triangle_Transport *t, int num
             head_coord[1][num_edges] = t[i].v[j].y;
             tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
             tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
+        }
+
+    assert(num_edges%3 == 0);
+    snprintf(filename, 128, "%s.png", prefix);
+    plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
+
+    delete head_coord[0];
+    delete head_coord[1];
+    delete tail_coord[0];
+    delete tail_coord[1];
+
+}
+
+
+void plot_triangles_info_file(const char *prefix, std::vector<Triangle*> t)
+{
+    unsigned int num = t.size();
+    int num_edges;
+    double *head_coord[2], *tail_coord[2];
+    char filename[128];
+
+    num_edges = 3 * num;
+    head_coord[0] = new double[num_edges];
+    head_coord[1] = new double[num_edges];
+    tail_coord[0] = new double[num_edges];
+    tail_coord[1] = new double[num_edges];
+
+    num_edges = 0;
+    for(int i = 0; i < num; i ++)
+        for(int j = 0; j < 3; j++) {
+            head_coord[0][num_edges] = t[i]->v[j]->x;
+            head_coord[1][num_edges] = t[i]->v[j]->y;
+            tail_coord[0][num_edges] = t[i]->v[(j+1)%3]->x;
+            tail_coord[1][num_edges++] = t[i]->v[(j+1)%3]->y;
         }
 
     assert(num_edges%3 == 0);

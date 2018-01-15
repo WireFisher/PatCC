@@ -83,6 +83,7 @@ class Triangle
     private:
         friend class Delaunay_Voronoi;
         friend class Point;
+        friend void plot_triangles_info_file(const char *filename, std::vector<Triangle*>);
         Point *v[3];    /* vertexes of triangle */
         //Point center;    /* circumcenter */
         Edge *edge[3];
@@ -182,5 +183,6 @@ class Triangle_Transport
 };
 
 void plot_triangles_info_file(const char *filename, Triangle_Transport *t, int num);
+void plot_triangles_info_file(const char *filename, std::vector<Triangle*>);
 
 #endif
