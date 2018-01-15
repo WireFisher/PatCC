@@ -144,6 +144,7 @@ class Delaunay_Voronoi
         bool is_angle_too_large(const Point *pt, const Edge *edge);
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
         double calculate_angle(const Point *, const Point *, const Point *);
+        std::vector<Triangle*> find_triangles_intersecting_with_segment(Point, Point);
 
         bool is_triangle_legal(const Point *pt, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
@@ -161,6 +162,11 @@ class Delaunay_Voronoi
         bool check_if_all_outer_edge_out_of_region(double, double, double, double);
         void get_triangles_in_region(double, double, double, double, Triangle_Transport *, int *, int);
         void update_all_points_coord(double *, double *, int);
+        std::vector<Triangle*> search_cyclic_triangles_for_rotated_grid(Point, Point);
+        void correct_cyclic_triangles(std::vector<Triangle*>, bool);
+        void relegalize_all_triangles();
+        void relegalize_triangles(Point*, Edge*);
+            
 
         /* debug */
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);

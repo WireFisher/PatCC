@@ -190,13 +190,35 @@ void Search_tree_node::generate_local_triangulation()
                                                  rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
                                                  rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
 
-        //triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
+        double lon, head_lon, head_lat, tail_lon, tail_lat;
+        lon = (expanded_boundry->max_lon + expanded_boundry->min_lon + 360.0) * 0.5;
+        if (lon > 360.0) lon -= 360.0;
+        if (std::abs(expanded_boundry->max_lat - 90.0) < PDLN_FLOAT_EQ_ERROR) {
+            rotate_sphere_coordinate(lon, 89.99, head_lon, head_lat);
+            rotate_sphere_coordinate(lon, 20.00, tail_lon, tail_lat);
+        }
+        else {
+            rotate_sphere_coordinate(lon, -89.99, head_lon, head_lat);
+            rotate_sphere_coordinate(lon, -20.00, tail_lon, tail_lat);
+        }
+        head_lon += 90.0;
+        tail_lon += 90.0;
+        if(head_lon > 360.0) head_lon -= 360.0;
+        if(tail_lon > 360.0) tail_lon -= 360.0;
+
+        std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
+
+        triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
+        triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic(*expanded_boundry));
+        triangulation->relegalize_all_triangles();
     }
-    else
+    else {
         triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
                                              local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], local_cells_global_index, false,
                                              expanded_boundry->min_lon, expanded_boundry->max_lon,
                                              expanded_boundry->min_lat, expanded_boundry->max_lat, NULL);
+
+    }
 }
 
 void Search_tree_node::decompose_with_certain_line(Midline midline, double *child_cells_coord[4], int *child_cells_idx[2], int child_num_cells[2])
@@ -923,6 +945,12 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             continue;
         }
         if(!check_triangles_consistency(local_triangle[i], remote_triangle[i], num_local_triangle[i])) {
+            char filename[64];
+            snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
+            plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
+            snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
+            plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
+
             printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
             check_passed = false;
             continue;
@@ -939,7 +967,7 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
     }
 
     if(check_passed) {
-        //printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
+        printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
         return true;
     }
     else {
@@ -1278,6 +1306,9 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
         right = fabs(kernel_boundry->min_lon - origin_grid_boundry->min_lon) < PDLN_TOLERABLE_ERROR ?
                 (kernel_boundry->max_lon+kernel_boundry->min_lon)/2.0 : kernel_boundry->min_lon;
     } //FIXME: This may have bug
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    printf("[%d] checking boundary: %lf, %lf, %lf, %lf\n", rank, top, bot, left, right);
 
     //return triangulation->check_if_all_outer_edge_out_of_region(left, right, bot, top);
     if(triangulation->check_if_all_outer_edge_out_of_region(left, right, bot, top))
@@ -1300,7 +1331,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         int iter = 0;
         while(!check_leaf_node_triangulation_consistency(local_leaf_nodes[i], iter) ||
               !local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry)) {
-            /* Actually, we have confidence in making the loop iterate only once by tuning */
+            /* Actually, we don't have confidence in making the loop iterate only once by tuning. TODO: delete "don't" */
             ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
             /*
             printf("[%d]x[INFO] ID: %d, (%lf, %lf, %lf, %lf), Neighbors: [", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->kernel_boundry->min_lon,
@@ -1331,7 +1362,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             iter++;
             if(iter == 2) {
                 //plot_local_triangles("log/chunk");
-                MPI_Barrier(MPI_COMM_WORLD);
+                //MPI_Barrier(MPI_COMM_WORLD);
                 //exit(1);
             }
         }
