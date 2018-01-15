@@ -42,7 +42,7 @@
 
 static inline bool is_cyclic(Boundry b)
 {
-    return fabs(b.min_lon - 0.0) < PDLN_TOLERABLE_ERROR && fabs(b.max_lon - 360.0) < PDLN_TOLERABLE_ERROR;
+    return fabs(b.min_lon - 0.0) < PDLN_FLOAT_EQ_ERROR && fabs(b.max_lon - 360.0) < PDLN_FLOAT_EQ_ERROR;
 }
 
 
@@ -198,6 +198,7 @@ void Search_tree_node::generate_local_triangulation()
 
         triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
         triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic(*expanded_boundry));
+        triangulation->relegalize_all_triangles();
         triangulation->relegalize_all_triangles();
     }
     else {
@@ -1263,23 +1264,23 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
     if(triangulation == NULL)
         return false;
 
-    top = fabs(kernel_boundry->max_lat - origin_grid_boundry->max_lat) < PDLN_TOLERABLE_ERROR ?
+    top = fabs(kernel_boundry->max_lat - origin_grid_boundry->max_lat) < PDLN_FLOAT_EQ_ERROR ?
           (kernel_boundry->max_lat+kernel_boundry->min_lat)/2.0 : kernel_boundry->max_lat; //make the value small enough to pass the check
-    bot = fabs(kernel_boundry->min_lat - origin_grid_boundry->min_lat) < PDLN_TOLERABLE_ERROR ?
+    bot = fabs(kernel_boundry->min_lat - origin_grid_boundry->min_lat) < PDLN_FLOAT_EQ_ERROR ?
           (kernel_boundry->max_lat+kernel_boundry->min_lat)/2.0 : kernel_boundry->min_lat;
     if(is_cyclic(*origin_grid_boundry)) {
         left = kernel_boundry->max_lon;
         right = kernel_boundry->min_lon;
     }
     else {
-        left = fabs(kernel_boundry->max_lon - origin_grid_boundry->max_lon) < PDLN_TOLERABLE_ERROR ?
+        left = fabs(kernel_boundry->max_lon - origin_grid_boundry->max_lon) < PDLN_FLOAT_EQ_ERROR ?
                (kernel_boundry->max_lon+kernel_boundry->min_lon)/2.0 : kernel_boundry->max_lon;
-        right = fabs(kernel_boundry->min_lon - origin_grid_boundry->min_lon) < PDLN_TOLERABLE_ERROR ?
+        right = fabs(kernel_boundry->min_lon - origin_grid_boundry->min_lon) < PDLN_FLOAT_EQ_ERROR ?
                 (kernel_boundry->max_lon+kernel_boundry->min_lon)/2.0 : kernel_boundry->min_lon;
     } //FIXME: This may have bug
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    printf("[%d] checking boundary: %lf, %lf, %lf, %lf\n", rank, top, bot, left, right);
+    //int rank;
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //printf("[%d] checking boundary: %lf, %lf, %lf, %lf\n", rank, top, bot, left, right);
 
     //return triangulation->check_if_all_outer_edge_out_of_region(left, right, bot, top);
     if(triangulation->check_if_all_outer_edge_out_of_region(left, right, bot, top))
@@ -1335,6 +1336,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 //plot_local_triangles("log/chunk");
                 //MPI_Barrier(MPI_COMM_WORLD);
                 //exit(1);
+                break;
             }
         }
     }

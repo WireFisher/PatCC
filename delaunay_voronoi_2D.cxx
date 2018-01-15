@@ -974,13 +974,8 @@ void Delaunay_Voronoi::relegalize_all_triangles()
             //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->v[2]->x,
             //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->v[2]->y,
             //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->is_leaf);
-            if(result_leaf_triangles[i]->edge[(j+1)%3]->triangle == NULL) {
-                printf("qiguai: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y,
-                                                                       result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y,
-                                                                       result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y);
-                result_leaf_triangles[i]->edge[(j+1)%3]->triangle = result_leaf_triangles[i];
-            }
             relegalize_triangles(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->edge[(j+1)%3]/*, &result_leaf_triangles*/);
+            //legalize_triangles(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->edge[(j+1)%3], &result_leaf_triangles);
         }
     }
 }
