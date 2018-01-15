@@ -173,22 +173,10 @@ void Search_tree_node::generate_local_triangulation()
 
     //printf("num_local_kernel_cells: %d, num_local_expanded_cells: %d\n", num_local_kernel_cells, num_local_expanded_cells);
     if(rotated_expanded_boundry != NULL) {
-        if(redundant_cells_index.size() > 0) {
-            bool *redundent_mask = new bool[num_local_kernel_cells + num_local_expanded_cells]();
-            for(unsigned int i = 0; i < redundant_cells_index.size(); i++) {
-                redundent_mask[redundant_cells_index[i]] = true;
-            }
-            triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
-                                                 rotated_cells_coord[PDLN_LON], rotated_cells_coord[PDLN_LAT], local_cells_global_index, false,
-                                                 rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
-                                                 rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, redundent_mask);
-            delete redundent_mask;
-        }
-        else
-            triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
-                                                 rotated_cells_coord[PDLN_LON], rotated_cells_coord[PDLN_LAT], local_cells_global_index, false,
-                                                 rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
-                                                 rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
+        triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
+                                             rotated_cells_coord[PDLN_LON], rotated_cells_coord[PDLN_LAT], local_cells_global_index, false,
+                                             rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
+                                             rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
 
         double lon, head_lon, head_lat, tail_lon, tail_lat;
         lon = (expanded_boundry->max_lon + expanded_boundry->min_lon + 360.0) * 0.5;
@@ -419,7 +407,7 @@ void Search_tree_node::generate_rotated_grid()
         rotated_cells_coord[0] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
         rotated_cells_coord[1] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
 
-        for(int i = num_rotated_cells; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
+        for(int i = 0; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
             rotate_sphere_coordinate(local_cells_coord[PDLN_LON][i], local_cells_coord[PDLN_LAT][i], rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
             //int rank;
             //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -429,26 +417,8 @@ void Search_tree_node::generate_rotated_grid()
             if(rotated_cells_coord[PDLN_LON][i] >= 360.0) rotated_cells_coord[PDLN_LON][i] -= 360.0;
         }
 
-        bool found_spolar_point = false;
-        bool found_npolar_point = false;
-        for(int i = num_rotated_cells; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
-            //printf("%lf - 90.0 = %lf\n", rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LON][i] - 90.0);
-            if(fabs(rotated_cells_coord[PDLN_LON][i] - 90.0) < PDLN_FLOAT_EQ_ERROR && fabs(rotated_cells_coord[PDLN_LAT][i] - 0) < PDLN_FLOAT_EQ_ERROR) {
-                if(found_npolar_point)
-                    redundant_cells_index.push_back(i);
-                else
-                    found_npolar_point = true;
-            }
-            if(fabs(rotated_cells_coord[PDLN_LON][i] - 270.0) < PDLN_FLOAT_EQ_ERROR && fabs(rotated_cells_coord[PDLN_LAT][i] - 0) < PDLN_FLOAT_EQ_ERROR) {
-                if(found_spolar_point)
-                    redundant_cells_index.push_back(i);
-                else
-                    found_spolar_point = true;
-            }
-        }
         num_rotated_cells = num_local_kernel_cells + num_local_expanded_cells;
 
-        assert(redundant_cells_index.size() + 1 < (unsigned int)(num_local_kernel_cells + num_local_expanded_cells));
     }
     else {
         for(int i = num_rotated_cells; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
@@ -1187,7 +1157,8 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
     this->current_tree_node = this->search_tree_root;
     num_south_polar = grid_info_mgr->get_polar_points(this->original_grid, 'S');
     num_north_polar = grid_info_mgr->get_polar_points(this->original_grid, 'N');
-    if(this->assign_polars(num_south_polar > 2, num_north_polar > 2))
+    if(this->assign_polars(std::abs(search_tree_root->kernel_boundry->min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR && num_south_polar < 2,
+                           std::abs(search_tree_root->kernel_boundry->max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR && num_north_polar < 2))
         return 1;
 
     if(this->current_tree_node->processing_units_id.size() == 1 && grid_info_mgr->is_grid_cyclic(this->original_grid)) {
@@ -1617,10 +1588,15 @@ Grid_info_manager::Grid_info_manager()
         for(int j = 0; j < size; j++) {
             coord_values[0][i * size + j] =  0.0  + 359.0 * j / size;
             //coord_values[1][i * size + j] = -89.0 + 178.0 * i / size;
-            coord_values[1][i * size + j] = -90.0 + 180.0 * i / size;
+            coord_values[1][i * size + j] = -89.0 + 178.0 * i / size;
             //coord_values[0][i * size + j] = fRand(0.0, 359.0);
             //coord_values[1][i * size + j] = fRand(-89.0, 89.0);
         } 
+
+    coord_values[0][0] = 0.0;
+    coord_values[1][0] = -90.0;
+    coord_values[0][299] = 0.0;
+    coord_values[1][299] = 90.0;
 }
 
 
@@ -1654,7 +1630,7 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lat, double* m
 }
 int Grid_info_manager::get_polar_points(int grid_id, char polar)
 {
-    return 3;
+    return 1;
 }
 bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {

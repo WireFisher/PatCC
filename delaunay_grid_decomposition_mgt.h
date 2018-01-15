@@ -56,7 +56,6 @@ private:
     int num_local_expanded_cells;//TODO:change name
     int num_rotated_cells; /* kernel + part of expanded */
     int node_type;
-    vector<int> redundant_cells_index; // local index
     
     vector<int> processing_units_id;
     vector<pair<Search_tree_node*, bool> > neighbors;
