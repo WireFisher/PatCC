@@ -952,8 +952,8 @@ void Delaunay_Voronoi::relegalize_all_triangles()
         if (!result_leaf_triangles[i]->is_leaf)
             continue;
 
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        //int rank;
+        //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         for(unsigned j = 0; j < 3; j++) {
             //printf("[%d] legalizing: (%lf, %lf) vs (%lf, %lf)--(%lf, %lf)\n", rank, result_leaf_triangles[i]->v[j]->x, result_leaf_triangles[i]->v[j]->y,
             //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->head->x, result_leaf_triangles[i]->edge[(j+1)%3]->head->y,
@@ -977,46 +977,17 @@ void Delaunay_Voronoi::relegalize_all_triangles()
 void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
 {
     int current = 0;
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
-        if(!result_leaf_triangles[i]->is_leaf)
-            continue;
-        /*
-        if(!result_leaf_triangles[i]->edge[0]->twin_edge || !result_leaf_triangles[i]->edge[0]->twin_edge->triangle ||
-           !result_leaf_triangles[i]->edge[1]->twin_edge || !result_leaf_triangles[i]->edge[1]->twin_edge->triangle ||
-           !result_leaf_triangles[i]->edge[2]->twin_edge || !result_leaf_triangles[i]->edge[2]->twin_edge->triangle)
-            continue;
-        */
-        if(result_leaf_triangles[i]->v[0]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) > 0 &&
-           result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[2]->position_to_edge(&head, &tail) > 0 )
-            continue;
 
-        /* two points of segment is in/on triangle */
-        if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
-            output_triangles[current++] = Triangle_Transport(
-                                             Point(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, global_index[result_leaf_triangles[i]->v[0]->id]), 
-                                             Point(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, global_index[result_leaf_triangles[i]->v[1]->id]), 
-                                             Point(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, global_index[result_leaf_triangles[i]->v[2]->id]));
-            //printf("boundary: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
-            assert(current < buf_len);
-            continue;
-        }
+    std::vector<Triangle*> ts = find_triangles_intersecting_with_segment(head, tail);
 
-        /* segment is intersected with at least one edge of triangle */
-        for(int j = 0; j < 3; j++)
-            if((head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ||
-               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ) &&
-               head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
-               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) <= 0) {
-                output_triangles[current++] = Triangle_Transport(
-                                             Point(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, global_index[result_leaf_triangles[i]->v[0]->id]), 
-                                             Point(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, global_index[result_leaf_triangles[i]->v[1]->id]), 
-                                             Point(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, global_index[result_leaf_triangles[i]->v[2]->id]));
-                //printf("boundary: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
-                assert(current < buf_len);
-                break;
-            }
-    }
+    for(unsigned i = 0; i < ts.size(); i++)
+        output_triangles[current++] = Triangle_Transport(Point(ts[i]->v[0]->x, ts[i]->v[0]->y, global_index[ts[i]->v[0]->id]), 
+                                                         Point(ts[i]->v[1]->x, ts[i]->v[1]->y, global_index[ts[i]->v[1]->id]), 
+                                                         Point(ts[i]->v[2]->x, ts[i]->v[2]->y, global_index[ts[i]->v[2]->id]));
+
+    assert(current < buf_len);
     *num_triangles = current;
+    return;
 }
 
 

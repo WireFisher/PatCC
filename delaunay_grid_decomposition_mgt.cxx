@@ -486,31 +486,6 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     delete global_index;
 }
 
-/* TODO: Delete this */
-/*
-Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info)
-{
-    double **coord_values;
-    Boundry boundry;
-    int num_points;
-
-    this->original_grid = grid_id;
-    this->processing_info = proc_info;
-    assert(this->processing_info != NULL);
-
-    this->min_num_points_per_chunk = 100;
-    
-    coord_values = grid_info_mgr->get_grid_coord_values(grid_id);
-    num_points = grid_info_mgr->get_grid_num_points(grid_id);
-    grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
-    this->processing_info->get_num_total_processing_units();
-    this->search_tree_root = new Search_tree_node(NULL, coord_values, num_points, boundry);
-    this->active_processing_common_id = NULL;
-    this->workloads = NULL;
-    //this->initialze_workload();
-}
-*/
-
 
 Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 {
