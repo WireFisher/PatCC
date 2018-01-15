@@ -942,7 +942,9 @@ void Delaunay_grid_decomposition::search_leaf_nodes_overlapping_with_region_recu
     }
     assert(node->processing_units_id.size() > 0);
     if(node->processing_units_id.size() == 1) {
-        if(this->two_regions_overlap(region, *node->kernel_boundry))
+        if(two_regions_overlap(region, *node->kernel_boundry) ||
+           two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->kernel_boundry) ||
+           two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->kernel_boundry))
             leaf_nodes_found.push_back(node);
         return;
     }
@@ -976,12 +978,18 @@ void Delaunay_grid_decomposition::search_leaf_nodes_overlapping_with_region_recu
         //TODO: optimize new delete
     }
 
-    if(this->two_regions_overlap(region, *node->first_child->kernel_boundry))
+    if(two_regions_overlap(region, *node->first_child->kernel_boundry) ||
+       two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->first_child->kernel_boundry) ||
+       two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->first_child->kernel_boundry))
         this->search_leaf_nodes_overlapping_with_region_recursively(node->first_child, region, leaf_nodes_found);
     if(node->second_child != NULL)
-        if(this->two_regions_overlap(region, *node->second_child->kernel_boundry))
+        if(two_regions_overlap(region, *node->second_child->kernel_boundry) ||
+           two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->second_child->kernel_boundry) ||
+           two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->second_child->kernel_boundry))
             this->search_leaf_nodes_overlapping_with_region_recursively(node->second_child, region, leaf_nodes_found);
-    if(this->two_regions_overlap(region, *node->third_child->kernel_boundry))
+    if(two_regions_overlap(region, *node->third_child->kernel_boundry) ||
+       two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->third_child->kernel_boundry) ||
+       two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->third_child->kernel_boundry))
         this->search_leaf_nodes_overlapping_with_region_recursively(node->third_child, region, leaf_nodes_found);
 }
 
@@ -1180,16 +1188,43 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_region(B
         return leaf_nodes_found;
 
     search_leaf_nodes_overlapping_with_region_recursively(this->search_tree_root, region, leaf_nodes_found);
-    for(unsigned int i = 0; i < leaf_nodes_found.size(); i++)
-        for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++)
-            if(leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] < region.max_lon &&
-               leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= region.min_lon &&
-               leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat &&
-               leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
-                coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j];
-                coord_values[PDLN_LAT][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
-                global_idx[(*num_points_found)++] = leaf_nodes_found[i]->local_cells_global_index[j];
-            }
+
+    double left_min_lon = region.min_lon - 360.0;
+    double left_max_lon = region.max_lon - 360.0;
+    double right_min_lon = region.min_lon + 360.0;
+    double right_max_lon = region.max_lon + 360.0;
+
+    //TODO: optimize if out of loop
+    if((region.max_lon <= 360.0 && region.max_lon >= 0.0) || (region.min_lon <= 360.0 && region.min_lon >= 0.0))
+        for(unsigned i = 0; i < leaf_nodes_found.size(); i++)
+            for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++)
+                if (leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] < region.max_lon && leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= region.min_lon &&
+                    leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat && leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
+                    coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j];
+                    coord_values[PDLN_LAT][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
+                    global_idx[(*num_points_found)++] = leaf_nodes_found[i]->local_cells_global_index[j];
+                }
+
+    if((left_max_lon <= 360.0 && left_max_lon >= 0.0) || (left_min_lon <= 360.0 && left_min_lon >= 0.0))
+        for(unsigned i = 0; i < leaf_nodes_found.size(); i++)
+            for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++)
+                if (leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] < left_max_lon   && leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= left_min_lon &&
+                    leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat && leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
+                    coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] + 360.0;
+                    coord_values[PDLN_LAT][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
+                    global_idx[(*num_points_found)++] = leaf_nodes_found[i]->local_cells_global_index[j];
+                }
+
+    if((right_max_lon <= 360.0 && right_max_lon >= 0.0) || (right_min_lon <= 360.0 && right_min_lon >= 0.0))
+        for(unsigned i = 0; i < leaf_nodes_found.size(); i++)
+            for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++)
+                if (leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] < right_max_lon  && leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= right_min_lon &&
+                    leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat && leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
+                    coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] - 360.0;
+                    coord_values[PDLN_LAT][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
+                    global_idx[(*num_points_found)++] = leaf_nodes_found[i]->local_cells_global_index[j];
+                }
+
     return leaf_nodes_found;
 }
 

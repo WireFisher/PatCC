@@ -973,7 +973,6 @@ void Delaunay_Voronoi::relegalize_all_triangles()
 }
 
 
-/* TODO: use function above */
 void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
 {
     int current = 0;
