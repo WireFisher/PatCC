@@ -222,54 +222,27 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
-    double left = 178.0, right = 180.0;
-    //double left = 168.0, right = 170.0;
-    //int rank;
-    //if(Print_Error_info)
-    //    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (!edge->twin_edge) {
-        //if(Print_Error_info)
-        //    if(pt->x < right && pt->x > left && edge->head->x < right && edge->head->x > left && edge->tail->x < right && edge->tail->x > left)
-        //        printf("[%d] fast1 pt: (%lf, %lf), edge(%lf, %lf)--(%lf, %lf)\n", rank, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
         return true;
     }
 
     if(!edge->twin_edge->triangle) {
-        //if(Print_Error_info)
-        //    if(pt->x < right && pt->x > left && edge->head->x < right && edge->head->x > left && edge->tail->x < right && edge->tail->x > left)
-        //        printf("[%d] fast2 pt: (%lf, %lf), edge(%lf, %lf)--(%lf, %lf)\n", rank, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
         return true;
     }
 
     if(!edge->twin_edge->triangle->is_leaf) {
-        //if(Print_Error_info)
-        //    if(pt->x < right && pt->x > left && edge->head->x < right && edge->head->x > left && edge->tail->x < right && edge->tail->x > left) {
-        //        printf("[%d] fast3 pt: (%lf, %lf), edge(%lf, %lf)--(%lf, %lf)\n", rank, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
-        //        printf("[%d] ----- (%lf, %lf)-(%lf, %lf)-(%lf, %lf)\n", rank, edge->twin_edge->triangle->v[0]->x, edge->twin_edge->triangle->v[0]->y,
-        //                                                                      edge->twin_edge->triangle->v[1]->x, edge->twin_edge->triangle->v[1]->y,
-        //                                                                      edge->twin_edge->triangle->v[2]->x, edge->twin_edge->triangle->v[2]->y);
-        //    }
         return true;
     }
 
-    //if(Print_Error_info)
-    //printf("checking circle(%lf, %lf)-%lf: point: (%lf, %lf)\n", edge->triangle->circum_center[0], edge->triangle->circum_center[1], edge->triangle->circum_radius,
-    //                                                             edge->twin_edge->prev_edge_in_triangle->head->x, edge->twin_edge->prev_edge_in_triangle->head->y);
     int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
-        //if(Print_Error_info)
-        //    if(pt->x < right && pt->x > left && edge->head->x < right && edge->head->x > left && edge->tail->x < right && edge->tail->x > left)
-        //        printf("[%d] contains_result: %d. pt: (%lf, %lf), edge(%lf, %lf)--(%lf, %lf)\n", rank, ret, pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y);
     if (ret == -1) {
-        //printf("is_triangle_legal: true\n");
         return true;
     }
 
     if (ret == 0) {
-        //printf("is_triangle_legal: point on circle\n");
         return !is_angle_too_large(pt, edge);
     }
 
-    //printf("is_triangle_legal: false, point in circle\n");
     return false;
 }
 
@@ -903,9 +876,6 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
         /* two points of segment is in/on triangle */
         if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
             triangles_found.push_back(result_leaf_triangles[i]);
-            if(Print_Error_info)
-                if(result_leaf_triangles[i]->v[0]->y > 0 && result_leaf_triangles[i]->v[1]->y > 0 && result_leaf_triangles[i]->v[2]->y > 0)
-                    printf("finding triangle: push1\n");
             continue;
         }
 
@@ -918,10 +888,6 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
                result_leaf_triangles[i]->v[j]->position_to_edge(&head, &tail) *
                result_leaf_triangles[i]->v[(j+1)%3]->position_to_edge(&head, &tail) <= 0) {
                 triangles_found.push_back(result_leaf_triangles[i]);
-                if(Print_Error_info)
-                    if(result_leaf_triangles[i]->v[0]->y > 0 && result_leaf_triangles[i]->v[1]->y > 0 && result_leaf_triangles[i]->v[2]->y > 0)
-                        printf("finding triangle: push2 edge: (%lf, %lf)-(%lf, %lf)\n", result_leaf_triangles[i]->v[j]->x, result_leaf_triangles[i]->v[j]->y,
-                                                                                        result_leaf_triangles[i]->v[(j+1)%3]->x, result_leaf_triangles[i]->v[(j+1)%3]->y);
                 break;
             }
     }
@@ -931,14 +897,13 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
 
 std::vector<Triangle*> Delaunay_Voronoi::search_cyclic_triangles_for_rotated_grid(Point cyclic_boundary_head, Point cyclic_bounary_tail)
 {
-    printf("(%lf, %lf) -> (%lf, %lf)\n", cyclic_boundary_head.x, cyclic_boundary_head.y, cyclic_bounary_tail.x, cyclic_bounary_tail.y);
     return find_triangles_intersecting_with_segment(cyclic_boundary_head, cyclic_bounary_tail);
 }
 
 
 void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_triangles, bool is_grid_cyclic)
 {
-    Print_Error_info = true;
+    //Print_Error_info = true;
     if (is_grid_cyclic) {
         for (unsigned i = 0; i < cyclic_triangles.size(); i++) {
             Point *vl[3], *vr[3];
@@ -973,8 +938,8 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
     else {
         for (unsigned i = 0; i < cyclic_triangles.size(); i++) {
             for (unsigned j = 0; j < 3; j++)
-                //if(cyclic_triangles[i]->edge[j]->twin_edge != NULL)
-                //    cyclic_triangles[i]->edge[j]->twin_edge->twin_edge = NULL; //FIXME: recover the twin relationship of its twin edge
+                if(cyclic_triangles[i]->edge[j]->twin_edge != NULL)
+                    cyclic_triangles[i]->edge[j]->twin_edge->twin_edge = NULL; //FIXME: recover the twin relationship of its twin edge
             cyclic_triangles[i]->is_leaf = false;
         }
     }

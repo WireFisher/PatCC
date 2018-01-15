@@ -196,11 +196,11 @@ void Search_tree_node::generate_local_triangulation()
 
         std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
 
-        char filename[64];
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
-        plot_triangles_info_file(filename, cyclic_triangles);
+        //char filename[64];
+        //int rank;
+        //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        //snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
+        //plot_triangles_info_file(filename, cyclic_triangles);
 
         triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
         triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic(*expanded_boundry));
@@ -1342,7 +1342,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 //plot_local_triangles("log/chunk");
                 //MPI_Barrier(MPI_COMM_WORLD);
                 //exit(1);
-                break;
+                //break;
             }
         }
     }
