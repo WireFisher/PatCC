@@ -1306,9 +1306,16 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
 }
 
 
+/* 
+ * Return Values: 0 - Success
+ *                1 - Failed in expanding
+ *                2 - Fail, polar decomp's expanded_boundry exceeded threshold
+ */
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
     //TODO: openmp parallel
+    bool expand_fail = false;
+
     if(local_leaf_nodes.size() > 1)
         printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
@@ -1317,7 +1324,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         int iter = 0;
         while(!check_leaf_node_triangulation_consistency(local_leaf_nodes[i], iter) ||
               !local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry)) {
-            /* Actually, we don't have confidence in making the loop iterate only once by tuning. TODO: delete "don't" */
+            /* Actually, we don't have confidence in making the loop iterate only once by tuning. TODO: try to delete "don't" */
             ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
             /*
             printf("[%d]x[INFO] ID: %d, (%lf, %lf, %lf, %lf), Neighbors: [", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->kernel_boundry->min_lon,
@@ -1330,32 +1337,91 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             printf("===========%d===========\n", iter);
             //print_whole_search_tree_info();*/
 
-            //mpi bcast ret (NOTE: local threads, using tag)
-            //if(one of the rets != 0) {
-            //    expand_fail = true;
-            //    break;
-            //}
-            if(local_leaf_nodes[i]->node_type != PDLN_NODE_TYPE_COMMON) {
-                if(local_leaf_nodes[i]->node_type == PDLN_NODE_TYPE_NPOLAR && local_leaf_nodes[i]->expanded_boundry->min_lat < 0.0)
+            int rets[512];
+            assert(processing_info->get_num_total_processes() <= 512);
+            memset(rets, 0, 512*sizeof(int));
+            MPI_Allgather(&ret, 1, MPI_INT, rets, 1, MPI_INT, processing_info->get_mpi_comm());
+            for (unsigned j = 0; j < 512; j++)
+                if (rets[j] != 0) {
+                    expand_fail = true;
+                    break;
+                }
+
+            if(expand_fail)
+                break;
+
+            if (local_leaf_nodes[i]->node_type != PDLN_NODE_TYPE_COMMON) {
+                bool spolar_success = true, npolar_success = true;
+
+                if (local_leaf_nodes[i]->node_type == PDLN_NODE_TYPE_SPOLAR && local_leaf_nodes[i]->expanded_boundry->max_lat > 0.0)
+                    spolar_success = false;
+                if (local_leaf_nodes[i]->node_type == PDLN_NODE_TYPE_NPOLAR && local_leaf_nodes[i]->expanded_boundry->min_lat < 0.0)
+                    npolar_success = false;
+
+                if (spolar_success && npolar_success) {
+                    /* if MPI_Ibcast is supported
+                    MPI_Request req[2];
+                    MPI_Status status;
+                    MPI_Ibcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
+                               processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
+                               processing_info->get_mpi_comm(), req);
+                    MPI_Ibcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
+                               processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
+                               processing_info->get_mpi_comm(), req+1);
+
+                    local_leaf_nodes[i]->generate_rotated_grid();
+
+                    MPI_Wait(req, &status);
+                    MPI_Wait(req+1, &status);
+                    if (!spolar_success || !npolar_success)
+                        return 2;
+                    */
+                    MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
+                               processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
+                               processing_info->get_mpi_comm());
+                    MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
+                               processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
+                               processing_info->get_mpi_comm());
+                    if (!spolar_success || !npolar_success)
+                        return 2;
+
+                    local_leaf_nodes[i]->generate_rotated_grid();
+                }
+                else {
+                    MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
+                              processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
+                              processing_info->get_mpi_comm());
+                    MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
+                              processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
+                              processing_info->get_mpi_comm());
                     return 2;
-                if(local_leaf_nodes[i]->node_type == PDLN_NODE_TYPE_SPOLAR && local_leaf_nodes[i]->expanded_boundry->max_lat > 0.0)
-                    return 2;
-                local_leaf_nodes[i]->generate_rotated_grid();
+                }
             }
-            //do 2D delaunay triangulation
+            else {
+                bool spolar_success = true, npolar_success = true;
+                MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
+                          processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
+                          processing_info->get_mpi_comm());
+                MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
+                          processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
+                          processing_info->get_mpi_comm());
+                if(!spolar_success || !npolar_success)
+                    return 2;
+            }
+
             local_leaf_nodes[i]->generate_local_triangulation();
-            //expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1
+            expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1;
             iter++;
-            if(iter == 2) {
+            //if(iter == 2) {
                 //plot_local_triangles("log/chunk");
                 //MPI_Barrier(MPI_COMM_WORLD);
                 //exit(1);
                 //break;
-            }
+            //}
         }
     }
-    //if(expand_fail)
-    //    return 1;
+    if(expand_fail)
+        return 1;
     return 0;
 }
 
