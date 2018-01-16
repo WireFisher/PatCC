@@ -787,7 +787,6 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
     Triangle_Transport *extra_local_triangle[32];
     Triangle_Transport *extra_remote_triangle[32];
     int triangle_buf_len;
-    int num_extra_buf = 0;
     int num_local_triangle[32], num_remote_triangle[32];
     int num_extra_local_triangle[32], num_extra_remote_triangle[32];
 
@@ -797,12 +796,14 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
     triangle_buf_len = search_tree_root->num_local_kernel_cells / processing_info->get_num_total_processing_units();
     
     for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
-        local_triangle[i] = new Triangle_Transport[triangle_buf_len];
-        remote_triangle[i] = new Triangle_Transport[triangle_buf_len];
-        num_local_triangle[i] = 0;
-        num_remote_triangle[i] = 0;
+        local_triangle[i] = NULL;
+        remote_triangle[i] = NULL;
         extra_local_triangle[i] = NULL;
         extra_remote_triangle[i] = NULL;
+        num_local_triangle[i] = 0;
+        num_remote_triangle[i] = 0;
+        num_extra_local_triangle[i] = 0;
+        num_extra_remote_triangle[i] = 0;
     }
 
     vector<MPI_Request*> waiting_list;
@@ -824,6 +825,8 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         
         /* get triangles ,which the common boundry pass through, from leaf_node and its neighbor */
         if(boundry_head.x != PDLN_DOUBLE_INVALID_VALUE) { // Uncompleted determination
+            local_triangle[i] = new Triangle_Transport[triangle_buf_len];
+            remote_triangle[i] = new Triangle_Transport[triangle_buf_len];
             leaf_node->triangulation->get_triangles_intersecting_with_segment(boundry_head, boundry_tail, local_triangle[i], &num_local_triangle[i], triangle_buf_len);
             //printf("[%d]x[Send---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
             //send_triangles_to_remote(leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0],
@@ -835,8 +838,8 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         }
 
         if(boundry2_head.x != PDLN_DOUBLE_INVALID_VALUE) { // Uncompleted determination
-            extra_local_triangle[num_extra_buf] = new Triangle_Transport[triangle_buf_len];
-            extra_remote_triangle[num_extra_buf++] = new Triangle_Transport[triangle_buf_len];
+            extra_local_triangle[i] = new Triangle_Transport[triangle_buf_len];
+            extra_remote_triangle[i] = new Triangle_Transport[triangle_buf_len];
             leaf_node->triangulation->get_triangles_intersecting_with_segment(boundry2_head, boundry2_tail, extra_local_triangle[i],
                                                                               &num_extra_local_triangle[i], triangle_buf_len);
             //printf("[%d]x[Send-EX] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
@@ -857,6 +860,7 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &boundry_head, &boundry_tail, &boundry2_head, &boundry2_tail);
 
         if(boundry_head.x != PDLN_DOUBLE_INVALID_VALUE) {
+            assert(remote_triangle[i] != NULL);
             //printf("[%d]x[Recv---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0], triangle_buf_len, PDLN_SET_MASK(iter));
             num_remote_triangle[i] = recv_triangles_from_remote(leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0],
                                                                 remote_triangle[i], triangle_buf_len, PDLN_SET_MASK(iter));
@@ -880,40 +884,53 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
 
     /* do comparision */
     bool check_passed = true;
-    for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
-        if(leaf_node->neighbors[i].second)
+    for (unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
+        if (leaf_node->neighbors[i].second)
             continue;
-        if(num_local_triangle[i] != num_remote_triangle[i]) {
-            char filename[64];
-            snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
-            plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
-            snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
-            plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
-            
-            printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], num_remote_triangle[i]);
-            check_passed = false;
-            continue;
-        }
-        if(!check_triangles_consistency(local_triangle[i], remote_triangle[i], num_local_triangle[i])) {
-            char filename[64];
-            snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
-            plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
-            snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
-            plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
+        if (local_triangle[i] != NULL) {
+            if (num_local_triangle[i] != num_remote_triangle[i]) {
+                //char filename[64];
+                //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
+                //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
+                //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
+                //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
+                
+                printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
+                                                                                    leaf_node->neighbors[i].first->processing_units_id[0],
+                                                                                    num_local_triangle[i], num_remote_triangle[i]);
+                check_passed = false;
+                continue;
+            }
+            if (!check_triangles_consistency(local_triangle[i], remote_triangle[i], num_local_triangle[i])) {
+                //char filename[64];
+                //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
+                //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
+                //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
+                //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
 
-            printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
-            check_passed = false;
-            continue;
+                printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0],
+                                                                               leaf_node->neighbors[i].first->processing_units_id[0]);
+                check_passed = false;
+                continue;
+            }
+        }
+
+        if (extra_local_triangle[i] != NULL) {
+            if (num_extra_local_triangle[i] != num_extra_remote_triangle[i]) {
+                printf("[%d] checking extra consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
+                                                                                          leaf_node->neighbors[i].first->processing_units_id[0],
+                                                                                          num_local_triangle[i], num_remote_triangle[i]);
+                check_passed = false;
+                continue;
+            }
+            if (!check_triangles_consistency(extra_local_triangle[i], extra_remote_triangle[i], num_extra_local_triangle[i])) {
+                printf("[%d] checking extra consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], 
+                                                                                     leaf_node->neighbors[i].first->processing_units_id[0]);
+                check_passed = false;
+                continue;
+            }
         }
         leaf_node->neighbors[i].second = true;
-    }
-
-    //FIXME: bool check
-    for(int i = 0; i < num_extra_buf; i++) {
-        if(num_extra_local_triangle[i] != num_extra_remote_triangle[i])
-            return false;
-        if(!check_triangles_consistency(extra_local_triangle[i], extra_remote_triangle[i], num_extra_local_triangle[i]))
-            return false;
     }
 
     if(check_passed) {
@@ -1279,7 +1296,7 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
         return false;
 
     top = fabs(kernel_boundry->max_lat - origin_grid_boundry->max_lat) < PDLN_FLOAT_EQ_ERROR ?
-          (kernel_boundry->max_lat+kernel_boundry->min_lat)/2.0 : kernel_boundry->max_lat; //make the value small enough to pass the check
+          (kernel_boundry->max_lat+kernel_boundry->min_lat)/2.0 : kernel_boundry->max_lat; //Make the value small enough to pass the check. This is not strict. May need FIXME.
     bot = fabs(kernel_boundry->min_lat - origin_grid_boundry->min_lat) < PDLN_FLOAT_EQ_ERROR ?
           (kernel_boundry->max_lat+kernel_boundry->min_lat)/2.0 : kernel_boundry->min_lat;
     if(is_cyclic(*origin_grid_boundry)) {
@@ -1291,7 +1308,7 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
                (kernel_boundry->max_lon+kernel_boundry->min_lon)/2.0 : kernel_boundry->max_lon;
         right = fabs(kernel_boundry->min_lon - origin_grid_boundry->min_lon) < PDLN_FLOAT_EQ_ERROR ?
                 (kernel_boundry->max_lon+kernel_boundry->min_lon)/2.0 : kernel_boundry->min_lon;
-    } //FIXME: This may have bug
+    } 
     //int rank;
     //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     //printf("[%d] checking boundary: %lf, %lf, %lf, %lf\n", rank, top, bot, left, right);
