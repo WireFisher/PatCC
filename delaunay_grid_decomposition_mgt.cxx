@@ -175,34 +175,22 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
                                              rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
 
-        double min_lon = 361.0, max_lon = -1.0;
-        for (int i = 0; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
-            if(local_cells_coord[PDLN_LON][i] < min_lon) min_lon = local_cells_coord[PDLN_LON][i];
-            if(local_cells_coord[PDLN_LON][i] > max_lon) max_lon = local_cells_coord[PDLN_LON][i];
-        }
-        double min_lat = 91.0, max_lat = -91.0;
-        for (int i = 0; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
-            if(local_cells_coord[PDLN_LAT][i] < min_lat) min_lat = local_cells_coord[PDLN_LAT][i];
-            if(local_cells_coord[PDLN_LAT][i] > max_lat) max_lat = local_cells_coord[PDLN_LAT][i];
-        }
-
         double lon, head_lon, head_lat, tail_lon, tail_lat;
-        lon = (max_lon + min_lon + 360.0) * 0.5;
+        lon = (expanded_boundry->max_lon + expanded_boundry->min_lon + 360.0) * 0.5;
         if (lon > 360.0) lon -= 360.0;
         if (std::abs(expanded_boundry->max_lat - 90.0) < PDLN_FLOAT_EQ_ERROR) {
-            rotate_sphere_coordinate(lon, max_lat-0.1, head_lon, head_lat);
-            rotate_sphere_coordinate(lon, min_lat,     tail_lon, tail_lat);
+            rotate_sphere_coordinate(lon, expanded_boundry->max_lat-0.1, head_lon, head_lat);
+            rotate_sphere_coordinate(lon, expanded_boundry->min_lat,     tail_lon, tail_lat);
         }
         else {
-            rotate_sphere_coordinate(lon, min_lat+0.1, head_lon, head_lat);
-            rotate_sphere_coordinate(lon, max_lat,     tail_lon, tail_lat);
+            rotate_sphere_coordinate(lon, expanded_boundry->min_lat+0.1, head_lon, head_lat);
+            rotate_sphere_coordinate(lon, expanded_boundry->max_lat,     tail_lon, tail_lat);
         }
         head_lon += 90.0;
         tail_lon += 90.0;
         if(head_lon > 360.0) head_lon -= 360.0;
         if(tail_lon > 360.0) tail_lon -= 360.0;
 
-        //printf("lon: %lf max_lon: %lf, min_lon: %lf, max_lat: %lf, min_lat: %lf\n", lon, max_lon, min_lon, max_lat, min_lat);
         //printf("(%lf, %lf) -- (%lf, %lf)\n", head_lon, head_lat, tail_lon, tail_lat);
         std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
 
