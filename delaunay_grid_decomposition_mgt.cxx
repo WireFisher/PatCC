@@ -40,10 +40,10 @@
 #define PDLN_DOUBLE_INVALID_VALUE ((double)0xDEADBEEFDEADBEEF)
 
 
-static inline bool is_cyclic(Boundry b)
-{
-    return fabs(b.min_lon - 0.0) < PDLN_FLOAT_EQ_ERROR && fabs(b.max_lon - 360.0) < PDLN_FLOAT_EQ_ERROR;
-}
+//static inline bool is_cyclic(Boundry b)
+//{
+//    return std::abs(b.min_lon - 0.0) < PDLN_FLOAT_EQ_ERROR && std::abs(b.max_lon - 360.0) < PDLN_FLOAT_EQ_ERROR;
+//}
 
 
 Boundry& Boundry::operator= (Boundry& boundry)
@@ -75,13 +75,13 @@ void Boundry::legalize()
 }
 
 
-void Boundry::legalize(Boundry outer_boundry)
+void Boundry::legalize(const Boundry *outer_boundry, bool is_cyclic)
 {
-    min_lat = std::max(min_lat, outer_boundry.min_lat);
-    max_lat = std::min(max_lat, outer_boundry.max_lat);
-    if(!is_cyclic(outer_boundry)) {
-        min_lon = std::max(min_lon, outer_boundry.min_lon);
-        max_lon = std::min(max_lon, outer_boundry.max_lon);
+    min_lat = std::max(min_lat, outer_boundry->min_lat);
+    max_lat = std::min(max_lat, outer_boundry->max_lat);
+    if(!is_cyclic) {
+        min_lon = std::max(min_lon, outer_boundry->min_lon);
+        max_lon = std::min(max_lon, outer_boundry->max_lon);
     }
 }
 
@@ -107,8 +107,6 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     this->len_expanded_cells_coord_buf = 0;
     this->rotated_cells_coord[0] = this->rotated_cells_coord[1] = NULL;
     this->num_rotated_cells = 0;
-    //for(int i = 0; i < num_points; i++)
-    //    printf("%p: (%lf, %lf)\n", parent,  this->local_cells_coord[0][i], this->local_cells_coord[1][i]);
     //this->expanded_cells_coord[0] = this->expanded_cells_coord[1] = NULL;
 
     this->num_local_kernel_cells = num_points;
@@ -166,45 +164,56 @@ void Search_tree_node::update_processing_units_id(vector<int> proc_units_id)
 }
 
 
-void Search_tree_node::generate_local_triangulation()
+void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 {
     if(triangulation != NULL)
         delete triangulation;
 
-    //printf("num_local_kernel_cells: %d, num_local_expanded_cells: %d\n", num_local_kernel_cells, num_local_expanded_cells);
     if(rotated_expanded_boundry != NULL) {
         triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
                                              rotated_cells_coord[PDLN_LON], rotated_cells_coord[PDLN_LAT], local_cells_global_index, false,
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
                                              rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
 
+        double min_lon = 361.0, max_lon = -1.0;
+        for (int i = 0; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
+            if(local_cells_coord[PDLN_LON][i] < min_lon) min_lon = local_cells_coord[PDLN_LON][i];
+            if(local_cells_coord[PDLN_LON][i] > max_lon) max_lon = local_cells_coord[PDLN_LON][i];
+        }
+        double min_lat = 91.0, max_lat = -91.0;
+        for (int i = 0; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
+            if(local_cells_coord[PDLN_LAT][i] < min_lat) min_lat = local_cells_coord[PDLN_LAT][i];
+            if(local_cells_coord[PDLN_LAT][i] > max_lat) max_lat = local_cells_coord[PDLN_LAT][i];
+        }
+
         double lon, head_lon, head_lat, tail_lon, tail_lat;
-        lon = (expanded_boundry->max_lon + expanded_boundry->min_lon + 360.0) * 0.5;
+        lon = (max_lon + min_lon + 360.0) * 0.5;
         if (lon > 360.0) lon -= 360.0;
         if (std::abs(expanded_boundry->max_lat - 90.0) < PDLN_FLOAT_EQ_ERROR) {
-            rotate_sphere_coordinate(lon, 89.00, head_lon, head_lat);
-            rotate_sphere_coordinate(lon, 20.00, tail_lon, tail_lat);
+            rotate_sphere_coordinate(lon, max_lat-0.1, head_lon, head_lat);
+            rotate_sphere_coordinate(lon, min_lat,     tail_lon, tail_lat);
         }
         else {
-            rotate_sphere_coordinate(lon, -89.99, head_lon, head_lat);
-            rotate_sphere_coordinate(lon, -20.00, tail_lon, tail_lat);
+            rotate_sphere_coordinate(lon, min_lat+0.1, head_lon, head_lat);
+            rotate_sphere_coordinate(lon, max_lat,     tail_lon, tail_lat);
         }
         head_lon += 90.0;
         tail_lon += 90.0;
         if(head_lon > 360.0) head_lon -= 360.0;
         if(tail_lon > 360.0) tail_lon -= 360.0;
 
+        //printf("lon: %lf max_lon: %lf, min_lon: %lf, max_lat: %lf, min_lat: %lf\n", lon, max_lon, min_lon, max_lat, min_lat);
+        //printf("(%lf, %lf) -- (%lf, %lf)\n", head_lon, head_lat, tail_lon, tail_lat);
         std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
 
-        //char filename[64];
-        //int rank;
-        //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        //snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
-        //plot_triangles_info_file(filename, cyclic_triangles);
+        char filename[64];
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
+        plot_triangles_info_file(filename, cyclic_triangles);
 
         triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
-        triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic(*expanded_boundry));
-        triangulation->relegalize_all_triangles();
+        triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
         triangulation->relegalize_all_triangles();
     }
     else {
@@ -470,7 +479,23 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     
     coord_values = grid_info_mgr->get_grid_coord_values(grid_id);
     num_points = grid_info_mgr->get_grid_num_points(grid_id);
-    grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
+
+    boundry.min_lat = 91.0;
+    boundry.max_lat = -91.0;
+    boundry.min_lon = 361.0;
+    boundry.max_lon = -1.0;
+    for(int i = 0; i < num_points; i++) {
+        if(coord_values[PDLN_LON][i] < boundry.min_lon) boundry.min_lon = coord_values[PDLN_LON][i];
+        if(coord_values[PDLN_LON][i] > boundry.max_lon) boundry.max_lon = coord_values[PDLN_LON][i];
+    }
+    for(int i = 0; i < num_points; i++) {
+        if(coord_values[PDLN_LAT][i] < boundry.min_lat) boundry.min_lat = coord_values[PDLN_LAT][i];
+        if(coord_values[PDLN_LAT][i] > boundry.max_lat) boundry.max_lat = coord_values[PDLN_LAT][i];
+    }
+    boundry.max_lon += 0.01;
+
+    this->is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
+    //grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
 
     global_index = new int[num_points];
@@ -838,6 +863,10 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         }
 
         if(boundry2_head.x != PDLN_DOUBLE_INVALID_VALUE) { // Uncompleted determination
+            printf("[common extra boundary] %d -> %d: (%lf, %lf) -> (%lf, %lf)\n", leaf_node->processing_units_id[0],
+                                                                             leaf_node->neighbors[i].first->processing_units_id[0],
+                                                                             boundry2_head.x, boundry2_head.y,
+                                                                             boundry2_tail.x, boundry2_tail.y);
             extra_local_triangle[i] = new Triangle_Transport[triangle_buf_len];
             extra_remote_triangle[i] = new Triangle_Transport[triangle_buf_len];
             leaf_node->triangulation->get_triangles_intersecting_with_segment(boundry2_head, boundry2_tail, extra_local_triangle[i],
@@ -889,11 +918,11 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             continue;
         if (local_triangle[i] != NULL) {
             if (num_local_triangle[i] != num_remote_triangle[i]) {
-                //char filename[64];
-                //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
-                //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
-                //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
-                //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
+                char filename[64];
+                snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
+                plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
+                snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
+                plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
                 
                 printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
                                                                                     leaf_node->neighbors[i].first->processing_units_id[0],
@@ -902,11 +931,11 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
                 continue;
             }
             if (!check_triangles_consistency(local_triangle[i], remote_triangle[i], num_local_triangle[i])) {
-                //char filename[64];
-                //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
-                //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
-                //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
-                //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
+                char filename[64];
+                snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
+                plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
+                snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
+                plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
 
                 printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0],
                                                                                leaf_node->neighbors[i].first->processing_units_id[0]);
@@ -1166,7 +1195,7 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
                            std::abs(search_tree_root->kernel_boundry->max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR && num_north_polar < 2))
         return 1;
 
-    if(this->current_tree_node->processing_units_id.size() == 1 && grid_info_mgr->is_grid_cyclic(this->original_grid)) {
+    if(this->current_tree_node->processing_units_id.size() == 1 && is_cyclic) {
         this->assign_cyclic_grid_for_single_unit();
         return 0;
     }
@@ -1256,9 +1285,12 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
     if(tree_node->node_type == PDLN_NODE_TYPE_COMMON)
         *tree_node->expanded_boundry = *tree_node->expanded_boundry * expanding_ratio;
-    else
-        *tree_node->expanded_boundry = *tree_node->expanded_boundry * (expanding_ratio * 2);
-    tree_node->expanded_boundry->legalize(*search_tree_root->kernel_boundry);
+    else if(tree_node->node_type == PDLN_NODE_TYPE_SPOLAR)
+        tree_node->expanded_boundry->max_lat += (tree_node->expanded_boundry->max_lat - tree_node->expanded_boundry->min_lat) * expanding_ratio * 2;
+    else if(tree_node->node_type == PDLN_NODE_TYPE_NPOLAR)
+        tree_node->expanded_boundry->min_lat -= (tree_node->expanded_boundry->max_lat - tree_node->expanded_boundry->min_lat) * expanding_ratio * 2;
+
+    tree_node->expanded_boundry->legalize(search_tree_root->kernel_boundry, is_cyclic);
     //if(tree_node->processing_units_id[0] == 0)
     //    printf("old: %lf, expanded: %lf\n", old_boundry.max_lat, tree_node->expanded_boundry->max_lat);
 
@@ -1289,7 +1321,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 }
 
 
-bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *origin_grid_boundry)
+bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *origin_grid_boundry, bool is_cyclic)
 {
     double left, right, top, bot;
     if(triangulation == NULL)
@@ -1299,7 +1331,7 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
           (kernel_boundry->max_lat+kernel_boundry->min_lat)/2.0 : kernel_boundry->max_lat; //Make the value small enough to pass the check. This is not strict. May need FIXME.
     bot = fabs(kernel_boundry->min_lat - origin_grid_boundry->min_lat) < PDLN_FLOAT_EQ_ERROR ?
           (kernel_boundry->max_lat+kernel_boundry->min_lat)/2.0 : kernel_boundry->min_lat;
-    if(is_cyclic(*origin_grid_boundry)) {
+    if(is_cyclic) {
         left = kernel_boundry->max_lon;
         right = kernel_boundry->min_lon;
     }
@@ -1340,10 +1372,14 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
         int iter = 0;
         while(!check_leaf_node_triangulation_consistency(local_leaf_nodes[i], iter) ||
-              !local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry)) {
+              !local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic)) {
             /* Actually, we don't have confidence in making the loop iterate only once by tuning. TODO: try to delete "don't" */
             ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
             /*
+            printf("[%d]ID:%d expanded boundary (%lf, %lf, %lf, %lf)\n", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->expanded_boundry->min_lon,
+                                                                       local_leaf_nodes[0]->expanded_boundry->max_lon, local_leaf_nodes[0]->expanded_boundry->min_lat,
+                                                                       local_leaf_nodes[0]->expanded_boundry->max_lat);
+            
             printf("[%d]x[INFO] ID: %d, (%lf, %lf, %lf, %lf), Neighbors: [", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->kernel_boundry->min_lon,
                                                                        local_leaf_nodes[0]->kernel_boundry->max_lon, local_leaf_nodes[0]->kernel_boundry->min_lat,
                                                                        local_leaf_nodes[0]->kernel_boundry->max_lat);
@@ -1426,7 +1462,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                     return 2;
             }
 
-            local_leaf_nodes[i]->generate_local_triangulation();
+            local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
             expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1;
             iter++;
             //if(iter == 2) {
@@ -1552,10 +1588,7 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
     }
 
     radix_sort(triangles, num_triangles);
-    //plot_triangles_info_file("log/image_global_triangles1", triangles, num_triangles);
 
-    //for(int i = 0; i < num_triangles; i++)
-    //    printf("%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
     for(i = 0, j = 1; j < num_triangles; j++) {
         if(triangles[i].v[0].id == triangles[j].v[0].id &&
            triangles[i].v[1].id == triangles[j].v[1].id &&
@@ -1565,9 +1598,6 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
             triangles[++i] = triangles[j];
     }
     int num_different_triangles = i + 1;
-    //plot_triangles_info_file("log/image_global_triangles2", triangles, num_different_triangles);
-    //for(i = 0; i < num_different_triangles; i++)
-    //    printf("%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
     
     FILE *fp = fopen("log/global_triangles", "w");
     for(i = 0; i < num_different_triangles; i++)
@@ -1578,25 +1608,6 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
     //snprintf(filename, 64, "log/image_global_triangles%d");
     //plot_triangles_info_file("log/image_global_triangles", triangles, num_different_triangles);
 
-    /*
-    int test1[500], test2[500];
-
-    srand(0);
-    for(i = 0; i < 500; i++)
-        test1[i] = test2[i] = rand();
-
-    merge_sort(test1, 500, sizeof(int), compare_int);
-    fp = fopen("log/test1", "w");
-    for(i = 0; i < 500; i++)
-        fprintf(fp, "%d\n", test1[i]);
-    fclose(fp);
-
-    qsort(test2, 500, sizeof(int), compare_int);
-    fp = fopen("log/test2", "w");
-    for(i = 0; i < 500; i++)
-        fprintf(fp, "%d\n", test2[i]);
-    fclose(fp);
-    */
 }
 
 
@@ -1685,7 +1696,7 @@ Grid_info_manager::Grid_info_manager()
     srand(0);
     for(int i = 0; i < size; i++)
         for(int j = 0; j < size; j++) {
-            coord_values[0][i * size + j] =  0.0  + 359.0 * j / size;
+            coord_values[0][i * size + j] =  0.0  + 360.0 * j / size;
             //coord_values[1][i * size + j] = -89.0 + 178.0 * i / size;
             coord_values[1][i * size + j] = -89.0 + 178.0 * i / size;
             //coord_values[0][i * size + j] = fRand(0.0, 359.0);
@@ -1725,13 +1736,15 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lat, double* m
     *min_lat = -90.0;
     *max_lat =  90.0;
     *min_lon =   0.0;
-    *max_lon = 359.0;
+    //*max_lon = 359.0;
+    *max_lon = 360.0;
+}
+
+bool Grid_info_manager::is_grid_cyclic(int grid_id)
+{
+    return true;
 }
 int Grid_info_manager::get_polar_points(int grid_id, char polar)
 {
     return 1;
-}
-bool Grid_info_manager::is_grid_cyclic(int grid_id)
-{
-    return false;
 }

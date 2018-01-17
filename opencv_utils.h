@@ -5,11 +5,12 @@ void plot_edge_into_file(const char *filename, double *head_coord[2], double *ta
 {
     std::vector<Edge*> edges;
 
-    cv::Mat mat = cv::Mat::zeros(180*10, 360*10, CV_8UC3); /* rows, columns*/
+    cv::Mat mat = cv::Mat::zeros(180*10, 400*10, CV_8UC3); /* rows, columns*/
 
-    for(int i = 0; i < num_edges; i++)
-        cv::line(mat, cv::Point(head_coord[0][i] * 10, (head_coord[1][i]+90.0) * 10), cv::Point(tail_coord[0][i] * 10, (tail_coord[1][i]+90.0) * 10),
-                 cv::Scalar(255, 255, 255), 1, cv::LINE_8);
+    cv::line(mat, cv::Point((0.0+20.0) * 10, (-90.0+90.0) * 10), cv::Point((0.0+20.0) * 10, (90.0+90.0) * 10), cv::Scalar(0, 255, 255), 1, cv::LINE_8);
+    cv::line(mat, cv::Point((0.0+20.0) * 10, (90.0+90.0) * 10), cv::Point((360.0+20.0) * 10, (90.0+90.0) * 10), cv::Scalar(0, 255, 255), 1, cv::LINE_8);
+    cv::line(mat, cv::Point((360.0+20.0) * 10, (90.0+90.0) * 10), cv::Point((360.0+20.0) * 10, (-90.0+90.0) * 10), cv::Scalar(0, 255, 255), 1, cv::LINE_8);
+    cv::line(mat, cv::Point((360.0+20.0) * 10, (-90.0+90.0) * 10), cv::Point((0.0+20.0) * 10, (-90.0+90.0) * 10), cv::Scalar(0, 255, 255), 1, cv::LINE_8);
 
     /*
     edges = delau->get_all_legal_delaunay_edge();
@@ -19,12 +20,20 @@ void plot_edge_into_file(const char *filename, double *head_coord[2], double *ta
     */
 
     if(min_x != 0.0 || max_x != 0.0 || min_y != 0.0 || max_y != 0.0) {
-        cv::line(mat, cv::Point(min_x * 10, (min_y+90.0) * 10), cv::Point(min_x * 10, (max_y+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
-        cv::line(mat, cv::Point(min_x * 10, (max_y+90.0) * 10), cv::Point(max_x * 10, (max_y+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
-        cv::line(mat, cv::Point(max_x * 10, (max_y+90.0) * 10), cv::Point(max_x * 10, (min_y+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
-        cv::line(mat, cv::Point(max_x * 10, (min_y+90.0) * 10), cv::Point(min_x * 10, (min_y+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
+        cv::line(mat, cv::Point((min_x+20.0) * 10, (min_y+90.0) * 10), cv::Point((min_x+20.0) * 10, (max_y+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
+        cv::line(mat, cv::Point((min_x+20.0) * 10, (max_y+90.0) * 10), cv::Point((max_x+20.0) * 10, (max_y+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
+        cv::line(mat, cv::Point((max_x+20.0) * 10, (max_y+90.0) * 10), cv::Point((max_x+20.0) * 10, (min_y+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
+        cv::line(mat, cv::Point((max_x+20.0) * 10, (min_y+90.0) * 10), cv::Point((min_x+20.0) * 10, (min_y+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
     }
-    //cv::line(mat, cv::Point(0.0 * 10, 180.0 * 10), cv::Point(360.0 * 10, 180 * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
+
+    for(int i = 0; i < num_edges; i++)
+        cv::line(mat, cv::Point((head_coord[0][i]+20.0) * 10, (head_coord[1][i]+90.0) * 10), cv::Point((tail_coord[0][i]+20.0) * 10, (tail_coord[1][i]+90.0) * 10),
+                 cv::Scalar(255, 255, 255), 1, cv::LINE_8);
+    //double x1 = 270.010468;
+    //double y1 = -0.999945;
+    //double x2 = 270.550415;
+    //double y2 = -42.530453;
+    //cv::line(mat, cv::Point((x1+20.0) * 10, (y1+90.0) * 10), cv::Point((x2+20.0) * 10, (y2+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
     //cv::line(mat, cv::Point(215.4 * 10, 90.0 * 10), cv::Point(143.6 * 10, 90 * 10), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
 
     std::vector<int> compression_params;

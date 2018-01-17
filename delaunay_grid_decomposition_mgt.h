@@ -33,7 +33,7 @@ public:
     Boundry& operator= (Boundry& boundry);
     Boundry& operator* (double);
     void legalize();
-    void legalize(Boundry);
+    void legalize(const Boundry*, bool);
 };
 
 
@@ -68,12 +68,12 @@ public:
     void decompose_with_certain_line(Midline, double**, int**, int*);
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
-    void generate_local_triangulation();
+    void generate_local_triangulation(bool);
     void generate_rotated_grid();
     void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
     //bool check_expanded_triangle_consistency();
-    bool check_if_all_outer_edge_out_of_kernel_boundry(Boundry *);
+    bool check_if_all_outer_edge_out_of_kernel_boundry(Boundry *, bool);
 
     int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
     double** get_local_cells_coord(){return this->local_cells_coord; };

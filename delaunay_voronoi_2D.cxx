@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <sys/time.h>
+#include <tr1/unordered_map>
 
 #define PI 3.14159265359
 #define FLOAT_ERROR 1e-8
@@ -326,8 +327,6 @@ void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
 
     triangle_origin->initialize_triangle_with_edges(eik,ekr,eri);
     triangle_twin->initialize_triangle_with_edges(ejr,erk,ekj);
-    triangle_origin->calulate_circum_circle();
-    triangle_twin->calulate_circum_circle();
 
     relegalize_triangles(vr, eik);
     relegalize_triangles(vr, ekj);
@@ -345,12 +344,22 @@ Triangle::Triangle()
 Triangle::Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
 {
     initialize_triangle_with_edges(edge1, edge2, edge3);
-    calulate_circum_circle();
 }
 
 
 Triangle::~Triangle()
 {
+}
+
+
+void Triangle::check_and_set_twin_edge_relationship(Triangle *another_triangle)
+{
+    for (int i = 0; i < 3; i ++)
+        for (int j = 0; j < 3; j ++)
+            if (this->edge[i]->head == another_triangle->edge[j]->tail && this->edge[i]->tail == another_triangle->edge[j]->head) {
+                this->edge[i]->twin_edge = another_triangle->edge[j];
+                another_triangle->edge[j]->twin_edge = this->edge[i];
+            }
 }
 
 
@@ -373,7 +382,6 @@ void Triangle::calulate_circum_circle()
 void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *edge3)
 {
     Point *pt1, *pt2, *pt3;
-
 
     is_leaf = true;
     reference_count = 1;
@@ -423,6 +431,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     this->edge[0]->triangle = this;
     this->edge[1]->triangle = this;
     this->edge[2]->triangle = this;
+    calulate_circum_circle();
 }
 
 
@@ -665,6 +674,11 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
     //Edge *e1, *e2, *e3;
     Triangle *super;
 
+    //int rank;
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //if(rank == 5)
+    //    while(true);
+
     assert(x != NULL);
     assert(y != NULL);
 
@@ -741,6 +755,10 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     timeval start, end;
     //bool cyclic = min_lon==0 && max_lon==360; // double ==?
 
+#ifdef DEBUG
+    assert(have_redundent_points(x_values, y_values, num_points) == false);
+#endif
+
     gettimeofday(&start, NULL);
     current_delaunay_voronoi = this;
 
@@ -779,6 +797,31 @@ Delaunay_Voronoi::~Delaunay_Voronoi()
     for (unsigned int i = 0; i < triangle_pool.size(); i ++)
         delete triangle_pool[i];
     current_delaunay_voronoi = NULL;
+}
+
+
+void Delaunay_Voronoi::check_and_set_twin_edge_relationship(vector<Triangle*> *triangles)
+{
+    for (unsigned i = 0; i < triangles->size(); i ++)
+        for (unsigned j = i+1; j < triangles->size(); j ++)
+            (*triangles)[i]->check_and_set_twin_edge_relationship((*triangles)[j]);
+}
+
+
+bool Delaunay_Voronoi::have_redundent_points(const double *x, const double *y, int num)
+{
+    std::tr1::unordered_map<double, bool> hash_table;
+
+    if(num == 0)
+        return false;
+
+    for(int i = 0; i < num; i++) {
+        if(hash_table.find(x[i] * 1000.0 + y[i]) != hash_table.end())
+            return true;
+        hash_table[x[i] * 1000.0 + y[i]] = true;
+    }
+
+    return false;
 }
 
 
@@ -905,17 +948,43 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
 {
     //Print_Error_info = true;
     if (is_grid_cyclic) {
+        std::vector<Triangle*> right_triangles;
+        std::vector<Point*> vl_pool, vr_pool;
         for (unsigned i = 0; i < cyclic_triangles.size(); i++) {
             Point *vl[3], *vr[3];
-            Edge *el[3];//*er[3];
+            Edge *el[3], *er[3];
             for (unsigned j = 0; j < 3; j++) {
                 if (cyclic_triangles[i]->v[j]->x < 180.0) {
                     vl[j] = cyclic_triangles[i]->v[j];
-                    vr[j] = new Point(vl[j]->x + 360.0, vl[j]->y, vl[j]->id);
+
+                    /* search in the pool for the same point firstly */
+                    vr[j] = NULL;
+                    for (unsigned k = 0; k < vr_pool.size(); k++)
+                        if (vr_pool[k]->id == vl[j]->id) {
+                            vr[j] = vr_pool[k];
+                            break;
+                        }
+
+                    if(vr[j] == NULL) {
+                        vr[j] = new Point(vl[j]->x + 360.0, vl[j]->y, vl[j]->id);
+                        vr_pool.push_back(vr[j]);
+                    }
                 }
                 else {
                     vr[j] = cyclic_triangles[i]->v[j];
-                    vl[j] = new Point(vr[j]->x - 360.0, vr[j]->y, vr[j]->id);
+
+                    /* search in the pool for the same point firstly */
+                    vl[j] = NULL;
+                    for (unsigned k = 0; k < vl_pool.size(); k++)
+                        if (vl_pool[k]->id == vr[j]->id) {
+                            vl[j] = vl_pool[k];
+                            break;
+                        }
+
+                    if(vl[j] == NULL) {
+                        vl[j] = new Point(vr[j]->x - 360.0, vr[j]->y, vr[j]->id);
+                        vl_pool.push_back(vl[j]);
+                    }
                 }
             }
 
@@ -925,15 +994,25 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
                 else
                     el[j] = current_delaunay_voronoi->allocate_edge(vl[j], vl[(j+1)%3]);
 
-                //er[j] = current_delaunay_voronoi->allocate_edge(vr[j], vr[(j+1)%3]);
-                //er[j]->twin_edge = cyclic_triangles[i]->v[j]->twin_edge;
+                if (vr[j]->x < 360.0 && vr[(j+1)%3]->x < 360.0)
+                    er[j] = cyclic_triangles[i]->edge[j];
+                else
+                    er[j] = current_delaunay_voronoi->allocate_edge(vr[j], vr[(j+1)%3]);
+                
             }
             
-            for (unsigned j = 0; j < 3; j++) {
-                cyclic_triangles[i]->v[j] = vl[j];
-                cyclic_triangles[i]->edge[j] = el[j];
-            }
+            /* Change cyclic triangles directly into left triangles */
+            cyclic_triangles[i]->initialize_triangle_with_edges(el[0], el[1], el[2]);
+
+            /* Alloc new triangles for right triangles */
+            Triangle *t = current_delaunay_voronoi->allocate_Triangle(er[0], er[1], er[2]);
+            right_triangles.push_back(t);
+            result_leaf_triangles.push_back(t);
         }
+
+        check_and_set_twin_edge_relationship(&cyclic_triangles);
+        check_and_set_twin_edge_relationship(&right_triangles);
+
     }
     else {
         for (unsigned i = 0; i < cyclic_triangles.size(); i++) {

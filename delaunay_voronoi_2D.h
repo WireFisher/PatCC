@@ -97,7 +97,6 @@ class Triangle
 
         Triangle(const Triangle &triangle);
         void initialize_triangle_with_edges(Edge*, Edge*, Edge*);
-        void calulate_circum_circle();
 
     public:
         Triangle();
@@ -107,6 +106,7 @@ class Triangle
         int find_best_candidate_point();
         void check_and_set_twin_edge_relationship(Triangle*);
         bool contain_vertex(Point*);
+        void calulate_circum_circle();
 
 };
 
@@ -146,6 +146,7 @@ class Delaunay_Voronoi
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
         double calculate_angle(const Point *, const Point *, const Point *);
         std::vector<Triangle*> find_triangles_intersecting_with_segment(Point, Point);
+        bool have_redundent_points(const double*, const double*, int);
 
         bool is_triangle_legal(const Point *pt, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
