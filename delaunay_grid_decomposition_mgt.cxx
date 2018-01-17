@@ -17,6 +17,7 @@
 #include <tr1/unordered_map>
 #include "merge_sort.h"
 #include "ccpl_utils.h"
+#include "netcdf_utils.h"
 
 #define DEFAULT_EXPANGDING_RATIO (0.2)
 #define PDLN_EXPECTED_EXPANDING_LOOP_TIMES (3)
@@ -194,11 +195,11 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
         //printf("(%lf, %lf) -- (%lf, %lf)\n", head_lon, head_lat, tail_lon, tail_lat);
         std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
 
-        char filename[64];
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
-        plot_triangles_info_file(filename, cyclic_triangles);
+        //char filename[64];
+        //int rank;
+        //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        //snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
+        //plot_triangles_info_file(filename, cyclic_triangles);
 
         triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
         triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
@@ -251,7 +252,7 @@ void Search_tree_node::decompose_iteratively(double *workloads, double *child_ce
     length[1] = boundry_values[3] - boundry_values[1];
     if(length[0] < 0.0)
         length[0] += 360.0;
-    assert(length[0] <= 360 && length[0] >= 0 && length[1] <= 180 && length[1] >= 0);
+    assert(length[0] <= 360.01 && length[0] >= 0.0 && length[1] <= 180.0 && length[1] >= 0.0);
     
     if(mode == PDLN_DECOMPOSE_SPOLAR_MODE || mode == PDLN_DECOMPOSE_NPOLAR_MODE)
         midline.type = PDLN_LAT;
@@ -482,6 +483,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     }
     boundry.max_lon += 0.01;
 
+    printf("%lf, %lf, %lf, %lf\n", boundry.min_lon, boundry.max_lon, boundry.min_lat, boundry.max_lat);
     this->is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
     //grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
@@ -1012,19 +1014,21 @@ void Delaunay_grid_decomposition::search_leaf_nodes_overlapping_with_region_recu
         //TODO: optimize new delete
     }
 
-    if(two_regions_overlap(region, *node->first_child->kernel_boundry) ||
-       two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->first_child->kernel_boundry) ||
-       two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->first_child->kernel_boundry))
-        this->search_leaf_nodes_overlapping_with_region_recursively(node->first_child, region, leaf_nodes_found);
+    if(node->first_child != NULL)
+        if(two_regions_overlap(region, *node->first_child->kernel_boundry) ||
+           two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->first_child->kernel_boundry) ||
+           two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->first_child->kernel_boundry))
+            this->search_leaf_nodes_overlapping_with_region_recursively(node->first_child, region, leaf_nodes_found);
     if(node->second_child != NULL)
         if(two_regions_overlap(region, *node->second_child->kernel_boundry) ||
            two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->second_child->kernel_boundry) ||
            two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->second_child->kernel_boundry))
             this->search_leaf_nodes_overlapping_with_region_recursively(node->second_child, region, leaf_nodes_found);
-    if(two_regions_overlap(region, *node->third_child->kernel_boundry) ||
-       two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->third_child->kernel_boundry) ||
-       two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->third_child->kernel_boundry))
-        this->search_leaf_nodes_overlapping_with_region_recursively(node->third_child, region, leaf_nodes_found);
+    if(node->third_child != NULL)
+        if(two_regions_overlap(region, *node->third_child->kernel_boundry) ||
+           two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->third_child->kernel_boundry) ||
+           two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->third_child->kernel_boundry))
+            this->search_leaf_nodes_overlapping_with_region_recursively(node->third_child, region, leaf_nodes_found);
 }
 
 
@@ -1043,6 +1047,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
     child_cells_index[1] = new int[this->search_tree_root->num_local_kernel_cells];
 
     if(assign_south_polar) {
+        printf("South polar need rotating.\n");
         this->search_tree_root->decompose_iteratively(this->workloads, child_cells_coord, child_cells_index, child_num_cells, child_boundry, child_proc_id, PDLN_DECOMPOSE_SPOLAR_MODE);
         if(child_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT || this->search_tree_root->processing_units_id.size() == 1) {
             midline.type = PDLN_LAT;
@@ -1078,6 +1083,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
     }
     
     if(assign_north_polar) {
+        printf("Nouth polar need rotating.\n");
         this->current_tree_node->decompose_iteratively(this->workloads, child_cells_coord, child_cells_index, child_num_cells, child_boundry, child_proc_id, PDLN_DECOMPOSE_NPOLAR_MODE);
         if(child_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT || this->current_tree_node->processing_units_id.size() == 1) {
             midline.type = PDLN_LAT;
@@ -1179,8 +1185,10 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
     this->current_tree_node = this->search_tree_root;
     num_south_polar = grid_info_mgr->get_polar_points(this->original_grid, 'S');
     num_north_polar = grid_info_mgr->get_polar_points(this->original_grid, 'N');
-    if(this->assign_polars(std::abs(search_tree_root->kernel_boundry->min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR && num_south_polar < 2,
-                           std::abs(search_tree_root->kernel_boundry->max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR && num_north_polar < 2))
+    double min_lon, max_lon, min_lat, max_lat;
+    grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
+    if(this->assign_polars(std::abs(min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR && num_south_polar < 2,
+                           std::abs(max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR && num_north_polar < 2))
         return 1;
 
     if(this->current_tree_node->processing_units_id.size() == 1 && is_cyclic) {
@@ -1417,35 +1425,41 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                     if (!spolar_success || !npolar_success)
                         return 2;
                     */
-                    MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
-                               processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
-                               processing_info->get_mpi_comm());
-                    MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
-                               processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
-                               processing_info->get_mpi_comm());
+                    if(search_tree_root->first_child != NULL)
+                        MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
+                                   processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
+                                   processing_info->get_mpi_comm());
+                    if(search_tree_root->third_child != NULL)
+                        MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
+                                   processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
+                                   processing_info->get_mpi_comm());
                     if (!spolar_success || !npolar_success)
                         return 2;
 
                     local_leaf_nodes[i]->generate_rotated_grid();
                 }
                 else {
-                    MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
-                              processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
-                              processing_info->get_mpi_comm());
-                    MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
-                              processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
-                              processing_info->get_mpi_comm());
+                    if(search_tree_root->first_child != NULL)
+                        MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
+                                  processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
+                                  processing_info->get_mpi_comm());
+                    if(search_tree_root->third_child != NULL)
+                        MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
+                                  processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
+                                  processing_info->get_mpi_comm());
                     return 2;
                 }
             }
             else {
                 bool spolar_success = true, npolar_success = true;
-                MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
-                          processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
-                          processing_info->get_mpi_comm());
-                MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
-                          processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
-                          processing_info->get_mpi_comm());
+                if(search_tree_root->first_child != NULL)
+                    MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
+                              processing_info->get_processing_unit(search_tree_root->first_child->processing_units_id[0])->process_id, 
+                              processing_info->get_mpi_comm());
+                if(search_tree_root->third_child != NULL)
+                    MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
+                              processing_info->get_processing_unit(search_tree_root->third_child->processing_units_id[0])->process_id, 
+                              processing_info->get_mpi_comm());
                 if(!spolar_success || !npolar_success)
                     return 2;
             }
@@ -1676,6 +1690,7 @@ static double fRand(double fMin, double fMax)
 
 Grid_info_manager::Grid_info_manager()
 {
+    /*
     int size = 300;
 
     num_points = size * size;
@@ -1695,6 +1710,24 @@ Grid_info_manager::Grid_info_manager()
     coord_values[1][0] = -90.0;
     coord_values[0][299] = 0.0;
     coord_values[1][299] = 90.0;
+    */
+
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+    read_file_field("../three_polars_grid.nc", "nav_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field("../three_polars_grid.nc", "nav_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+    assert(field_size == field_size2);
+    num_points = field_size;
+    coord_values[PDLN_LON] = (double*)coord_buf0;
+    coord_values[PDLN_LAT] = (double*)coord_buf1;
+
+    for(int i = 0; i < num_points; i++)
+        coord_values[PDLN_LON][i] += 180.0;
 }
 
 
@@ -1717,11 +1750,11 @@ int Grid_info_manager::get_grid_num_points(int grid_id)
 {
     return num_points;
 }
-void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
+void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* max_lon, double* min_lat, double* max_lat)
 {
     //*min_lat = -89.0;
     //*max_lat =  89.0;
-    *min_lat = -90.0;
+    *min_lat = -80.0;
     *max_lat =  90.0;
     *min_lon =   0.0;
     //*max_lon = 359.0;
@@ -1734,5 +1767,9 @@ bool Grid_info_manager::is_grid_cyclic(int grid_id)
 }
 int Grid_info_manager::get_polar_points(int grid_id, char polar)
 {
-    return 1;
+    if(polar == 'S')
+        return 0;
+    if(polar == 'N')
+        return 0;
+    return 0;
 }
