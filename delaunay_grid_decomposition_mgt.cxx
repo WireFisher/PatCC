@@ -1239,14 +1239,30 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_region(B
     //TODO: optimize if out of loop
     if((region.max_lon <= 360.0 && region.max_lon >= 0.0) || (region.min_lon <= 360.0 && region.min_lon >= 0.0))
         for(unsigned i = 0; i < leaf_nodes_found.size(); i++)
-            for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++)
+            for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++) {
                 if (leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] < region.max_lon && leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= region.min_lon &&
                     leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat && leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
                     coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j];
                     coord_values[PDLN_LAT][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
                     global_idx[(*num_points_found)++] = leaf_nodes_found[i]->local_cells_global_index[j];
+                    continue;
                 }
-
+                if (leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] < left_max_lon   && leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= left_min_lon &&
+                    leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat && leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
+                    coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] + 360.0;
+                    coord_values[PDLN_LAT][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
+                    global_idx[(*num_points_found)++] = leaf_nodes_found[i]->local_cells_global_index[j];
+                    continue;
+                }
+                if (leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] < right_max_lon  && leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] >= right_min_lon &&
+                    leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] < region.max_lat && leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j] >= region.min_lat) {
+                    coord_values[PDLN_LON][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LON][j] - 360.0;
+                    coord_values[PDLN_LAT][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
+                    global_idx[(*num_points_found)++] = leaf_nodes_found[i]->local_cells_global_index[j];
+                    continue;
+                }
+            }
+/*
     if((left_max_lon <= 360.0 && left_max_lon >= 0.0) || (left_min_lon <= 360.0 && left_min_lon >= 0.0))
         for(unsigned i = 0; i < leaf_nodes_found.size(); i++)
             for(int j = 0; j < leaf_nodes_found[i]->num_local_kernel_cells; j++)
@@ -1266,7 +1282,7 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_region(B
                     coord_values[PDLN_LAT][*num_points_found] = leaf_nodes_found[i]->local_cells_coord[PDLN_LAT][j];
                     global_idx[(*num_points_found)++] = leaf_nodes_found[i]->local_cells_global_index[j];
                 }
-
+*/
     return leaf_nodes_found;
 }
 
@@ -1728,6 +1744,9 @@ Grid_info_manager::Grid_info_manager()
 
     for(int i = 0; i < num_points; i++)
         coord_values[PDLN_LON][i] += 180.0;
+
+    delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+    assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
 }
 
 
