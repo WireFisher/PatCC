@@ -160,7 +160,7 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
 #endif
     }
 
-    assert(num_active_units = num_total_active_units);
+    assert(num_active_units == num_total_active_units);
     
     for(i = 0; i < this->num_total_processing_units; i++)
         is_active[i] = false;
