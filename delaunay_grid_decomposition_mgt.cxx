@@ -171,6 +171,12 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
     if(triangulation != NULL)
         delete triangulation;
 
+    //char filename[64];
+    //int rank;
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //snprintf(filename, 64, "log/local_points_%d.png", rank);
+    //plot_points_info_file(filename, local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
+
     if(rotated_expanded_boundry != NULL) {
         triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
                                              rotated_cells_coord[PDLN_LON], rotated_cells_coord[PDLN_LAT], local_cells_global_index, false,
@@ -482,14 +488,9 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
         if(coord_values[PDLN_LAT][i] < boundry.min_lat) boundry.min_lat = coord_values[PDLN_LAT][i];
         if(coord_values[PDLN_LAT][i] > boundry.max_lat) boundry.max_lat = coord_values[PDLN_LAT][i];
     }
-    boundry.max_lon += 0.01;
+    boundry.max_lon += 0.0001;
 
-    //printf("%lf, %lf, %lf, %lf\n", boundry.min_lon, boundry.max_lon, boundry.min_lat, boundry.max_lat);
-    char filename[64];
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    snprintf(filename, 64, "log/input_points_%d.png", rank);
-    plot_points_info_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+    printf("%lf, %lf, %lf, %lf\n", boundry.min_lon, boundry.max_lon, boundry.min_lat, boundry.max_lat);
 
     this->is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
     //grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
@@ -1390,10 +1391,18 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         int ret;
         double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
         int iter = 0;
-        while(!check_leaf_node_triangulation_consistency(local_leaf_nodes[i], iter) ||
-              !local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic)) {
+        bool all_done = false;
+        bool local_done = false;
+        while(!all_done) {
+            if(!local_done && check_leaf_node_triangulation_consistency(local_leaf_nodes[i], iter) &&
+               local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic))
+                local_done = true;
             /* Actually, we don't have confidence in making the loop iterate only once by tuning. TODO: try to delete "don't" */
-            ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+
+            if(local_done)
+                ret = 0;
+            else
+                ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
             /*
             printf("[%d]ID:%d expanded boundary (%lf, %lf, %lf, %lf)\n", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->expanded_boundry->min_lon,
                                                                        local_leaf_nodes[0]->expanded_boundry->max_lon, local_leaf_nodes[0]->expanded_boundry->min_lat,
@@ -1487,15 +1496,26 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                     return 2;
             }
 
-            local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
-            expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1;
+            if(!local_done)
+                local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
+            //expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1;
             iter++;
-            //if(iter == 2) {
+            if(iter == 3) {
                 //plot_local_triangles("log/chunk");
                 //MPI_Barrier(MPI_COMM_WORLD);
                 //exit(1);
-                //break;
-            //}
+                break;
+            }
+            bool remote_done[512];
+            assert(processing_info->get_num_total_processes() <= 512);
+            memset(remote_done, 0, 512*sizeof(bool));
+            MPI_Allgather(&local_done, 1*sizeof(bool), MPI_CHAR, remote_done, 1*sizeof(bool), MPI_CHAR, processing_info->get_mpi_comm());
+            all_done = true;
+            for (unsigned j = 0; j < 512; j++)
+                if (!remote_done[j]) {
+                    all_done = false;
+                    break;
+                }
         }
     }
     if(expand_fail)
@@ -1750,9 +1770,16 @@ Grid_info_manager::Grid_info_manager()
     coord_values[PDLN_LAT] = (double*)coord_buf1;
 
     for(int i = 0; i < num_points; i++)
-        coord_values[PDLN_LON][i] += 180.0;
+        if(coord_values[PDLN_LON][i] < 0.0)
+            coord_values[PDLN_LON][i] += 360.0;
+
+    for(int i = 0; i < num_points; i++)
+        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_FLOAT_EQ_ERROR) {
+            coord_values[PDLN_LON][i] = 0.0;
+        }
 
     delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+    printf("num points: %d\n", num_points);
     assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
 }
 
@@ -1781,7 +1808,7 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* m
     //*min_lat = -89.0;
     //*max_lat =  89.0;
     *min_lat = -80.0;
-    *max_lat =  90.0;
+    *max_lat =  89.0;
     *min_lon =   0.0;
     //*max_lon = 359.0;
     *max_lon = 360.0;
