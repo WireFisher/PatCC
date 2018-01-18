@@ -9,8 +9,9 @@
 #include <tr1/unordered_map>
 #include <list>
 
-#define PI 3.14159265359
-#define FLOAT_ERROR 1e-8
+#define PI ((double) 3.14159265358979323846)
+#define FLOAT_ERROR (1e-10) // if less than 1e-10 will three point in a line, if more than 1e-15 will not pass check
+#define FLOAT_ERROR_HI (1e-15)
 
 bool Print_Error_info=false;
 
@@ -44,7 +45,7 @@ double compute_three_2D_points_cross_product(double center_coord1_value,
 }
 
 
-inline double det(const Point *pt1, const Point *pt2, const Point *pt3)
+double det(const Point *pt1, const Point *pt2, const Point *pt3)
 {
 //    return (pt1.lon-pt3.lon)*(pt2.lat-pt3.lat) - (pt1.lat-pt3.lat)*(pt2.lon-pt3.lon);
 //    return compute_three_3D_points_cross_product(pt3->x, pt3->y, pt3->z, pt1->x, pt1->y, pt1->z, pt2->x, pt2->y, pt2->z);
@@ -117,7 +118,7 @@ int Point::position_to_edge(const Point *pt1, const Point *pt2) const
 {
     double res1 = det(pt1, pt2, this);
 
-    if (std::fabs(res1) < FLOAT_ERROR)
+    if (std::fabs(res1) < FLOAT_ERROR_HI)
         return 0;
     else if (res1 > 0)
         return 1;
@@ -198,9 +199,9 @@ double Delaunay_Voronoi::calculate_angle(const Point *center, const Point *p1, c
 const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const Point *p2, const Point *p3, const Point *p4)
 {
     const Point *p = p1;
-    if(p2->x < p->x || (std::fabs(p2->x - p->x) < FLOAT_ERROR && p2->y < p->y)) p = p2;
-    if(p3->x < p->x || (std::fabs(p3->x - p->x) < FLOAT_ERROR && p3->y < p->y)) p = p3;
-    if(p4->x < p->x || (std::fabs(p4->x - p->x) < FLOAT_ERROR && p4->y < p->y)) p = p4;
+    if((std::fabs(p2->x - p->x) < FLOAT_ERROR && p2->y < p->y) || p2->x < p->x) p = p2;
+    if((std::fabs(p3->x - p->x) < FLOAT_ERROR && p3->y < p->y) || p3->x < p->x) p = p3;
+    if((std::fabs(p4->x - p->x) < FLOAT_ERROR && p4->y < p->y) || p4->x < p->x) p = p4;
     return p;
 }
 
@@ -214,11 +215,13 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
         if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
            edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
             return false;
-        else
+        else {
             return true;
+        }
     }
-    if(sum_angle_value > PI)
+    if(sum_angle_value > PI) {
         return true;
+    }
     return false;
 }
 
@@ -226,26 +229,38 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
     if (!edge->twin_edge) {
+        if(Print_Error_info)
+            printf("fast1 \n");
         return true;
     }
 
     if(!edge->twin_edge->triangle) {
+        if(Print_Error_info)
+            printf("fast2 \n");
         return true;
     }
 
     if(!edge->twin_edge->triangle->is_leaf) {
+        if(Print_Error_info)
+            printf("fast3 \n");
         return true;
     }
 
     int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
     if (ret == -1) {
+        if(Print_Error_info)
+            printf("fast4 \n");
         return true;
     }
 
     if (ret == 0) {
+        if(Print_Error_info)
+            printf("fast5 \n");
         return !is_angle_too_large(pt, edge);
     }
 
+        if(Print_Error_info)
+            printf("fast6 \n");
     return false;
 }
 
@@ -253,14 +268,18 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 {
     for(int i = 0; i < 3; i++)
-        if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i]))
+        if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i])) {
+            printf("illegal\n");
+            while(true);
             return false;
+        }
     return true;
 }
 
 
 bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
 {
+    //Print_Error_info = true;
     for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
         if(result_leaf_triangles[i]->is_leaf)
             if(!is_triangle_legal(result_leaf_triangles[i]))
@@ -396,11 +415,17 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     //                 "points given to construct triangle are on the same line.");
 
 #ifdef DEBUG
-    if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR))
+    /*
+    if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR)) {
         printf("(%lf, %lf), (%lf, %lf), (%lf, %lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
+        printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
+                                                                                                                           std::fabs(det(pt2, pt3, pt1)),
+                                                                                                                           std::fabs(det(pt3, pt1, pt2)));
+    }
+    */
 #endif
     /* if there are unmarked redundant points, the assertion may fail */
-    assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR);
+    assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
     assert(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
        
@@ -445,10 +470,10 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
  */
 int Triangle::circum_circle_contains(Point *p)
 {
-    double dist = sqrt(((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1])));
-    if(std::fabs(dist - circum_radius) < FLOAT_ERROR)
+    double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
+    if(std::fabs(dist2 - circum_radius*circum_radius) < FLOAT_ERROR)
         return 0;
-    else if(dist < circum_radius)
+    else if(dist2 < circum_radius*circum_radius)
         return 1;
     else // (dist > circum_radius)
         return -1;
