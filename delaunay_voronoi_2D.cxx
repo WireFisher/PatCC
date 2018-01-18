@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <sys/time.h>
 #include <tr1/unordered_map>
 #include <list>

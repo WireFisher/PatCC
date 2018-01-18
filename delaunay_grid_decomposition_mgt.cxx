@@ -18,6 +18,7 @@
 #include "merge_sort.h"
 #include "ccpl_utils.h"
 #include "netcdf_utils.h"
+#include "opencv_utils.h"
 
 #define DEFAULT_EXPANGDING_RATIO (0.2)
 #define PDLN_EXPECTED_EXPANDING_LOOP_TIMES (3)
@@ -483,7 +484,13 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     }
     boundry.max_lon += 0.01;
 
-    printf("%lf, %lf, %lf, %lf\n", boundry.min_lon, boundry.max_lon, boundry.min_lat, boundry.max_lat);
+    //printf("%lf, %lf, %lf, %lf\n", boundry.min_lon, boundry.max_lon, boundry.min_lat, boundry.max_lat);
+    char filename[64];
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    snprintf(filename, 64, "log/input_points_%d.png", rank);
+    plot_points_info_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+
     this->is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
     //grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lat, &boundry.max_lat, &boundry.min_lon, &boundry.max_lon);
     this->processing_info->get_num_total_processing_units();
@@ -497,7 +504,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     this->active_processing_common_id = NULL;
     this->workloads = NULL;
     //this->initialze_workload();
-    //
+    
     delete global_index;
 }
 
