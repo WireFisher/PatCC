@@ -66,7 +66,7 @@ void plot_points_info_file(const char *filename, double *x, double *y, int num)
     cv::line(mat, cv::Point((360.0+20.0) * 10, (-90.0+90.0) * 10), cv::Point((0.0+20.0) * 10, (-90.0+90.0) * 10), cv::Scalar(0, 255, 255), 1, cv::LINE_8);
 
     for(int i = 0; i < num; i++)
-        cv::circle(mat, cv::Point((x[i]+20.0) * 10, (y[i]+90.0) * 10), 6, cv::Scalar(255, 255, 255), -1, 8);
+        cv::circle(mat, cv::Point((x[i]+20.0) * 10, (y[i]+90.0) * 10), 1, cv::Scalar(255, 255, 255), -1, 8);
     //cv::line(mat, cv::Point((x1+20.0) * 10, (y1+90.0) * 10), cv::Point((x2+20.0) * 10, (y2+90.0) * 10), cv::Scalar(0, 0, 255), 2, cv::LINE_8);
     //cv::line(mat, cv::Point(215.4 * 10, 90.0 * 10), cv::Point(143.6 * 10, 90 * 10), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
 
