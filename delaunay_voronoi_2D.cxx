@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <sys/time.h>
 #include <tr1/unordered_map>
+#include <list>
 
 #define PI 3.14159265359
 #define FLOAT_ERROR 1e-8
@@ -808,20 +809,83 @@ void Delaunay_Voronoi::check_and_set_twin_edge_relationship(vector<Triangle*> *t
 }
 
 
-bool Delaunay_Voronoi::have_redundent_points(const double *x, const double *y, int num)
+bool have_redundent_points(const double *x, const double *y, int num)
 {
-    std::tr1::unordered_map<double, bool> hash_table;
+    std::tr1::unordered_map<double, std::list<int> > hash_table;
+    std::tr1::unordered_map<double, std::list<int> >::iterator it_hash;
 
     if(num == 0)
         return false;
 
     for(int i = 0; i < num; i++) {
-        if(hash_table.find(x[i] * 1000.0 + y[i]) != hash_table.end())
-            return true;
-        hash_table[x[i] * 1000.0 + y[i]] = true;
+        it_hash = hash_table.find(x[i] * 1000.0 + y[i]);
+        if(it_hash != hash_table.end()) {
+            bool same = false;
+            for(std::list<int>::iterator it_list = it_hash->second.begin(); it_list != it_hash->second.end(); it_list ++)
+                if(x[*it_list] == x[i] && y[*it_list] == y[i]) {
+                    same = true;
+                    break;
+                }
+            if(same)
+                return true;
+            else {
+                it_hash->second.push_back(i);
+            }
+        }
+        else {
+            hash_table[x[i] * 1000.0 + y[i]].push_back(i);
+        }
     }
 
     return false;
+}
+
+
+void delete_redundent_points(double *&x, double *&y, int &num)
+{
+    std::tr1::unordered_map<double, std::list<int> > hash_table;
+    std::tr1::unordered_map<double, std::list<int> >::iterator it_hash;
+
+    double *tmp_x, *tmp_y;
+    int count = 0;
+
+    tmp_x = new double[num];
+    tmp_y = new double[num];
+
+    if(num == 0)
+        return;
+
+    for(int i = 0; i < num; i++) {
+        it_hash = hash_table.find(x[i] * 1000.0 + y[i]);
+        if(it_hash != hash_table.end()) {
+            bool same = false;
+            for(std::list<int>::iterator it_list = it_hash->second.begin(); it_list != it_hash->second.end(); it_list ++)
+                if(x[*it_list] == x[i] && y[*it_list] == y[i]) {
+                    same = true;
+                    break;
+                }
+            if(same)
+                continue;
+            else {
+                it_hash->second.push_back(i);
+                tmp_x[count] = x[i];
+                tmp_y[count++] = y[i];
+            }
+        }
+        else {
+            hash_table[x[i] * 1000.0 + y[i]].push_back(i);
+            tmp_x[count] = x[i];
+            tmp_y[count++] = y[i];
+        }
+    }
+
+    delete x;
+    delete y;
+    x = tmp_x;
+    y = tmp_y;
+    num = count;
+
+    return;
 }
 
 
