@@ -41,7 +41,7 @@ class Search_tree_node {
 private:
     friend class Delaunay_grid_decomposition;
     Search_tree_node *parent;
-    Search_tree_node *first_child, *second_child, *third_child;
+    Search_tree_node *children[3];
     Boundry *kernel_boundry;
     Boundry *expanded_boundry;
     Boundry *rotated_kernel_boundry;
@@ -108,7 +108,7 @@ private:
     vector<Search_tree_node*> search_points_in_region(Boundry, double**, int*, int*);
     void transform_into_rectangle(Boundry, Boundry, Boundry*);
     void search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node*, Boundry, vector<Search_tree_node*>&);
-    bool two_regions_overlap(Boundry, Boundry);
+    bool do_two_regions_overlap(Boundry, Boundry);
 
     /* different decompositon consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);

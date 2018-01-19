@@ -11,7 +11,7 @@
 
 #define PI ((double) 3.14159265358979323846)
 #define FLOAT_ERROR (1e-10) // if less than 1e-10 will three point in a line, if more than 1e-15 will not pass check
-#define FLOAT_ERROR_HI (1e-15)
+#define FLOAT_ERROR_HI (1e-11)
 
 bool Print_Error_info=false;
 
@@ -415,14 +415,12 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     //                 "points given to construct triangle are on the same line.");
 
 #ifdef DEBUG
-    /*
-    if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR)) {
+    if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI)) {
         printf("(%lf, %lf), (%lf, %lf), (%lf, %lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
         printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
                                                                                                                            std::fabs(det(pt2, pt3, pt1)),
                                                                                                                            std::fabs(det(pt3, pt1, pt2)));
     }
-    */
 #endif
     /* if there are unmarked redundant points, the assertion may fail */
     assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI);
