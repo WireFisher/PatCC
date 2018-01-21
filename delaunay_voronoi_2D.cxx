@@ -1141,9 +1141,9 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
             }
             
             /* Change cyclic triangles directly into left triangles */
-            int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            printf("[%d] (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, el[0]->head->x, el[0]->head->y, el[1]->head->x, el[1]->head->y, el[2]->head->x, el[2]->head->y);
+            //int rank;
+            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            //printf("[%d] (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, el[0]->head->x, el[0]->head->y, el[1]->head->x, el[1]->head->y, el[2]->head->x, el[2]->head->y);
             cyclic_triangles[i]->initialize_triangle_with_edges(el[0], el[1], el[2]);
 
             /* Alloc new triangles for right triangles */
