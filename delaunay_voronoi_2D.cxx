@@ -11,7 +11,7 @@
 
 #define PI ((double) 3.14159265358979323846)
 #define FLOAT_ERROR (1e-10) // if less than 1e-10 will three point in a line, if more than 1e-15 will not pass check
-#define FLOAT_ERROR_HI (1e-11)
+#define FLOAT_ERROR_HI (1e-11) // normal grid less than 1e-11
 
 bool Print_Error_info=false;
 
@@ -206,6 +206,23 @@ const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const P
 }
 
 
+bool Delaunay_Voronoi::is_angle_ambiguous(const Point *pt, const Edge *edge)
+{
+    double sum_angle_value;
+
+    sum_angle_value = calculate_angle(pt, edge->head, edge->tail) + calculate_angle(edge->twin_edge->prev_edge_in_triangle->head, edge->head, edge->tail);
+    if(std::fabs(sum_angle_value - PI) < FLOAT_ERROR){
+        if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
+           edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
+            return false;
+        else
+            return true;
+    }
+    else
+        return false;
+}
+
+
 bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 {
     double sum_angle_value;
@@ -261,6 +278,29 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 
         if(Print_Error_info)
             printf("fast6 \n");
+    return false;
+}
+
+
+bool Delaunay_Voronoi::is_triangle_ambiguous(const Point *pt, const Edge *edge)
+{
+    if (!edge->twin_edge) {
+        return false;
+    }
+
+    if(!edge->twin_edge->triangle) {
+        return false;
+    }
+
+    if(!edge->twin_edge->triangle->is_leaf) {
+        return false;
+    }
+
+    int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
+    if (ret == 0) {
+        return is_angle_ambiguous(pt, edge);
+    }
+
     return false;
 }
 
@@ -324,7 +364,7 @@ void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle
 
 void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
 {
-    if (is_triangle_legal(vr, edge))
+    if (!is_triangle_ambiguous(vr, edge))
         return;
 
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge->triangle->is_leaf, "remap software error1 in legalize_triangles\n");
@@ -425,6 +465,14 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     /* if there are unmarked redundant points, the assertion may fail */
     assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
+#ifdef DEBUG
+    if(!(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head)) {
+        printf("edge1: %p->%p, edge2: %p->%p, edge3: %p->%p\n", edge1->head, edge1->tail, edge2->head, edge2->tail, edge3->head, edge3->tail);
+        printf("1: (%lf, %lf)->(%lf, %lf) 2: (%lf, %lf)->(%lf, %lf) 3:(%lf, %lf)->(%lf, %lf)\n", edge1->head->x, edge1->head->y, edge1->tail->x, edge1->tail->y,
+                                                                                                 edge2->head->x, edge2->head->y, edge2->tail->x, edge2->tail->y,
+                                                                                                 edge3->head->x, edge3->head->y, edge3->tail->x, edge3->tail->y);
+    }
+#endif
     assert(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
        
     v[0] = pt1;
@@ -436,6 +484,8 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
         this->edge[2] = edge3;
     }
     else {
+        printf("assert false\n");
+        while(true);
         assert(false);
         v[1] = pt3;
         v[2] = pt2;
@@ -468,6 +518,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
  */
 int Triangle::circum_circle_contains(Point *p)
 {
+    calulate_circum_circle();
     double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
     if(std::fabs(dist2 - circum_radius*circum_radius) < FLOAT_ERROR)
         return 0;
@@ -1090,6 +1141,9 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
             }
             
             /* Change cyclic triangles directly into left triangles */
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            printf("[%d] (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, el[0]->head->x, el[0]->head->y, el[1]->head->x, el[1]->head->y, el[2]->head->x, el[2]->head->y);
             cyclic_triangles[i]->initialize_triangle_with_edges(el[0], el[1], el[2]);
 
             /* Alloc new triangles for right triangles */
@@ -1121,6 +1175,9 @@ void Delaunay_Voronoi::relegalize_all_triangles()
 
         //int rank;
         //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        
+        //printf("legalizing %d: (%lf, %lf) (%lf, %lf) (%lf, %lf)\n", i, result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, result_leaf_triangles[i]->v[1]->x,
+                                                    //result_leaf_triangles[i]->v[1]->y, result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y);
         for(unsigned j = 0; j < 3; j++) {
             //printf("[%d] legalizing: (%lf, %lf) vs (%lf, %lf)--(%lf, %lf)\n", rank, result_leaf_triangles[i]->v[j]->x, result_leaf_triangles[i]->v[j]->y,
             //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->head->x, result_leaf_triangles[i]->edge[(j+1)%3]->head->y,

@@ -145,12 +145,14 @@ class Delaunay_Voronoi
         Triangle* initialize_super_triangle(int, double*, double*, bool*);
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);
+        bool is_angle_ambiguous(const Point *pt, const Edge *edge);
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
         double calculate_angle(const Point *, const Point *, const Point *);
         std::vector<Triangle*> find_triangles_intersecting_with_segment(Point, Point);
 
         bool is_triangle_legal(const Point *pt, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
+        bool is_triangle_ambiguous(const Point *pt, const Edge *edge);
 
     public:
         Delaunay_Voronoi(int, double*, double*, int*, bool, double, double, double, double, bool*);
