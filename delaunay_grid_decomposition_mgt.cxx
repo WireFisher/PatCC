@@ -1767,6 +1767,14 @@ Grid_info_manager::Grid_info_manager()
     delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
     printf("num points: %d\n", num_points);
     assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
+
+    for(int i = 0; i < num_points/100; i++) {
+        coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
+        coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+    }
+    num_points /= 100;
+    printf("num points: %d\n", num_points);
+        
 }
 
 

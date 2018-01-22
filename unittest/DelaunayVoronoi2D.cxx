@@ -273,7 +273,8 @@ TEST(DelaunayTriangulationTest, RandomMiddleSize) {
 
 
 TEST(DelaunayTriangulationTest, RandomLargeSize) {
-    int num_points = 1000000;
+    //int num_points = 1000000;
+    int num_points = 1600000;
     int num_part;
     double min_lat = 0.0;
     double max_lat = 350.0;
