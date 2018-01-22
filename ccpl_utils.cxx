@@ -56,3 +56,14 @@ void rotate_sphere_coordinate(double lon_original, double lat_original, double &
     if (lon_rotated == 360)
         lon_rotated = 0;
 }
+
+
+void calculate_orthographic_projection(double lon_original, double lat_original, double &x, double &y)
+{
+    x = cos(DEGREE_TO_RADIAN(lat_original)) * sin(DEGREE_TO_RADIAN(lon_original)) * 100;
+    y = cos(DEGREE_TO_RADIAN(lat_original)) * cos(DEGREE_TO_RADIAN(lon_original)) * 100;
+
+    /* To make fake-cyclic triangles' edges be in proper order */
+    if(lat_original > 0.0)
+        x *= -1;
+}
