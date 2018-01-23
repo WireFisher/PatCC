@@ -58,12 +58,35 @@ void rotate_sphere_coordinate(double lon_original, double lat_original, double &
 }
 
 
-void calculate_orthographic_projection(double lon_original, double lat_original, double &x, double &y)
+/* reference: https://www.uwgb.edu/dutchs/structge/sphproj.htm */
+void calculate_orthographic_projection(double lon_original, double lat_original, double &X, double &Z)
 {
-    x = cos(DEGREE_TO_RADIAN(lat_original)) * sin(DEGREE_TO_RADIAN(lon_original)) * 100;
-    y = cos(DEGREE_TO_RADIAN(lat_original)) * cos(DEGREE_TO_RADIAN(lon_original)) * 100;
+    X = cos(DEGREE_TO_RADIAN(lat_original)) * sin(DEGREE_TO_RADIAN(lon_original)) * 100;
+    Z = cos(DEGREE_TO_RADIAN(lat_original)) * cos(DEGREE_TO_RADIAN(lon_original)) * 100;
 
     /* To make fake-cyclic triangles' edges be in proper order */
     if(lat_original > 0.0)
-        x *= -1;
+        X *= -1;
+}
+
+/* Original formula:
+ *      X = 2 * x / (1 + y)
+ *      Z = 2 * z / (1 + y)
+ */
+void calculate_stereographic_projection(double lon_original, double lat_original, double &X, double &Z)
+{
+    double x, y, z;
+    x = cos(DEGREE_TO_RADIAN(lat_original)) * sin(DEGREE_TO_RADIAN(lon_original));
+    y = sin(DEGREE_TO_RADIAN(lat_original));
+    z = cos(DEGREE_TO_RADIAN(lat_original)) * cos(DEGREE_TO_RADIAN(lon_original));
+
+    if(lat_original < 0.0)
+        y *= -1;
+
+    X = x / (1 + y) * 2;
+    Z = z / (1 + y) * 2;
+
+    /* To make fake-cyclic triangles' edges be in proper order */
+    if(lat_original > 0.0)
+        X *= -1;
 }
