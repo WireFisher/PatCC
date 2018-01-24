@@ -6,6 +6,6 @@
 
 extern void rotate_sphere_coordinate(double, double, double&, double&);
 extern void calculate_orthographic_projection(double, double, double &, double &);
-extern void calculate_stereographic_projection(double, double, double &, double &);
+extern void calculate_stereographic_projection(double, double, double, double, double &, double &);
 
 #endif
