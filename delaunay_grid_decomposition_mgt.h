@@ -46,6 +46,7 @@ private:
     Boundry *expanded_boundry;
     Boundry *rotated_kernel_boundry;
     Boundry *rotated_expanded_boundry;
+    double center[2];
     //double expanding_ratio;
     Midline midline;
     double *local_cells_coord[2]; //(clean after having children) //TODO:change name
@@ -62,7 +63,7 @@ private:
     Delaunay_Voronoi *triangulation;
 
 public:    
-    Search_tree_node(Search_tree_node*, double**, int*, int, Boundry);
+    Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type=0); //FIXME: remove default value;
     ~Search_tree_node();
     void decompose_iteratively(double*, double **, int**, int*, Boundry*, vector<int>*, int);
     void decompose_with_certain_line(Midline, double**, int**, int*);

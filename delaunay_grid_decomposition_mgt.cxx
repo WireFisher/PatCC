@@ -89,7 +89,7 @@ void Boundry::legalize(const Boundry *outer_boundry, bool is_cyclic)
 }
 
 
-Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value[2], int *global_index, int num_points, Boundry boundry) {
+Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value[2], int *global_index, int num_points, Boundry boundry, int type) {
     this->parent = parent;
     this->children[0] = this->children[1] = this->children[2] = NULL;
 
@@ -114,8 +114,21 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
 
     this->num_local_kernel_cells = num_points;
     this->num_local_expanded_cells = 0;
-    this->node_type = PDLN_NODE_TYPE_COMMON;
+    this->node_type = type;
     this->triangulation = NULL;
+
+    if(type == PDLN_NODE_TYPE_COMMON) {
+        this->center[PDLN_LON] = (boundry.min_lon + boundry.max_lon) * 0.5;
+        this->center[PDLN_LAT] = (boundry.min_lat + boundry.max_lat) * 0.5;
+    }
+    else if(type == PDLN_NODE_TYPE_SPOLAR) {
+        this->center[PDLN_LON] = 0.0;
+        this->center[PDLN_LAT] = -90.0;
+    }
+    else if(type == PDLN_NODE_TYPE_NPOLAR) {
+        this->center[PDLN_LON] = 0.0;
+        this->center[PDLN_LAT] = 90.0;
+    }
 }
 
 
@@ -186,12 +199,12 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
         lon = (expanded_boundry->max_lon + expanded_boundry->min_lon + 360.0) * 0.5;
         if (lon > 360.0) lon -= 360.0;
         if (std::abs(expanded_boundry->max_lat - (90.0+PDLN_HIGH_BOUNDRY_SHIFTING)) < PDLN_FLOAT_EQ_ERROR) {
-            rotate_sphere_coordinate(lon, expanded_boundry->max_lat-0.1, head_lon, head_lat);
-            rotate_sphere_coordinate(lon, expanded_boundry->min_lat,     tail_lon, tail_lat);
+            calculate_stereographic_projection(lon, expanded_boundry->max_lat-0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
+            calculate_stereographic_projection(lon, expanded_boundry->min_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
         }
         else {
-            rotate_sphere_coordinate(lon, expanded_boundry->min_lat+0.1, head_lon, head_lat);
-            rotate_sphere_coordinate(lon, expanded_boundry->max_lat,     tail_lon, tail_lat);
+            calculate_stereographic_projection(lon, expanded_boundry->min_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
+            calculate_stereographic_projection(lon, expanded_boundry->max_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
         }
         head_lon += 90.0;
         tail_lon += 90.0;
@@ -418,11 +431,14 @@ void Search_tree_node::generate_rotated_grid()
         rotated_cells_coord[1] = new double[num_local_kernel_cells + len_expanded_cells_coord_buf];
 
         for(int i = 0; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
-            rotate_sphere_coordinate(local_cells_coord[PDLN_LON][i], local_cells_coord[PDLN_LAT][i], rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
             //int rank;
             //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
             //if(rank == 0)
-            //printf("coord: %lf, %lf\n", rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
+            //printf("origi: %.20lf, %.20lf\n", local_cells_coord[PDLN_LON][i], local_cells_coord[PDLN_LAT][i]);
+
+            calculate_stereographic_projection(local_cells_coord[PDLN_LON][i], local_cells_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT], rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
+            //if(rank == 0)
+            //printf("coord: %.40lf, %.40lf\n", rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
             rotated_cells_coord[PDLN_LON][i] += 90; /* shift to avoid cyclic situation */
             if(rotated_cells_coord[PDLN_LON][i] >= 360.0) rotated_cells_coord[PDLN_LON][i] -= 360.0;
         }
@@ -432,7 +448,7 @@ void Search_tree_node::generate_rotated_grid()
     }
     else {
         for(int i = num_rotated_cells; i < num_local_kernel_cells + num_local_expanded_cells; i++) {
-            rotate_sphere_coordinate(local_cells_coord[PDLN_LON][i], local_cells_coord[PDLN_LAT][i], rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
+            calculate_stereographic_projection(local_cells_coord[PDLN_LON][i], local_cells_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT], rotated_cells_coord[PDLN_LON][i], rotated_cells_coord[PDLN_LAT][i]);
             //int rank;
             //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
             //if(rank == 0)
@@ -1064,10 +1080,9 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             this->workloads[this->search_tree_root->processing_units_id[0]] -= child_num_cells[0];
             child_proc_id[1].insert(child_proc_id[1].begin(), this->search_tree_root->processing_units_id[0]);
         }
-        this->search_tree_root->children[0]  = new Search_tree_node(this->search_tree_root, child_cells_coord,   child_cells_index[0], child_num_cells[0], child_boundry[0]);
+        this->search_tree_root->children[0]  = new Search_tree_node(this->search_tree_root, child_cells_coord,   child_cells_index[0], child_num_cells[0], child_boundry[0],
+                                                                    PDLN_NODE_TYPE_SPOLAR);
         this->search_tree_root->children[1] = new Search_tree_node(this->search_tree_root, child_cells_coord+2, child_cells_index[1], child_num_cells[1], child_boundry[1]);
-
-        this->search_tree_root->children[0]->node_type = PDLN_NODE_TYPE_SPOLAR;
 
         //this->update_workloads(child_num_cells[0], child_proc_id[0]);
         this->update_workloads(child_num_cells[1], child_proc_id[1]);
@@ -1103,9 +1118,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         if(this->search_tree_root->children[1] != NULL)
             delete this->search_tree_root->children[1];
         this->search_tree_root->children[1] = new Search_tree_node(this->search_tree_root, child_cells_coord,   child_cells_index[0], child_num_cells[0], child_boundry[0]);
-        this->search_tree_root->children[2]  = new Search_tree_node(this->search_tree_root, child_cells_coord+2, child_cells_index[1], child_num_cells[1], child_boundry[1]);
-
-        this->search_tree_root->children[2]->node_type = PDLN_NODE_TYPE_NPOLAR;
+        this->search_tree_root->children[2]  = new Search_tree_node(this->search_tree_root, child_cells_coord+2, child_cells_index[1], child_num_cells[1], child_boundry[1],
+                                                                    PDLN_NODE_TYPE_NPOLAR);
 
         this->update_workloads(child_num_cells[0], child_proc_id[0]);
         //this->update_workloads(child_num_cells[1], child_proc_id[1]);
@@ -1739,8 +1753,8 @@ Grid_info_manager::Grid_info_manager()
     coord_values[1][0] = -90.0;
     coord_values[0][299] = 0.0;
     coord_values[1][299] = 90.0;
-    */
 
+    */
     int num_dims;
     int *dim_size_ptr;
     int field_size;
