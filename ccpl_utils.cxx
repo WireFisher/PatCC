@@ -161,6 +161,8 @@ void calculate_stereographic_projection(double lon_original, double lat_original
     X = q_x * e1_x + q_y * e1_y + q_z * e1_z;
     Y = q_x * e2_x + q_y * e2_y + q_z * e2_z;
 
+    X *= 50.0;
+    Y *= 50.0;
     /* To make fake-cyclic triangles' edges be in proper order */
     //if(lat_original > 0.0)
     //    X *= -1;
