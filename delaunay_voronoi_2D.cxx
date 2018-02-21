@@ -157,6 +157,11 @@ int Point::position_to_triangle(const Triangle *triangle) const
 }
 
 
+inline int Point::is_in_region(double min_x, double max_x, double min_y, double max_y) const
+{
+    return x > min_x && x < max_x && y > min_y && y < max_y;
+}
+
 Edge::Edge(Point *head, Point *tail) 
 {
     this->head = head;
@@ -227,15 +232,30 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 {
     double sum_angle_value;
 
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     sum_angle_value = calculate_angle(pt, edge->head, edge->tail) + calculate_angle(edge->twin_edge->prev_edge_in_triangle->head, edge->head, edge->tail);
     if(std::fabs(sum_angle_value - PI) < FLOAT_ERROR){
+        if(Print_Error_info)
+            if(rank == 5)
+            printf("angle1 \n");
         if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
            edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
             return false;
         else {
+        if(Print_Error_info)
+            if(rank == 5)
+            printf("(%lf, %lf),(%lf, %lf),(%lf, %lf),(%lf, %lf). %p,%p,%p,%p vs %p\n", pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y,
+                                                                                       edge->twin_edge->prev_edge_in_triangle->head->x,
+                                                                                       edge->twin_edge->prev_edge_in_triangle->head->y, 
+                                                                                       pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head,
+                                                                                       get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head));
             return true;
         }
     }
+        if(Print_Error_info)
+            if(rank == 5)
+            printf("angle2 \n");
     if(sum_angle_value > PI) {
         return true;
     }
@@ -245,20 +265,25 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (!edge->twin_edge) {
         if(Print_Error_info)
+            if(rank == 5)
             printf("fast1 \n");
         return true;
     }
 
     if(!edge->twin_edge->triangle) {
         if(Print_Error_info)
+            if(rank == 5)
             printf("fast2 \n");
         return true;
     }
 
     if(!edge->twin_edge->triangle->is_leaf) {
         if(Print_Error_info)
+            if(rank == 5)
             printf("fast3 \n");
         return true;
     }
@@ -266,17 +291,20 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
     int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
     if (ret == -1) {
         if(Print_Error_info)
+            if(rank == 5)
             printf("fast4 \n");
         return true;
     }
 
     if (ret == 0) {
         if(Print_Error_info)
+            if(rank == 5)
             printf("fast5 \n");
         return !is_angle_too_large(pt, edge);
     }
 
         if(Print_Error_info)
+            if(rank == 5)
             printf("fast6 \n");
     return false;
 }
@@ -307,6 +335,7 @@ bool Delaunay_Voronoi::is_triangle_ambiguous(const Point *pt, const Edge *edge)
 
 bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 {
+    //Print_Error_info = true;
     for(int i = 0; i < 3; i++)
         if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i])) {
             printf("illegal\n");
@@ -456,7 +485,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
 
 #ifdef DEBUG
     if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI)) {
-        printf("(%lf, %lf), (%lf, %lf), (%lf, %lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
+        printf("(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
         printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
                                                                                                                            std::fabs(det(pt2, pt3, pt1)),
                                                                                                                            std::fabs(det(pt3, pt1, pt2)));
@@ -857,7 +886,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
-    assert(is_all_leaf_triangle_legal());
+    //assert(is_all_leaf_triangle_legal());
     gettimeofday(&end, NULL);
     printf("Delaunay time elapsed: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);   
 }
@@ -901,8 +930,10 @@ bool have_redundent_points(const double *x, const double *y, int num)
                     same = true;
                     break;
                 }
-            if(same)
+            if(same){
+                //printf("redundent_point: %lf, %lf\n", x[i], y[i]);
                 return true;
+            }
             else {
                 it_hash->second.push_back(i);
             }
@@ -1157,15 +1188,19 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
 
     }
     else {
-        for (unsigned i = 0; i < cyclic_triangles.size(); i++) {
-            for (unsigned j = 0; j < 3; j++)
-                if(cyclic_triangles[i]->edge[j]->twin_edge != NULL)
-                    cyclic_triangles[i]->edge[j]->twin_edge->twin_edge = NULL; //FIXME: recover the twin relationship of its twin edge
-            cyclic_triangles[i]->is_leaf = false;
-        }
+        for (unsigned i = 0; i < cyclic_triangles.size(); i++)
+            remove_leaf_triangle(cyclic_triangles[i]);
     }
 }
 
+
+inline void Delaunay_Voronoi::remove_leaf_triangle(Triangle* t)
+{
+    for (unsigned j = 0; j < 3; j++)
+        if (t->edge[j]->twin_edge != NULL)
+            t->edge[j]->twin_edge->twin_edge = NULL;
+    t->is_leaf = false;
+}
 
 void Delaunay_Voronoi::relegalize_all_triangles()
 {
@@ -1196,6 +1231,19 @@ void Delaunay_Voronoi::relegalize_all_triangles()
     }
 }
 
+
+void Delaunay_Voronoi::remove_triangles_out_of_boundary(double min_x, double max_x, double min_y, double max_y)
+{
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
+        if(result_leaf_triangles[i]->is_leaf) {
+            if (result_leaf_triangles[i]->v[0]->is_in_region(min_x, max_x, min_y, max_y) &&
+                result_leaf_triangles[i]->v[1]->is_in_region(min_x, max_x, min_y, max_y) &&
+                result_leaf_triangles[i]->v[2]->is_in_region(min_x, max_x, min_y, max_y))
+                continue;
+
+            remove_leaf_triangle(result_leaf_triangles[i]);
+        }
+}
 
 void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
 {

@@ -49,7 +49,7 @@
 //}
 
 
-Boundry& Boundry::operator= (Boundry& boundry)
+Boundry& Boundry::operator= (Boundry &boundry)
 {
     min_lat = boundry.min_lat;
     min_lon = boundry.min_lon;
@@ -58,6 +58,16 @@ Boundry& Boundry::operator= (Boundry& boundry)
     return *this;
 }
 
+
+bool Boundry::operator== (Boundry &boundry)
+{
+    return min_lat == boundry.min_lat && min_lon == boundry.min_lon && max_lat == boundry.max_lat && max_lon == boundry.max_lon;
+}
+
+bool Boundry::operator!= (Boundry &boundry)
+{
+    return !(min_lat == boundry.min_lat && min_lon == boundry.min_lon && max_lat == boundry.max_lat && max_lon == boundry.max_lon);
+}
 
 Boundry& Boundry::operator* (double ratio)
 {
@@ -88,6 +98,14 @@ void Boundry::legalize(const Boundry *outer_boundry, bool is_cyclic)
     }
 }
 
+
+void Boundry::max(double min_lo, double max_lo, double min_la, double max_la)
+{
+    min_lon = std::min(min_lon, min_lo);
+    max_lon = std::max(max_lon, max_lo);
+    min_lat = std::min(min_lat, min_la);
+    max_lat = std::max(max_lat, max_la);
+}
 
 Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value[2], int *global_index, int num_points, Boundry boundry, int type) {
     this->parent = parent;
@@ -195,34 +213,41 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
                                              rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
 
-        double lon, head_lon, head_lat, tail_lon, tail_lat;
-        lon = (expanded_boundry->max_lon + expanded_boundry->min_lon + 360.0) * 0.5;
-        if (lon > 360.0) lon -= 360.0;
-        if (std::abs(expanded_boundry->max_lat - (90.0+PDLN_HIGH_BOUNDRY_SHIFTING)) < PDLN_FLOAT_EQ_ERROR) {
-            calculate_stereographic_projection(lon, expanded_boundry->max_lat-0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
-            calculate_stereographic_projection(lon, expanded_boundry->min_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
+        if(node_type != PDLN_NODE_TYPE_COMMON) { 
+            double lon, head_lon, head_lat, tail_lon, tail_lat;
+            lon = (expanded_boundry->max_lon + expanded_boundry->min_lon + 360.0) * 0.5;
+            if (lon > 360.0) lon -= 360.0;
+            if (std::abs(expanded_boundry->max_lat - (90.0+PDLN_HIGH_BOUNDRY_SHIFTING)) < PDLN_FLOAT_EQ_ERROR) {
+                calculate_stereographic_projection(lon, expanded_boundry->max_lat-0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
+                calculate_stereographic_projection(lon, expanded_boundry->min_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
+            }
+            else {
+                calculate_stereographic_projection(lon, expanded_boundry->min_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
+                calculate_stereographic_projection(lon, expanded_boundry->max_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
+            }
+            head_lon += 90.0;
+            tail_lon += 90.0;
+            if(head_lon > 360.0) head_lon -= 360.0;
+            if(tail_lon > 360.0) tail_lon -= 360.0;
+
+            //printf("(%lf, %lf) -- (%lf, %lf)\n", head_lon, head_lat, tail_lon, tail_lat);
+            std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
+            printf("cyclic_triangles.size(): %lu\n", cyclic_triangles.size());
+
+            char filename[64];
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
+            plot_triangles_info_file(filename, cyclic_triangles);
+
+            triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
+            triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
+            triangulation->relegalize_all_triangles();
         }
         else {
-            calculate_stereographic_projection(lon, expanded_boundry->min_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
-            calculate_stereographic_projection(lon, expanded_boundry->max_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
+            triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
+            triangulation->remove_triangles_out_of_boundary(expanded_boundry->min_lon, expanded_boundry->max_lon, expanded_boundry->min_lat, expanded_boundry->max_lat);
         }
-        head_lon += 90.0;
-        tail_lon += 90.0;
-        if(head_lon > 360.0) head_lon -= 360.0;
-        if(tail_lon > 360.0) tail_lon -= 360.0;
-
-        //printf("(%lf, %lf) -- (%lf, %lf)\n", head_lon, head_lat, tail_lon, tail_lat);
-        std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
-
-        char filename[64];
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
-        plot_triangles_info_file(filename, cyclic_triangles);
-
-        triangulation->update_all_points_coord(local_cells_coord[PDLN_LON], local_cells_coord[PDLN_LAT], num_local_kernel_cells + num_local_expanded_cells);
-        triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
-        triangulation->relegalize_all_triangles();
     }
     else {
         triangulation = new Delaunay_Voronoi(num_local_kernel_cells + num_local_expanded_cells,
@@ -396,10 +421,38 @@ void Search_tree_node::add_expanded_points(double *coord_value[2], int *global_i
     memcpy(local_cells_coord[0] + num_local_kernel_cells + num_local_expanded_cells, coord_value[0], sizeof(double) * num_points);
     memcpy(local_cells_coord[1] + num_local_kernel_cells + num_local_expanded_cells, coord_value[1], sizeof(double) * num_points);
     memcpy(local_cells_global_index + num_local_kernel_cells + num_local_expanded_cells, global_idx, sizeof(int) * num_points);
+
+    //int rank;
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //printf("[%d] %lf, %lf, %lf, %lf\n", rank, expanded_boundry->min_lon, expanded_boundry->max_lon, expanded_boundry->min_lat, expanded_boundry->max_lat);
+    fix_expanded_boundry(num_local_kernel_cells + num_local_expanded_cells, num_points);
+    //printf("[%d] %lf, %lf, %lf, %lf\n", rank, expanded_boundry->min_lon, expanded_boundry->max_lon, expanded_boundry->min_lat, expanded_boundry->max_lat);
+
     num_local_expanded_cells += num_points;
     assert(num_local_expanded_cells >= num_points);
 }
 
+
+void Search_tree_node::fix_expanded_boundry(int index, int count)
+{
+    double min_lon = 9999.9;
+    double max_lon = -9999.9;
+    double min_lat = 100.0;
+    double max_lat = -100.0;
+
+    for(int i = index; i < index + count; i++) {
+        if (min_lon > local_cells_coord[PDLN_LON][i]) min_lon = local_cells_coord[PDLN_LON][i];
+        if (max_lon < local_cells_coord[PDLN_LON][i]) max_lon = local_cells_coord[PDLN_LON][i];
+        if (min_lat > local_cells_coord[PDLN_LAT][i]) min_lat = local_cells_coord[PDLN_LAT][i];
+        if (max_lat < local_cells_coord[PDLN_LAT][i]) max_lat = local_cells_coord[PDLN_LAT][i];
+    }
+    if (node_type == PDLN_DECOMPOSE_COMMON_MODE)
+        expanded_boundry->max(min_lon, max_lon + PDLN_HIGH_BOUNDRY_SHIFTING, min_lat, max_lat + PDLN_HIGH_BOUNDRY_SHIFTING);
+    else if (node_type == PDLN_DECOMPOSE_SPOLAR_MODE)
+        expanded_boundry->max_lat = max_lat + PDLN_HIGH_BOUNDRY_SHIFTING;
+    else if (node_type == PDLN_DECOMPOSE_NPOLAR_MODE)
+        expanded_boundry->min_lat = min_lat;
+}
 
 bool operator == (pair<Search_tree_node*, bool> p1, Search_tree_node* p2)
 {
@@ -1054,6 +1107,9 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
     int child_num_cells[2];
     vector<int> child_proc_id[2];
     Midline midline;
+
+    if(!assign_south_polar && !assign_north_polar)
+        return 0;
     
     for(int i = 0; i < 4; i++)
         child_cells_coord[i] = new double[this->search_tree_root->num_local_kernel_cells];
@@ -1095,6 +1151,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             this->local_leaf_nodes.push_back(this->search_tree_root->children[0]);
     }
     
+    printf("step\n");
     if(assign_north_polar) {
         printf("Nouth polar need rotating.\n");
         this->current_tree_node->decompose_iteratively(this->workloads, child_cells_coord, child_cells_index, child_num_cells, child_boundry, child_proc_id, PDLN_DECOMPOSE_NPOLAR_MODE);
@@ -1199,6 +1256,8 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
     num_north_polar = grid_info_mgr->get_polar_points(this->original_grid, 'N');
     double min_lon, max_lon, min_lat, max_lat;
     grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
+    //printf("min_lat: %lf, max_lat: %lf, num_south_polar: %d, num_north_polar: %d\n", min_lat, max_lat, num_south_polar, num_north_polar);
+    //printf("%.40lf, %.40lf\n", std::abs(min_lat - -90.0), std::abs(max_lat -  90.0));
     if(this->assign_polars(std::abs(min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR && num_south_polar < 2,
                            std::abs(max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR && num_north_polar < 2))
         return 1;
@@ -1231,6 +1290,28 @@ void Delaunay_grid_decomposition::transform_into_rectangle(Boundry inner_boundry
     sub_rectangle[2].min_lon = sub_rectangle[3].max_lon = inner_boundry.max_lon;
     sub_rectangle[3].min_lat = sub_rectangle[0].max_lat = inner_boundry.max_lat;
 }
+
+
+//vector<Boundry> Delaunay_grid_decomposition::transform_into_rectangle(Boundry inner_boundry, Boundry outer_boundry )
+//{
+//    Boundry sub_rectangle[4];
+//    vector<Boundry> rectangles;
+//
+//    sub_rectangle[0].min_lat = sub_rectangle[1].min_lat = outer_boundry.min_lat;
+//    sub_rectangle[1].max_lon = sub_rectangle[2].max_lon = outer_boundry.max_lon;
+//    sub_rectangle[2].max_lat = sub_rectangle[3].max_lat = outer_boundry.max_lat;
+//    sub_rectangle[3].min_lon = sub_rectangle[0].min_lon = outer_boundry.min_lon;
+//
+//    sub_rectangle[0].max_lon = sub_rectangle[1].min_lon = inner_boundry.min_lon;
+//    sub_rectangle[1].max_lat = sub_rectangle[2].min_lat = inner_boundry.min_lat;
+//    sub_rectangle[2].min_lon = sub_rectangle[3].max_lon = inner_boundry.max_lon;
+//    sub_rectangle[3].min_lat = sub_rectangle[0].max_lat = inner_boundry.max_lat;
+//
+//    for(int i = 0 ; i < 4; i ++)
+//        rectangles.push_back(sub_rectangle[i]);
+//
+//    return rectangles;
+//}
 
 
 vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_region(Boundry region, double *coord_values[2], int *global_idx, int *num_points_found)
@@ -1301,48 +1382,208 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_region(B
 int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
 {
     Boundry old_boundry = *tree_node->expanded_boundry;
-    Boundry sub_rectangles[4];
+    Boundry new_boundry = *tree_node->expanded_boundry;
+    int num_points_found;
+
+    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON)
+        new_boundry = new_boundry * expanding_ratio;
+    else if(tree_node->node_type == PDLN_NODE_TYPE_SPOLAR)
+        new_boundry.max_lat += (new_boundry.max_lat - new_boundry.min_lat) * expanding_ratio * 2;
+    else if(tree_node->node_type == PDLN_NODE_TYPE_NPOLAR)
+        new_boundry.min_lat -= (new_boundry.max_lat - new_boundry.min_lat) * expanding_ratio * 2;
+
+    new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
+    //if(tree_node->processing_units_id[0] == 0)
+    //    printf("old: %lf, expanded: %lf\n", old_boundry.max_lat, new_boundry.max_lat);
+
+    /*
+    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.max_lat >= 90 && new_boundry.max_lat >= 90)
+        return 1;
+    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.min_lat <= -90 && new_boundry.min_lat <= -90)
+        return 1;
+    */
+
+    /* tree_node->expanded_boundry can be updated by this function */
+    add_halo_points(tree_node, &old_boundry, &new_boundry);
+    //transform_into_rectangle(old_boundry, *tree_node->expanded_boundry, sub_rectangles);
+
+    //expanded_cells_coord[0] = new double[search_tree_root->num_local_kernel_cells]; //FIXME: buf too large
+    //expanded_cells_coord[1] = new double[search_tree_root->num_local_kernel_cells];
+    //expanded_index = new int[search_tree_root->num_local_kernel_cells];
+    //for(int i = 0; i < 4; i++){
+    //    num_points_found = 0;
+    //    vector<Search_tree_node*> leaf_nodes_found;
+    //    leaf_nodes_found = search_points_in_region(sub_rectangles[i], expanded_cells_coord, expanded_index, &num_points_found);
+    //    tree_node->add_expanded_points(expanded_cells_coord, expanded_index, num_points_found);
+    //    tree_node->add_neighbors(leaf_nodes_found);
+    //}
+
+    //delete[] expanded_cells_coord[0];
+    //delete[] expanded_cells_coord[1];
+    //delete[] expanded_index;
+    return 0;
+}
+
+
+void Delaunay_grid_decomposition::add_halo_points(Search_tree_node* dst_tree_node, Boundry* old_boundary, Boundry* new_boundary)
+{
     double *expanded_cells_coord[2];
     int *expanded_index;
     int num_points_found;
 
-    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON)
-        *tree_node->expanded_boundry = *tree_node->expanded_boundry * expanding_ratio;
-    else if(tree_node->node_type == PDLN_NODE_TYPE_SPOLAR)
-        tree_node->expanded_boundry->max_lat += (tree_node->expanded_boundry->max_lat - tree_node->expanded_boundry->min_lat) * expanding_ratio * 2;
-    else if(tree_node->node_type == PDLN_NODE_TYPE_NPOLAR)
-        tree_node->expanded_boundry->min_lat -= (tree_node->expanded_boundry->max_lat - tree_node->expanded_boundry->min_lat) * expanding_ratio * 2;
-
-    tree_node->expanded_boundry->legalize(search_tree_root->kernel_boundry, is_cyclic);
-    //if(tree_node->processing_units_id[0] == 0)
-    //    printf("old: %lf, expanded: %lf\n", old_boundry.max_lat, tree_node->expanded_boundry->max_lat);
-
-    /*
-    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.max_lat >= 90 && tree_node->expanded_boundry->max_lat >= 90)
-        return 1;
-    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.min_lat <= -90 && tree_node->expanded_boundry->min_lat <= -90)
-        return 1;
-    */
-
-    transform_into_rectangle(old_boundry, *tree_node->expanded_boundry, sub_rectangles);
-
     expanded_cells_coord[0] = new double[search_tree_root->num_local_kernel_cells]; //FIXME: buf too large
     expanded_cells_coord[1] = new double[search_tree_root->num_local_kernel_cells];
     expanded_index = new int[search_tree_root->num_local_kernel_cells];
-    for(int i = 0; i < 4; i++){
-        num_points_found = 0;
-        vector<Search_tree_node*> leaf_nodes_found;
-        leaf_nodes_found = search_points_in_region(sub_rectangles[i], expanded_cells_coord, expanded_index, &num_points_found);
-        tree_node->add_expanded_points(expanded_cells_coord, expanded_index, num_points_found);
-        tree_node->add_neighbors(leaf_nodes_found);
-    }
+
+    vector<Search_tree_node*> leaf_nodes_found = search_points_in_halo(old_boundary, new_boundary, expanded_cells_coord, expanded_index, &num_points_found);
+    dst_tree_node->add_expanded_points(expanded_cells_coord, expanded_index, num_points_found);
+    dst_tree_node->add_neighbors(leaf_nodes_found);
 
     delete[] expanded_cells_coord[0];
     delete[] expanded_cells_coord[1];
     delete[] expanded_index;
-    return 0;
 }
 
+
+vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_halo(Boundry* old_boundary, Boundry* new_boundary,
+                                                                             double *coord_values[2], int *global_idx,
+                                                                             int *num_points_found)
+{
+    vector<Search_tree_node*> leaf_nodes_found;
+
+    *num_points_found = 0;
+
+    if(*old_boundary == *new_boundary)
+        return leaf_nodes_found;
+
+    search_points_in_halo_recursively(this->search_tree_root, old_boundary, new_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
+
+    return leaf_nodes_found;
+}
+
+
+void Delaunay_grid_decomposition::search_points_in_halo_recursively(Search_tree_node *node, Boundry *old_boundary,
+                                                                    Boundry *new_boundary, vector<Search_tree_node*> &leaf_nodes_found,
+                                                                    double *coord_values[2], int *global_idx,
+                                                                    int *num_points_found)
+{
+    double *child_cells_coord[4];
+    int *child_cells_index[2];
+    int child_num_cells[2];
+    Boundry child_boundry[2];
+    vector<int> child_proc_id[2];
+
+    //if(node->processing_units_id.size() <= 0){
+        //print_whole_search_tree_info();
+        //printf("node: %p\n", node);
+    //}
+    assert(node->processing_units_id.size() > 0);
+
+    Boundry region = *new_boundary;
+    if(node->processing_units_id.size() == 1) {
+        if(do_two_regions_overlap(region, *node->kernel_boundry) ||
+           do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->kernel_boundry) ||
+           do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->kernel_boundry)) {
+            //int rank;
+            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            //printf("[%d] (%lf, %lf, %lf, %lf), (%lf, %lf, %lf, %lf)\n", rank, old_boundary->min_lon, old_boundary->max_lon, old_boundary->min_lat, old_boundary->max_lat, node->expanded_boundry->min_lon, node->expanded_boundry->max_lon, node->expanded_boundry->min_lat, node->expanded_boundry->max_lat);
+            if(*new_boundary != *node->expanded_boundry) {
+                leaf_nodes_found.push_back(node);
+                node->search_points_in_halo(old_boundary, new_boundary, coord_values, global_idx, num_points_found);
+            }
+        }
+        return;
+    }
+
+    if(node->children[0] == NULL && node->children[1] == NULL && node->children[2] == NULL) {
+        for(int i = 0; i < 4; i++)
+            child_cells_coord[i] = new double[node->num_local_kernel_cells];
+        child_cells_index[0] = new int[node->num_local_kernel_cells];
+        child_cells_index[1] = new int[node->num_local_kernel_cells];
+        
+        node->decompose_iteratively(this->workloads, child_cells_coord, child_cells_index, child_num_cells, child_boundry, child_proc_id, PDLN_DECOMPOSE_COMMON_MODE);
+        assert(child_proc_id[0].size() > 0);
+
+        node->children[0] = new Search_tree_node(node, child_cells_coord,   child_cells_index[0], child_num_cells[0], child_boundry[0]);
+        node->children[2] = new Search_tree_node(node, child_cells_coord+2, child_cells_index[1], child_num_cells[1], child_boundry[1]);
+
+        /* child_proc_id[0] can be modified by this->update_workloads */
+        this->update_workloads(child_num_cells[0], child_proc_id[0]);
+        this->update_workloads(child_num_cells[1], child_proc_id[1]);
+        node->children[0]->update_processing_units_id(child_proc_id[0]);
+        assert(child_proc_id[1].size() > 0);
+        node->children[2]->update_processing_units_id(child_proc_id[1]);
+
+        assert(node->children[0]->processing_units_id.size() > 0);
+        assert(node->children[2]->processing_units_id.size() > 0);
+
+        for(int i = 0; i < 4; i++)
+            delete[] child_cells_coord[i];
+        delete[] child_cells_index[0];
+        delete[] child_cells_index[1];
+        //TODO: optimize new delete
+    }
+
+    for(int i = 0; i < 3; i ++)
+        if(node->children[i] != NULL) {
+            if(do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
+               do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
+               do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry)) {
+                this->search_points_in_halo_recursively(node->children[i], old_boundary, new_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
+            }
+        }
+}
+
+
+void Search_tree_node::search_points_in_halo(Boundry *inner_boundary, Boundry *outer_boundary,
+                                             double *coord_values[2], int *global_idx,
+                                             int *num_points_found)
+{
+    //Boundry sub_rectangles[4];
+    //transform_into_rectangle(*inner_boundary, *outer_boundary, sub_rectangles);
+
+    Boundry l_inner = *inner_boundary;
+    Boundry l_outer = *outer_boundary;
+    Boundry r_inner = *inner_boundary;
+    Boundry r_outer = *outer_boundary;
+    l_inner.min_lon -= 360.0;
+    l_inner.max_lon -= 360.0;
+    l_outer.min_lon -= 360.0;
+    l_outer.max_lon -= 360.0;
+    r_inner.min_lon -= 360.0;
+    r_inner.max_lon -= 360.0;
+    r_outer.min_lon -= 360.0;
+    r_outer.max_lon -= 360.0;
+
+    //TODO: optimize if out of loop
+        for(int j = 0; j < num_local_kernel_cells; j++) {
+            if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], inner_boundary, outer_boundary)) {
+                coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j];
+                coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
+                global_idx[(*num_points_found)++] = local_cells_global_index[j];
+                continue;
+            }
+            if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], &l_inner, &l_outer)) {
+                coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j] + 360.0;
+                coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
+                global_idx[(*num_points_found)++] = local_cells_global_index[j];
+                continue;
+            }
+            if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], &r_inner, &r_outer)) {
+                coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j] - 360.0;
+                coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
+                global_idx[(*num_points_found)++] = local_cells_global_index[j];
+                continue;
+            }
+        }
+}
+
+
+inline bool Search_tree_node::is_coordinate_in_halo(double x, double y, Boundry *inner, Boundry *outer)
+{
+    return !(x <= inner->max_lon && x >= inner->min_lon && y <= inner->max_lat && y >= inner->min_lat) &&
+           (x <= outer->max_lon && x >= outer->min_lon && y <= outer->max_lat && y >= outer->min_lat);
+}
 
 bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *origin_grid_boundry, bool is_cyclic)
 {
@@ -1378,10 +1619,16 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
 }
 
 
+bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
+{
+    return node != NULL && node->node_type != PDLN_NODE_TYPE_COMMON;
+}
+
 /* 
  * Return Values: 0 - Success
  *                1 - Failed in expanding
- *                2 - Fail, polar decomp's expanded_boundry exceeded threshold
+ *                2 x Fail, polar decomp's expanded_boundry exceeded threshold
+ *                2 - Fail, expanding loop too many times
  */
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
@@ -1390,6 +1637,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
     if(local_leaf_nodes.size() > 1)
         printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
+
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
         int ret;
         double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
@@ -1434,79 +1682,19 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(expand_fail)
                 break;
 
-            if (local_leaf_nodes[i]->node_type != PDLN_NODE_TYPE_COMMON) {
-                bool spolar_success = true, npolar_success = true;
-
-                if (local_leaf_nodes[i]->node_type == PDLN_NODE_TYPE_SPOLAR && local_leaf_nodes[i]->expanded_boundry->max_lat > 0.0)
-                    spolar_success = false;
-                if (local_leaf_nodes[i]->node_type == PDLN_NODE_TYPE_NPOLAR && local_leaf_nodes[i]->expanded_boundry->min_lat < 0.0)
-                    npolar_success = false;
-
-                if (spolar_success && npolar_success) {
-                    /* if MPI_Ibcast is supported
-                    MPI_Request req[2];
-                    MPI_Status status;
-                    MPI_Ibcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
-                               processing_info->get_processing_unit(search_tree_root->children[0]->processing_units_id[0])->process_id, 
-                               processing_info->get_mpi_comm(), req);
-                    MPI_Ibcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
-                               processing_info->get_processing_unit(search_tree_root->children[2]->processing_units_id[0])->process_id, 
-                               processing_info->get_mpi_comm(), req+1);
-
-                    local_leaf_nodes[i]->generate_rotated_grid();
-
-                    MPI_Wait(req, &status);
-                    MPI_Wait(req+1, &status);
-                    if (!spolar_success || !npolar_success)
-                        return 2;
-                    */
-                    if(search_tree_root->children[0] != NULL)
-                        MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
-                                   processing_info->get_processing_unit(search_tree_root->children[0]->processing_units_id[0])->process_id, 
-                                   processing_info->get_mpi_comm());
-                    if(search_tree_root->children[2] != NULL)
-                        MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
-                                   processing_info->get_processing_unit(search_tree_root->children[2]->processing_units_id[0])->process_id, 
-                                   processing_info->get_mpi_comm());
-                    if (!spolar_success || !npolar_success)
-                        return 2;
-
-                    local_leaf_nodes[i]->generate_rotated_grid();
-                }
-                else {
-                    if(search_tree_root->children[0] != NULL)
-                        MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
-                                  processing_info->get_processing_unit(search_tree_root->children[0]->processing_units_id[0])->process_id, 
-                                  processing_info->get_mpi_comm());
-                    if(search_tree_root->children[2] != NULL)
-                        MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
-                                  processing_info->get_processing_unit(search_tree_root->children[2]->processing_units_id[0])->process_id, 
-                                  processing_info->get_mpi_comm());
-                    return 2;
-                }
-            }
-            else {
-                bool spolar_success = true, npolar_success = true;
-                if(search_tree_root->children[0] != NULL)
-                    MPI_Bcast(&spolar_success, 1*sizeof(bool), MPI_CHAR,
-                              processing_info->get_processing_unit(search_tree_root->children[0]->processing_units_id[0])->process_id, 
-                              processing_info->get_mpi_comm());
-                if(search_tree_root->children[2] != NULL)
-                    MPI_Bcast(&npolar_success, 1*sizeof(bool), MPI_CHAR,
-                              processing_info->get_processing_unit(search_tree_root->children[2]->processing_units_id[0])->process_id, 
-                              processing_info->get_mpi_comm());
-                if(!spolar_success || !npolar_success)
-                    return 2;
-            }
+            if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[3]))
+                local_leaf_nodes[i]->generate_rotated_grid();
 
             if(!local_done)
                 local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
+
             //expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1;
             iter++;
             if(iter == 2) {
                 //plot_local_triangles("log/chunk");
                 //MPI_Barrier(MPI_COMM_WORLD);
                 //exit(1);
+                //return 2;
                 break;
             }
             bool remote_done[512];
@@ -1788,7 +1976,18 @@ Grid_info_manager::Grid_info_manager()
     }
     num_points /= 100;
     printf("num points: %d\n", num_points);
-        
+
+    /*
+    int tmp_n = 0;
+    for(int i = 0; i < num_points; i++)
+        if(coord_values[PDLN_LAT][i] < 30.0 && coord_values[PDLN_LAT][i] > -30.0) {
+            coord_values[PDLN_LAT][tmp_n] = coord_values[PDLN_LAT][i];
+            coord_values[PDLN_LON][tmp_n++] = coord_values[PDLN_LON][i];
+        }
+
+    num_points = tmp_n;
+    printf("num points: %d\n", num_points);
+    */
 }
 
 
@@ -1817,6 +2016,8 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* m
     //*max_lat =  89.0;
     *min_lat = -80.0;
     *max_lat =  90.0;
+    //*min_lat = -30.0;
+    //*max_lat = 30.0;
     *min_lon =   0.0;
     //*max_lon = 359.0;
     *max_lon = 360.0;

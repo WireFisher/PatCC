@@ -52,6 +52,7 @@ class Point
         double calculate_distance(const Point*) const;
         int position_to_edge(const Point*, const Point*) const;
         int position_to_triangle(const Triangle*) const;
+        int is_in_region(double min_x, double max_x, double min_y, double max_y) const;
 };
 
 
@@ -153,6 +154,8 @@ class Delaunay_Voronoi
         bool is_triangle_legal(const Point *pt, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
         bool is_triangle_ambiguous(const Point *pt, const Edge *edge);
+        void relegalize_triangles(Point*, Edge*);
+        void remove_leaf_triangle(Triangle*);
 
     public:
         Delaunay_Voronoi(int, double*, double*, int*, bool, double, double, double, double, bool*);
@@ -170,7 +173,7 @@ class Delaunay_Voronoi
         std::vector<Triangle*> search_cyclic_triangles_for_rotated_grid(Point, Point);
         void correct_cyclic_triangles(std::vector<Triangle*>, bool);
         void relegalize_all_triangles();
-        void relegalize_triangles(Point*, Edge*);
+        void remove_triangles_out_of_boundary(double, double, double, double);
             
 
         /* debug */
