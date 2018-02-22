@@ -67,7 +67,7 @@ private:
     void fix_expanded_boundry(int index, int count);
 
 public:    
-    Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type=0); //FIXME: remove default value;
+    Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type); //FIXME: remove default value;
     ~Search_tree_node();
     void decompose_iteratively(double*, double **, int**, int*, Boundry*, vector<int>*, int);
     void decompose_with_certain_line(Midline, double**, int**, int*);
@@ -109,7 +109,7 @@ private:
     void initialze_workload();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*);
-    void assign_cyclic_grid_for_single_unit();
+    void assign_cyclic_grid_for_single_processing_unit();
     bool have_local_processing_units_id(vector<int>);
     void update_workloads(int, vector<int>&);
     int expand_tree_node_boundry(Search_tree_node*, double);
@@ -117,6 +117,7 @@ private:
     void transform_into_rectangle(Boundry, Boundry, Boundry*);
     void search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node*, Boundry, vector<Search_tree_node*>&);
     bool do_two_regions_overlap(Boundry, Boundry);
+    Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, vector<int> &, int);
 
     void add_halo_points(Search_tree_node* dst_tree_node, Boundry* old_boundary, Boundry* new_boundary);
     vector<Search_tree_node*> search_points_in_halo(Boundry* old_boundary, Boundry* new_boundary,double *coord_values[2], int *global_idx, int *num_points_found);
