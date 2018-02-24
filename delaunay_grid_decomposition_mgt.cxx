@@ -701,8 +701,10 @@ Search_tree_node* Delaunay_grid_decomposition::alloc_search_tree_node(Search_tre
                                                                       int num_points, Boundry boundary, vector<int> &common_ids, int type)
 {
     Search_tree_node *new_node = new Search_tree_node(parent, coord_values, index, num_points, boundary, type);
-    /* child_proc_id[0] can be modified by this->update_workloads */
+
+    /* common_ids can be modified by this->update_workloads */
     update_workloads(num_points, common_ids);
+
     new_node->update_processing_units_id(common_ids);
     return new_node;
 }
