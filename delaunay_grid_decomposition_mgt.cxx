@@ -286,14 +286,14 @@ void Search_tree_node::decompose_iteratively(double *workloads, double *child_ce
     int iteration_count;
 
     assert(this->processing_units_id.size() > 1);
-    boundry_values[0] = this->kernel_boundry->min_lon;
-    boundry_values[1] = this->kernel_boundry->min_lat;
-    boundry_values[2] = this->kernel_boundry->max_lon;
-    boundry_values[3] = this->kernel_boundry->max_lat;
-    assert(boundry_values[0] < boundry_values[2]);
-    assert(boundry_values[1] < boundry_values[3]);
-    length[0] = boundry_values[2] - boundry_values[0];
-    length[1] = boundry_values[3] - boundry_values[1];
+    boundry_values[PDLN_LON] = this->kernel_boundry->min_lon;
+    boundry_values[PDLN_LAT] = this->kernel_boundry->min_lat;
+    boundry_values[PDLN_LON+2] = this->kernel_boundry->max_lon;
+    boundry_values[PDLN_LAT+2] = this->kernel_boundry->max_lat;
+    assert(boundry_values[PDLN_LON] < boundry_values[PDLN_LON+2]);
+    assert(boundry_values[PDLN_LAT] < boundry_values[PDLN_LAT+2]);
+    length[0] = boundry_values[PDLN_LON+2] - boundry_values[PDLN_LON];
+    length[1] = boundry_values[PDLN_LAT+2] - boundry_values[PDLN_LAT];
     if(length[0] < 0.0)
         length[0] += 360.0;
     assert(length[0] <= (360.0+PDLN_HIGH_BOUNDRY_SHIFTING) && length[0] >= 0.0 && length[1] <= (180.0+PDLN_HIGH_BOUNDRY_SHIFTING) && length[1] >= 0.0);
@@ -1545,10 +1545,10 @@ void Search_tree_node::search_points_in_halo(Boundry *inner_boundary, Boundry *o
     l_inner.max_lon -= 360.0;
     l_outer.min_lon -= 360.0;
     l_outer.max_lon -= 360.0;
-    r_inner.min_lon -= 360.0;
-    r_inner.max_lon -= 360.0;
-    r_outer.min_lon -= 360.0;
-    r_outer.max_lon -= 360.0;
+    r_inner.min_lon += 360.0;
+    r_inner.max_lon += 360.0;
+    r_outer.min_lon += 360.0;
+    r_outer.max_lon += 360.0;
 
     //TODO: optimize if out of loop
         for(int j = 0; j < num_local_kernel_cells; j++) {
