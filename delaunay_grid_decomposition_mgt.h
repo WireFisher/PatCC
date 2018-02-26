@@ -52,15 +52,14 @@ private:
     Boundry *rotated_expanded_boundry;
     Boundry *real_boundry;
     double center[2];
-    //double expanding_ratio;
     Midline midline;
-    double *local_cells_coord[2]; //(clean after having children) //TODO:change name
-    double *rotated_cells_coord[2];
-    int *local_cells_global_index;
-    int len_expanded_cells_coord_buf;
-    int num_local_kernel_cells;//TODO:change name
-    int num_local_expanded_cells;//TODO:change name
-    int num_rotated_cells; /* kernel + part of expanded */
+    double *points_coord[2]; //(clean after having children)
+    double *projected_coord[2];
+    int *points_global_index;
+    int len_expanded_points_coord_buf;
+    int num_kernel_points;
+    int num_expanded_points;
+    int num_rotated_points; /* kernel + part of expanded */
     int node_type;
     bool non_monotonic;
     
@@ -71,7 +70,7 @@ private:
     void fix_expanded_boundry(int index, int count);
 
 public:    
-    Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type); //FIXME: remove default value;
+    Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type);
     ~Search_tree_node();
     void decompose_by_processing_units_number(double*, double**, int**, int*, Boundry*, vector<int>*, int);
     void decompose_by_fixed_longitude(double, double*, double**, int**, int*, Boundry*, vector<int>*);
@@ -83,20 +82,18 @@ public:
     void generate_rotated_grid();
     void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
-    //bool check_expanded_triangle_consistency();
     bool check_if_all_outer_edge_out_of_kernel_boundry(Boundry *, bool);
 
     void search_points_in_halo(Boundry *inner_boundary, Boundry *outer_boundary, double *coord_values[2], int *global_idx, int *num_points_found);
     bool is_coordinate_in_halo(double x, double y, Boundry *inner, Boundry *outer);
 
-    int get_num_local_kernel_cells(){return this->num_local_kernel_cells; };
-    double** get_local_cells_coord(){return this->local_cells_coord; };
+    int get_num_kernel_points(){return this->num_kernel_points; };
+    double** get_points_coord(){return this->points_coord; };
 };
 
 class Delaunay_grid_decomposition {
 private:
     Processing_resource *processing_info;
-    //Workload_info *workload_info;
     //Remap_grid_class *original_grid;
     int original_grid;
     Search_tree_node *search_tree_root;
