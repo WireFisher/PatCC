@@ -1891,7 +1891,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 //MPI_Barrier(MPI_COMM_WORLD);
                 //exit(1);
                 //return 2;
-                break;
+                //break;
             }
             bool remote_done[512];
             assert(processing_info->get_num_total_processes() <= 512);
@@ -2117,6 +2117,7 @@ static double fRand(double fMin, double fMax)
 
 Grid_info_manager::Grid_info_manager()
 {
+    /*
     int size = 300;
 
     num_points = size * size;
@@ -2136,8 +2137,8 @@ Grid_info_manager::Grid_info_manager()
     coord_values[1][0] = -90.0;
     coord_values[0][299] = 0.0;
     coord_values[1][299] = 90.0;
+    */
 
-    /*
     int num_dims;
     int *dim_size_ptr;
     int field_size;
@@ -2171,7 +2172,6 @@ Grid_info_manager::Grid_info_manager()
     }
     num_points /= 100;
     printf("num points: %d\n", num_points);
-    */
 
     /*
     int tmp_n = 0;
@@ -2210,7 +2210,7 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* m
 {
     //*min_lat = -89.0;
     //*max_lat =  89.0;
-    *min_lat = -90.0;
+    *min_lat = -80.0;
     *max_lat =  90.0;
     //*min_lat = -30.0;
     //*max_lat = 30.0;
