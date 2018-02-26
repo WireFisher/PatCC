@@ -446,9 +446,9 @@ void Triangle::check_and_set_twin_edge_relationship(Triangle *another_triangle)
 {
     for (int i = 0; i < 3; i ++)
         for (int j = 0; j < 3; j ++)
-            if (this->edge[i]->head == another_triangle->edge[j]->tail && this->edge[i]->tail == another_triangle->edge[j]->head) {
-                this->edge[i]->twin_edge = another_triangle->edge[j];
-                another_triangle->edge[j]->twin_edge = this->edge[i];
+            if (edge[i]->head == another_triangle->edge[j]->tail && edge[i]->tail == another_triangle->edge[j]->head) {
+                edge[i]->twin_edge = another_triangle->edge[j];
+                another_triangle->edge[j]->twin_edge = edge[i];
             }
 }
 

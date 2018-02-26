@@ -68,8 +68,8 @@ public:
     Processing_resource();
     ~Processing_resource();
     void pick_out_active_processing_units(int, bool*);
-    Processing_unit* get_processing_unit(int common_id) { return this->processing_units[common_id]; };
-    Processing_unit** get_processing_units() { return this->processing_units; };
+    Processing_unit* get_processing_unit(int common_id) { return processing_units[common_id]; };
+    Processing_unit** get_processing_units() { return processing_units; };
     int get_num_total_processing_units() { return num_total_processing_units; };
     int* get_local_proc_common_id() { return local_proc_common_id; };
     int get_num_local_proc_processing_units() { return num_local_proc_processing_units; };

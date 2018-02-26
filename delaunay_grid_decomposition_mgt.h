@@ -87,8 +87,8 @@ public:
     void search_points_in_halo(Boundry *inner_boundary, Boundry *outer_boundary, double *coord_values[2], int *global_idx, int *num_points_found);
     bool is_coordinate_in_halo(double x, double y, Boundry *inner, Boundry *outer);
 
-    int get_num_kernel_points(){return this->num_kernel_points; };
-    double** get_points_coord(){return this->points_coord; };
+    int get_num_kernel_points(){return num_kernel_points; };
+    double** get_points_coord(){return points_coord; };
 };
 
 class Delaunay_grid_decomposition {
@@ -149,7 +149,7 @@ public:
     ~Delaunay_grid_decomposition();
     int generate_grid_decomposition();
     int generate_delaunay_triangulizition();
-    vector<Search_tree_node*> get_local_leaf_nodes() {return this->local_leaf_nodes; };
+    vector<Search_tree_node*> get_local_leaf_nodes() {return local_leaf_nodes; };
     int generate_trianglulation_for_local_decomp();
     int generate_trianglulation_for_whole_grid();
 

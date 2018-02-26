@@ -105,14 +105,14 @@ int Processing_resource::identify_processing_units_by_hostname() {
     for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
         num_total_proc_units += it->second.size();
 
-    this->processing_units = new Processing_unit*[num_total_proc_units];
+    processing_units = new Processing_unit*[num_total_proc_units];
     for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
         for(i = 0; i < it->second.size(); i ++) {
             it->second[i]->common_id = current_common_id;
-            this->processing_units[current_common_id++] = it->second[i];
+            processing_units[current_common_id++] = it->second[i];
         }
     
-    this->num_total_processing_units = current_common_id;
+    num_total_processing_units = current_common_id;
     return current_common_id;
 }
 
@@ -124,15 +124,15 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
     int *num_active_units_per_node;
     MAP_UINT_VECTOR_T::iterator it;
 
-    assert(num_total_active_units <= this->num_total_processing_units);
+    assert(num_total_active_units <= num_total_processing_units);
 
-    if(num_total_active_units == this->num_total_processing_units) {
-        for(i = 0; i < this->num_total_processing_units; i++)
+    if(num_total_active_units == num_total_processing_units) {
+        for(i = 0; i < num_total_processing_units; i++)
             is_active[i] = true;
         return;
     }
 
-    ratio = ((double)num_total_active_units/this->num_total_processing_units);
+    ratio = ((double)num_total_active_units/num_total_processing_units);
     num_active_units = 0; 
 
     num_active_units_per_node = new int[computing_nodes.size()];
@@ -162,7 +162,7 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
 
     assert(num_active_units == num_total_active_units);
     
-    for(i = 0; i < this->num_total_processing_units; i++)
+    for(i = 0; i < num_total_processing_units; i++)
         is_active[i] = false;
 
     for(it = computing_nodes.begin(), i = 0; it != computing_nodes.end(); it ++, i ++)
@@ -193,11 +193,9 @@ int Processing_resource::recv_from_local_thread(void *buf, int max_count, int si
 
 void Processing_resource::print_all_nodes_info()
 {
-    for(int i = 0; i < this->num_total_processing_units; i++)
-        printf("hostname: %u\nproc_id: %d\nthread_id: %d\ncommon_id: %d\n========\n", this->processing_units[i]->hostname_checksum, 
-                                                                                      this->processing_units[i]->process_id, 
-                                                                                      this->processing_units[i]->thread_id, 
-                                                                                      this->processing_units[i]->common_id);
+    for(int i = 0; i < num_total_processing_units; i++)
+        printf("hostname: %u\nproc_id: %d\nthread_id: %d\ncommon_id: %d\n========\n", processing_units[i]->hostname_checksum, processing_units[i]->process_id, 
+                                                                                      processing_units[i]->thread_id, processing_units[i]->common_id);
 }
 
 void Process_thread_manager::get_hostname(char *hostname, int len) {
