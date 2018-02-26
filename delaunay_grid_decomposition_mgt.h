@@ -160,6 +160,12 @@ public:
 };
 
 
+class Triangle_ID_Only {
+    public:
+        int id[3];
+        friend bool operator == (Triangle_ID_Only, Triangle_ID_Only);
+};
+
 class Grid_info_manager {
 private:
     double *coord_values[2];

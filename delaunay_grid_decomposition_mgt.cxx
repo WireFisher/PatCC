@@ -43,11 +43,24 @@
 
 #define PDLN_HIGH_BOUNDRY_SHIFTING (0.0001)
 
+#define PDLN_MAX_NUM_PROCESSING_UNITS 512
+
 //static inline bool is_cyclic(Boundry b)
 //{
 //    return std::abs(b.min_lon - 0.0) < PDLN_FLOAT_EQ_ERROR && std::abs(b.max_lon - 360.0) < PDLN_FLOAT_EQ_ERROR;
 //}
 
+
+bool operator == (Triangle_ID_Only t1, Triangle_ID_Only t2)
+{
+    if(t2.id[0] != t1.id[0] && t2.id[0] != t1.id[1] && t2.id[0] != t1.id[2])
+        return false;
+    if(t2.id[1] != t1.id[0] && t2.id[1] != t1.id[1] && t2.id[1] != t1.id[2])
+        return false;
+    if(t2.id[2] != t1.id[0] && t2.id[2] != t1.id[1] && t2.id[2] != t1.id[2])
+        return false;
+    return true;
+}
 
 Boundry& Boundry::operator= (Boundry &boundry)
 {
@@ -249,6 +262,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             calculate_real_boundary();
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
+            triangulation->relegalize_all_triangles();
         }
     }
     else {
@@ -960,18 +974,27 @@ namespace std
                 return hash<Point>()(t.v[0]) ^ hash<Point>()(t.v[1]) ^ hash<Point>()(t.v[2]);
             }
         }; 
+
+        template <>  
+        struct hash<Triangle_ID_Only>  
+        {  
+            std::size_t operator()(const Triangle_ID_Only &t) const  
+            {  
+                return hash<int>()(t.id[0]+t.id[1]+t.id[2]+t.id[0]*t.id[1]*t.id[2]);
+            }
+        }; 
     }
 } 
 
 
 bool Delaunay_grid_decomposition::check_triangles_consistency(Triangle_Transport *triangles1, Triangle_Transport *triangles2, int num_triangles, bool have_cyclic_triangles)
 {
-    std::tr1::unordered_map<Triangle_Transport, bool> hash_table;
 
     if(num_triangles == 0)
         return true;
 
     if(have_cyclic_triangles) {
+        /*
         for(int i = 0; i < num_triangles; i++)
             for(int j = 0; j < 3; j++) {
                 if(triangles1[i].v[j].x < 0)
@@ -986,16 +1009,38 @@ bool Delaunay_grid_decomposition::check_triangles_consistency(Triangle_Transport
                 else if(triangles2[i].v[j].x >= 360.0)
                     triangles2[i].v[j].x -= 360.0;
             }
+        if(triangles1[0].v[0].x < triangles2[0].v[0].x)
+            for(int i = 0; i < num_triangles; i++)
+                for(int j = 0; j < 3; j++)
+                    triangles1[i].v[j].x += 360.0;
+        else
+            for(int i = 0; i < num_triangles; i++)
+                for(int j = 0; j < 3; j++)
+                    triangles1[i].v[j].x -= 360.0;
+        */
     }
 
+    Triangle_ID_Only *t1, *t2;
+    
+    t1 = new Triangle_ID_Only[num_triangles];
+    t2 = new Triangle_ID_Only[num_triangles];
+
+    for(int i = 0; i < num_triangles; i++)
+        for(int j = 0; j < 3; j++) {
+            t1[i].id[j] = triangles1[i].v[j].id;
+            t2[i].id[j] = triangles2[i].v[j].id;
+        }
+
+    std::tr1::unordered_map<Triangle_ID_Only, bool> hash_table;
+
     for(int i = 0; i < num_triangles; i++) {
-        if(hash_table.find(triangles1[i]) != hash_table.end())
+        if(hash_table.find(t1[i]) != hash_table.end())
             assert(false); //triangles1 has redundant triangles
-        hash_table[triangles1[i]] = true;
+        hash_table[t1[i]] = true;
     }
 
     for(int i = 0; i < num_triangles; i++) {
-        if(hash_table.find(triangles2[i]) == hash_table.end())
+        if(hash_table.find(t2[i]) == hash_table.end())
             return false;
     }
     return true;
@@ -1011,16 +1056,16 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         return false;
     }
 
-    Triangle_Transport *local_triangle[32];
-    Triangle_Transport *remote_triangle[32];
-    Triangle_Transport *extra_local_triangle[32];
-    Triangle_Transport *extra_remote_triangle[32];
+    Triangle_Transport *local_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
+    Triangle_Transport *remote_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
+    Triangle_Transport *extra_local_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
+    Triangle_Transport *extra_remote_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
     int triangle_buf_len;
-    int num_local_triangle[32], num_remote_triangle[32];
-    int num_extra_local_triangle[32], num_extra_remote_triangle[32];
+    int num_local_triangle[PDLN_MAX_NUM_PROCESSING_UNITS], num_remote_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
+    int num_extra_local_triangle[PDLN_MAX_NUM_PROCESSING_UNITS], num_extra_remote_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
 
     assert(leaf_node->processing_units_id.size() == 1);
-    assert(leaf_node->neighbors.size() <= 32);
+    assert(leaf_node->neighbors.size() <= PDLN_MAX_NUM_PROCESSING_UNITS);
     assert(iter < PDLN_COMM_TAG_MASK);
     triangle_buf_len = search_tree_root->num_kernel_points / processing_info->get_num_total_processing_units();
     
@@ -1156,6 +1201,14 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
                 continue;
             }
             if (!check_triangles_consistency(extra_local_triangle[i], extra_remote_triangle[i], num_extra_local_triangle[i], true)) {
+                //char filename[64];
+                //snprintf(filename, 64, "log/boundary_triangle_ex_local%d", rank);
+                //plot_triangles_info_file(filename, extra_local_triangle[i], num_extra_local_triangle[i]);
+                //save_triangles_info_file(filename, extra_local_triangle[i], num_extra_local_triangle[i]);
+                //snprintf(filename, 64, "log/boundary_triangle_ex_remot%d", rank);
+                //plot_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
+                //save_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
+                
                 printf("[%d] checking extra consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], 
                                                                                      leaf_node->neighbors[i].first->processing_units_id[0]);
                 check_passed = false;
@@ -1724,8 +1777,8 @@ void Search_tree_node::search_points_in_halo(Boundry *inner_boundary, Boundry *o
 
 inline bool Search_tree_node::is_coordinate_in_halo(double x, double y, Boundry *inner, Boundry *outer)
 {
-    return !(x <= inner->max_lon && x >= inner->min_lon && y <= inner->max_lat && y >= inner->min_lat) &&
-           (x <= outer->max_lon && x >= outer->min_lon && y <= outer->max_lat && y >= outer->min_lat);
+    return !(x < inner->max_lon && x >= inner->min_lon && y < inner->max_lat && y >= inner->min_lat) &&
+           (x < outer->max_lon && x >= outer->min_lon && y < outer->max_lat && y >= outer->min_lat);
 }
 
 bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *origin_grid_boundry, bool is_cyclic)
@@ -1831,14 +1884,14 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(!local_done)
                 local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
 
-            //expanding_ratio = DEFAULT_EXPANGDING_RATIO + 0.1;
+            expanding_ratio += 0.1;
             iter++;
-            if(iter == 2) {
+            if(iter == 3) {
                 //plot_local_triangles("log/chunk");
                 //MPI_Barrier(MPI_COMM_WORLD);
                 //exit(1);
                 //return 2;
-                //break;
+                break;
             }
             bool remote_done[512];
             assert(processing_info->get_num_total_processes() <= 512);
@@ -2064,7 +2117,6 @@ static double fRand(double fMin, double fMax)
 
 Grid_info_manager::Grid_info_manager()
 {
-    /*
     int size = 300;
 
     num_points = size * size;
@@ -2085,7 +2137,7 @@ Grid_info_manager::Grid_info_manager()
     coord_values[0][299] = 0.0;
     coord_values[1][299] = 90.0;
 
-    */
+    /*
     int num_dims;
     int *dim_size_ptr;
     int field_size;
@@ -2119,6 +2171,7 @@ Grid_info_manager::Grid_info_manager()
     }
     num_points /= 100;
     printf("num points: %d\n", num_points);
+    */
 
     /*
     int tmp_n = 0;
@@ -2157,7 +2210,7 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* m
 {
     //*min_lat = -89.0;
     //*max_lat =  89.0;
-    *min_lat = -80.0;
+    *min_lat = -90.0;
     *max_lat =  90.0;
     //*min_lat = -30.0;
     //*max_lat = 30.0;

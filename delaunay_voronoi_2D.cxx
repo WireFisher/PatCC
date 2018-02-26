@@ -616,7 +616,10 @@ void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, ve
                 //EXECUTION_REPORT(REPORT_ERROR, -1, false, "CoR may have bugs, please contact liuli-cess@tsinghua.edu.cn");
                 assert(false);
             else //EXECUTION_REPORT(REPORT_ERROR, -1, false, "please enlarge the boundary of the regional grid"); 
+            {
+                printf("(%lf, %lf)\n", (*pnts)[i]->x, (*pnts)[i]->y);
                 assert(false);
+            }
         }
     }
 }
@@ -1097,7 +1100,7 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
             if((head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ||
                tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ) &&
                head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
-               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) <= 0 &&
+               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) < 0 &&
                result_leaf_triangles[i]->v[j]->position_to_edge(&head, &tail) *
                result_leaf_triangles[i]->v[(j+1)%3]->position_to_edge(&head, &tail) <= 0) {
                 triangles_found.push_back(result_leaf_triangles[i]);
@@ -1354,8 +1357,10 @@ Triangle_Transport::Triangle_Transport(Point p0, Point p1, Point p2)
 
 bool operator == (Triangle_Transport t1, Triangle_Transport t2)
 {
+#ifdef DEBUG
     assert(t1.v[0] != t1.v[1] && t1.v[1] != t1.v[2] && t1.v[2] != t1.v[0]);
-    assert(t2.v[0] != t2.v[1] && t2.v[1] != t2.v[2] && t2.v[2] != t2.v[0]); // NOTE: Should this assetion be here or somewhere else?
+    assert(t2.v[0] != t2.v[1] && t2.v[1] != t2.v[2] && t2.v[2] != t2.v[0]);
+#endif
     if(t2.v[0] != t1.v[0] && t2.v[0] != t1.v[1] && t2.v[0] != t1.v[2])
         return false;
     if(t2.v[1] != t1.v[0] && t2.v[1] != t1.v[1] && t2.v[1] != t1.v[2])
@@ -1440,6 +1445,6 @@ void save_triangles_info_file(const char *prefix, Triangle_Transport *t, int num
     snprintf(filename, 128, "%s.txt", prefix);
     fp = fopen(filename, "w");
     for(int i = 0; i < num; i++)
-        fprintf(fp, "[%d] (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", i, t[i].v[0].x, t[i].v[0].y, t[i].v[1].x, t[i].v[1].y, t[i].v[2].x, t[i].v[2].y);
+        fprintf(fp, "[%d] (%.15lf, %.15lf), (%.15lf, %.15lf), (%.15lf, %.15lf)\n", i, t[i].v[0].x, t[i].v[0].y, t[i].v[1].x, t[i].v[1].y, t[i].v[2].x, t[i].v[2].y);
     fclose(fp);
 }
