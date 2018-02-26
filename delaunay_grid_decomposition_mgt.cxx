@@ -164,7 +164,6 @@ Search_tree_node::~Search_tree_node()
         delete rotated_kernel_boundry;
     if(rotated_expanded_boundry != NULL)
         delete rotated_expanded_boundry;
-    //delete[] this->local_cells_global_index;
     for(int i = 0; i < 3; i ++)
         if(children[i] != NULL)
             delete children[i];
@@ -175,27 +174,18 @@ Search_tree_node::~Search_tree_node()
 
 
 /* assumption: ids are already sorted. */
-/*
-void Search_tree_node::update_processing_units_id(int* ids, int num) 
-{
-    this->processing_units_id.clear();
-    for(int i = 0; i < num; i ++)
-        this->processing_units_id.push_back(ids[i]);
-}
-*/
-
 void Search_tree_node::update_processing_units_id(int num) 
 {
-    this->processing_units_id.clear();
+    processing_units_id.clear();
     for(int i = 0; i < num; i ++)
-        this->processing_units_id.push_back(i);
+        processing_units_id.push_back(i);
 }
 
 
 void Search_tree_node::update_processing_units_id(vector<int> proc_units_id) 
 {
-    this->processing_units_id.clear();
-    this->processing_units_id = proc_units_id;
+    processing_units_id.clear();
+    processing_units_id = proc_units_id;
 }
 
 
@@ -276,7 +266,7 @@ void Search_tree_node::split_local_points(Midline midline, double *child_cells_c
 
     if(non_monotonic && midline.type == PDLN_LON) {
         if(midline.value > kernel_boundry->min_lon) {
-            for(int i = 0; i < this->num_local_kernel_cells; i ++) {
+            for(int i = 0; i < num_local_kernel_cells; i ++) {
                 if(local_cells_coord[midline.type][i] < midline.value && local_cells_coord[midline.type][i] >= kernel_boundry->min_lon) {
                     child_cells_coord[midline.type][child_num_cells[0]] = local_cells_coord[midline.type][i];
                     child_cells_coord[(midline.type+1)%2][child_num_cells[0]] = local_cells_coord[(midline.type+1)%2][i];
@@ -291,7 +281,7 @@ void Search_tree_node::split_local_points(Midline midline, double *child_cells_c
         }
         else {
             assert(midline.value < kernel_boundry->max_lon);
-            for(int i = 0; i < this->num_local_kernel_cells; i ++) {
+            for(int i = 0; i < num_local_kernel_cells; i ++) {
                 if(local_cells_coord[midline.type][i] >= midline.value && local_cells_coord[midline.type][i] < kernel_boundry->max_lon) {
                     child_cells_coord[2+midline.type][child_num_cells[1]] = local_cells_coord[midline.type][i];
                     child_cells_coord[2+(midline.type+1)%2][child_num_cells[1]] = local_cells_coord[(midline.type+1)%2][i];
@@ -306,7 +296,7 @@ void Search_tree_node::split_local_points(Midline midline, double *child_cells_c
         }
     }
     else
-        for(int i = 0; i < this->num_local_kernel_cells; i ++) {
+        for(int i = 0; i < num_local_kernel_cells; i ++) {
             if(local_cells_coord[midline.type][i] < midline.value) {
                 child_cells_coord[midline.type][child_num_cells[0]] = local_cells_coord[midline.type][i];
                 child_cells_coord[(midline.type+1)%2][child_num_cells[0]] = local_cells_coord[(midline.type+1)%2][i];
@@ -329,11 +319,11 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
     unsigned int i;
     int iteration_count;
 
-    assert(this->processing_units_id.size() > 1);
-    boundry_values[PDLN_LON] = this->kernel_boundry->min_lon;
-    boundry_values[PDLN_LAT] = this->kernel_boundry->min_lat;
-    boundry_values[PDLN_LON+2] = this->kernel_boundry->max_lon;
-    boundry_values[PDLN_LAT+2] = this->kernel_boundry->max_lat;
+    assert(processing_units_id.size() > 1);
+    boundry_values[PDLN_LON] = kernel_boundry->min_lon;
+    boundry_values[PDLN_LAT] = kernel_boundry->min_lat;
+    boundry_values[PDLN_LON+2] = kernel_boundry->max_lon;
+    boundry_values[PDLN_LAT+2] = kernel_boundry->max_lat;
 
     if(non_monotonic)
         boundry_values[PDLN_LON] -= 360.0;
@@ -360,26 +350,26 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
      * PDLN_DECOMPOSE_SPOLAR_MODE: 0 | 1   2   3   4   5   6   7
      * PDLN_DECOMPOSE_NPOLAR_MODE: 0   1   2   3   4   5   6 | 7 */
     if(mode == PDLN_DECOMPOSE_COMMON_MODE) {
-        for(i = 0; i < this->processing_units_id.size()/2; i++)
-            child_proc_units_id[0].push_back(this->processing_units_id[i]);
-        for(; i < this->processing_units_id.size(); i++)
-            child_proc_units_id[1].push_back(this->processing_units_id[i]);
+        for(i = 0; i < processing_units_id.size()/2; i++)
+            child_proc_units_id[0].push_back(processing_units_id[i]);
+        for(; i < processing_units_id.size(); i++)
+            child_proc_units_id[1].push_back(processing_units_id[i]);
     }
     else if(mode == PDLN_DECOMPOSE_SPOLAR_MODE) {
-        child_proc_units_id[0].push_back(this->processing_units_id[0]);
-        for(i = 1; i < this->processing_units_id.size(); i++)
-            child_proc_units_id[1].push_back(this->processing_units_id[i]);
+        child_proc_units_id[0].push_back(processing_units_id[0]);
+        for(i = 1; i < processing_units_id.size(); i++)
+            child_proc_units_id[1].push_back(processing_units_id[i]);
     }
     else if(mode == PDLN_DECOMPOSE_NPOLAR_MODE) {
-        for(i = 0; i < this->processing_units_id.size()-1; i++)
-            child_proc_units_id[0].push_back(this->processing_units_id[i]);
-        child_proc_units_id[1].push_back(this->processing_units_id[i]);
+        for(i = 0; i < processing_units_id.size()-1; i++)
+            child_proc_units_id[0].push_back(processing_units_id[i]);
+        child_proc_units_id[1].push_back(processing_units_id[i]);
     }
     else
         assert(false);
 
-    assert(child_proc_units_id[0].size() + child_proc_units_id[1].size() == this->processing_units_id.size());
-    if(this->processing_units_id.size() > 1) {
+    assert(child_proc_units_id[0].size() + child_proc_units_id[1].size() == processing_units_id.size());
+    if(processing_units_id.size() > 1) {
         for(i = 0, child_total_workload[0] = 0.0; i < child_proc_units_id[0].size(); i++)
             child_total_workload[0] += workloads[child_proc_units_id[0][i]];
         for(i = 0, child_total_workload[1] = 0.0; i < child_proc_units_id[1].size(); i++)
@@ -421,18 +411,18 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
         if(midline.value < 0)
             midline.value += 360.0;
 
-        child_boundry[0].min_lat = child_boundry[1].min_lat = this->kernel_boundry->min_lat;
-        child_boundry[0].max_lat = child_boundry[1].max_lat = this->kernel_boundry->max_lat;
-        child_boundry[0].min_lon = this->kernel_boundry->min_lon;
+        child_boundry[0].min_lat = child_boundry[1].min_lat = kernel_boundry->min_lat;
+        child_boundry[0].max_lat = child_boundry[1].max_lat = kernel_boundry->max_lat;
+        child_boundry[0].min_lon = kernel_boundry->min_lon;
         child_boundry[0].max_lon = child_boundry[1].min_lon = midline.value;
-        child_boundry[1].max_lon = this->kernel_boundry->max_lon;
+        child_boundry[1].max_lon = kernel_boundry->max_lon;
     }
     else if(midline.type == PDLN_LAT) {
-        child_boundry[0].min_lon = child_boundry[1].min_lon = this->kernel_boundry->min_lon;
-        child_boundry[0].max_lon = child_boundry[1].max_lon = this->kernel_boundry->max_lon;
-        child_boundry[0].min_lat = this->kernel_boundry->min_lat;
+        child_boundry[0].min_lon = child_boundry[1].min_lon = kernel_boundry->min_lon;
+        child_boundry[0].max_lon = child_boundry[1].max_lon = kernel_boundry->max_lon;
+        child_boundry[0].min_lat = kernel_boundry->min_lat;
         child_boundry[0].max_lat = child_boundry[1].min_lat = midline.value;
-        child_boundry[1].max_lat = this->kernel_boundry->max_lat;
+        child_boundry[1].max_lat = kernel_boundry->max_lat;
     }
     else
         assert(false);
@@ -443,9 +433,7 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
 void Search_tree_node::decompose_by_fixed_longitude(double fixed_lon, double *workloads, double *child_cells_coord[4], int *child_cells_idx[2], int child_num_cells[2],
                                                     Boundry child_boundry[2], vector<int> child_proc_units_id[2])
 {
-    double child_total_workload[2];
     Midline midline;
-    unsigned int i;
 
     assert(processing_units_id.size() > 0);
     assert(fixed_lon >= 0 && fixed_lon < 360);
@@ -597,25 +585,16 @@ bool operator == (pair<Search_tree_node*, bool> p1, Search_tree_node* p2)
 }
 
 
-void Search_tree_node::add_neighbors(vector<Search_tree_node*> neighbors)
+void Search_tree_node::add_neighbors(vector<Search_tree_node*> ns)
 {
-    for(unsigned int i = 0; i < neighbors.size(); i++) {
-        if(processing_units_id[0] == neighbors[i]->processing_units_id[0])
+    for(unsigned int i = 0; i < ns.size(); i++) {
+        if(processing_units_id[0] == ns[i]->processing_units_id[0])
             continue;
 
-        if(find(this->neighbors.begin(), this->neighbors.end(), neighbors[i]) == this->neighbors.end())
-            this->neighbors.push_back(pair<Search_tree_node*, bool>(neighbors[i], false));
+        if(find(neighbors.begin(), neighbors.end(), ns[i]) == neighbors.end())
+            neighbors.push_back(pair<Search_tree_node*, bool>(ns[i], false));
     }
 }
-
-
-/*
-bool Search_tree_node::check_expanded_triangle_consistency()
-{
-    if(this->triangulation == NULL)
-        return false;
-}
-*/
 
 
 void Search_tree_node::generate_rotated_grid()
@@ -694,7 +673,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     for(int i = 0; i < num_points; i++)
         global_index[i] = i;
 
-    this->search_tree_root = new Search_tree_node(NULL, coord_values, global_index, num_points, boundry, PDLN_NODE_TYPE_COMMON);
+    search_tree_root = new Search_tree_node(NULL, coord_values, global_index, num_points, boundry, PDLN_NODE_TYPE_COMMON);
     this->active_processing_common_id = NULL;
     this->workloads = NULL;
     //this->initialze_workload();
@@ -706,9 +685,9 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
 
 Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 {
-    delete this->search_tree_root;
-    delete[] this->active_processing_common_id;
-    delete[] this->workloads; 
+    delete search_tree_root;
+    delete[] active_processing_common_id;
+    delete[] workloads; 
 }
 
 
@@ -719,31 +698,31 @@ void Delaunay_grid_decomposition::initialze_workload()
     double average_workload;
     bool* active_units_flag;
 
-    assert(this->min_num_points_per_chunk > 0);
-    max_num_processing_units = (grid_info_mgr->get_grid_num_points(this->original_grid) + this->min_num_points_per_chunk - 1) / this->min_num_points_per_chunk;
+    assert(min_num_points_per_chunk > 0);
+    max_num_processing_units = (grid_info_mgr->get_grid_num_points(original_grid) + min_num_points_per_chunk - 1) / min_num_points_per_chunk;
 
-    num_active_processing_units = std::min(this->processing_info->get_num_total_processing_units(), max_num_processing_units);
-    average_workload = (double)grid_info_mgr->get_grid_num_points(this->original_grid) / num_active_processing_units;
+    num_active_processing_units = std::min(processing_info->get_num_total_processing_units(), max_num_processing_units);
+    average_workload = (double)grid_info_mgr->get_grid_num_points(original_grid) / num_active_processing_units;
 
-    active_units_flag = new bool[this->processing_info->get_num_total_processing_units()];
-    if(this->active_processing_common_id != NULL)
-        delete[] this->active_processing_common_id;
-    if(this->workloads != NULL)
-        delete[] this->workloads;
+    active_units_flag = new bool[processing_info->get_num_total_processing_units()];
+    if(active_processing_common_id != NULL)
+        delete[] active_processing_common_id;
+    if(workloads != NULL)
+        delete[] workloads;
 
-    this->processing_info->pick_out_active_processing_units(num_active_processing_units, active_units_flag);
+    processing_info->pick_out_active_processing_units(num_active_processing_units, active_units_flag);
 
-    this->active_processing_common_id = new int[num_active_processing_units];
-    this->workloads = new double[num_active_processing_units];
-    for(i = 0, j = 0; i < this->processing_info->get_num_total_processing_units(); i++)
+    active_processing_common_id = new int[num_active_processing_units];
+    workloads = new double[num_active_processing_units];
+    for(i = 0, j = 0; i < processing_info->get_num_total_processing_units(); i++)
         if(active_units_flag[i]) {
-            this->workloads[j] = average_workload;
-            this->active_processing_common_id[j++] = i;
+            workloads[j] = average_workload;
+            active_processing_common_id[j++] = i;
         }
 
     assert(j == num_active_processing_units);
 
-    this->search_tree_root->update_processing_units_id(num_active_processing_units);
+    search_tree_root->update_processing_units_id(num_active_processing_units);
 
     delete[] active_units_flag;
 }
@@ -756,26 +735,26 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
 
     /* NOTE: This will make the final workload of leaf node not exactly more than min_num_points_per_chunk */
     if(ids.size() == 1) {
-        this->workloads[ids[0]] = total_workload;
+        workloads[ids[0]] = total_workload;
         return;
     }
 
     for(unsigned int i = 0; i < ids.size(); i++)
-        old_total_workload += this->workloads[ids[i]];
+        old_total_workload += workloads[ids[i]];
 
     for(unsigned int i = 0; i < ids.size(); i++)
-        this->workloads[ids[i]] = this->workloads[ids[i]] * total_workload / old_total_workload;
+        workloads[ids[i]] = workloads[ids[i]] * total_workload / old_total_workload;
 
     for(unsigned int i = 0; i < ids.size(); i++)
-        if(this->workloads[ids[i]] < this->min_num_points_per_chunk) {
-            unassigned_workload += this->workloads[ids[i]];
+        if(workloads[ids[i]] < min_num_points_per_chunk) {
+            unassigned_workload += workloads[ids[i]];
             ids.erase(ids.begin() + i);
         }
 
     assert(!0.0 > 0);
     if(unassigned_workload > 0)
         for(unsigned int i = 0; i < ids.size(); i++)
-            this->workloads[ids[i]] += unassigned_workload / ids.size();
+            workloads[ids[i]] += unassigned_workload / ids.size();
 }
 
 
@@ -790,8 +769,8 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
 
     assert(node->processing_units_id.size() > 0);
     if(node->processing_units_id.size() == 1) {
-        if(this->have_local_processing_units_id(node->processing_units_id))
-            this->local_leaf_nodes.push_back(node);
+        if(have_local_processing_units_id(node->processing_units_id))
+            local_leaf_nodes.push_back(node);
         return;
     }
     
@@ -815,10 +794,10 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     //printf("[Rank%d]x[ST-INFO-PRE] p: %p, first: %p, third: %p\n", rank, node, node->children[0], node->children[2]);
 
-    if(this->have_local_processing_units_id(node->children[0]->processing_units_id)) 
-        this->decompose_common_node_recursively(node->children[0]);
-    if(this->have_local_processing_units_id(node->children[2]->processing_units_id)) 
-        this->decompose_common_node_recursively(node->children[2]);
+    if(have_local_processing_units_id(node->children[0]->processing_units_id)) 
+        decompose_common_node_recursively(node->children[0]);
+    if(have_local_processing_units_id(node->children[2]->processing_units_id)) 
+        decompose_common_node_recursively(node->children[2]);
 }
 
 
@@ -827,7 +806,7 @@ Search_tree_node* Delaunay_grid_decomposition::alloc_search_tree_node(Search_tre
 {
     Search_tree_node *new_node = new Search_tree_node(parent, coord_values, index, num_points, boundary, type);
 
-    /* common_ids can be modified by this->update_workloads */
+    /* common_ids can be modified by update_workloads */
     update_workloads(num_points, common_ids);
 
     new_node->update_processing_units_id(common_ids);
@@ -1241,7 +1220,7 @@ void Delaunay_grid_decomposition::search_leaf_nodes_overlapping_with_region_recu
             if(do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry))
-                this->search_leaf_nodes_overlapping_with_region_recursively(node->children[i], region, leaf_nodes_found);
+                search_leaf_nodes_overlapping_with_region_recursively(node->children[i], region, leaf_nodes_found);
 }
 
 
@@ -1270,7 +1249,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             midline.value = PDLN_SPOLAR_MAX_LAT;
             search_tree_root->split_local_points(midline, child_cells_coord, child_cells_index, child_num_cells);
 
-            if(child_num_cells[0] < this->min_num_points_per_chunk) {
+            if(child_num_cells[0] < min_num_points_per_chunk) {
                 for(int i = 0; i < 4; i++)
                     delete[] child_cells_coord[i];
                 delete[] child_cells_index[0];
@@ -1279,7 +1258,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             }
             child_boundry[0].max_lat = PDLN_SPOLAR_MAX_LAT;
             child_boundry[1].min_lat = PDLN_SPOLAR_MAX_LAT;
-            this->workloads[search_tree_root->processing_units_id[0]] -= child_num_cells[0];
+            workloads[search_tree_root->processing_units_id[0]] -= child_num_cells[0];
             child_proc_id[1].insert(child_proc_id[1].begin(), search_tree_root->processing_units_id[0]);
         }
         search_tree_root->children[0] = alloc_search_tree_node(search_tree_root, child_cells_coord,   child_cells_index[0], child_num_cells[0],
@@ -1288,21 +1267,21 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         search_tree_root->children[1] = alloc_search_tree_node(search_tree_root, child_cells_coord+2, child_cells_index[1], child_num_cells[1],
                                                                child_boundry[1], child_proc_id[1], PDLN_NODE_TYPE_COMMON);
 
-        this->current_tree_node = search_tree_root->children[1];
+        current_tree_node = search_tree_root->children[1];
         
-        if(this->have_local_processing_units_id(search_tree_root->children[0]->processing_units_id))
-            this->local_leaf_nodes.push_back(search_tree_root->children[0]);
+        if(have_local_processing_units_id(search_tree_root->children[0]->processing_units_id))
+            local_leaf_nodes.push_back(search_tree_root->children[0]);
     }
     
     if(assign_north_polar) {
         printf("Nouth polar need rotating.\n");
-        this->current_tree_node->decompose_by_processing_units_number(workloads, child_cells_coord, child_cells_index, child_num_cells, child_boundry, child_proc_id, PDLN_DECOMPOSE_NPOLAR_MODE);
-        if(child_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT || this->current_tree_node->processing_units_id.size() == 1) {
+        current_tree_node->decompose_by_processing_units_number(workloads, child_cells_coord, child_cells_index, child_num_cells, child_boundry, child_proc_id, PDLN_DECOMPOSE_NPOLAR_MODE);
+        if(child_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT || current_tree_node->processing_units_id.size() == 1) {
             midline.type = PDLN_LAT;
             midline.value = PDLN_NPOLAR_MIN_LAT;
-            this->current_tree_node->split_local_points(midline, child_cells_coord, child_cells_index, child_num_cells);
+            current_tree_node->split_local_points(midline, child_cells_coord, child_cells_index, child_num_cells);
 
-            if(child_num_cells[1] < this->min_num_points_per_chunk) {
+            if(child_num_cells[1] < min_num_points_per_chunk) {
                 for(int i = 0; i < 4; i++)
                     delete[] child_cells_coord[i];
                 delete[] child_cells_index[0];
@@ -1311,7 +1290,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             }
             child_boundry[0].max_lat = PDLN_NPOLAR_MIN_LAT;
             child_boundry[1].min_lat = PDLN_NPOLAR_MIN_LAT;
-            this->workloads[search_tree_root->processing_units_id.back()] -= child_num_cells[1];
+            workloads[search_tree_root->processing_units_id.back()] -= child_num_cells[1];
             child_proc_id[0].push_back(search_tree_root->processing_units_id.back());
         }
         if(search_tree_root->children[1] != NULL)
@@ -1322,10 +1301,10 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         search_tree_root->children[2] = alloc_search_tree_node(search_tree_root, child_cells_coord+2, child_cells_index[1], child_num_cells[1], child_boundry[1],
                                                                child_proc_id[1], PDLN_NODE_TYPE_NPOLAR);
 
-        this->current_tree_node = search_tree_root->children[1];
+        current_tree_node = search_tree_root->children[1];
 
-        if(this->have_local_processing_units_id(search_tree_root->children[2]->processing_units_id))
-            this->local_leaf_nodes.push_back(search_tree_root->children[2]);
+        if(have_local_processing_units_id(search_tree_root->children[2]->processing_units_id))
+            local_leaf_nodes.push_back(search_tree_root->children[2]);
     }
 
     for(int i = 0; i < 4; i++)
@@ -1346,28 +1325,28 @@ void Delaunay_grid_decomposition::assign_cyclic_grid_for_single_processing_unit(
     Midline midline;
 
     for(int i = 0; i < 4; i++)
-        child_cells_coord[i] = new double[this->current_tree_node->num_local_kernel_cells];
+        child_cells_coord[i] = new double[current_tree_node->num_local_kernel_cells];
     child_cells_index[0] = new int[search_tree_root->num_local_kernel_cells];
     child_cells_index[1] = new int[search_tree_root->num_local_kernel_cells];
 
-    assert(this->current_tree_node->processing_units_id.size() == 1);
+    assert(current_tree_node->processing_units_id.size() == 1);
     midline.type = PDLN_LON;
     midline.value = 180.0;
-    child_boundry[0] = child_boundry[1] = *this->current_tree_node->kernel_boundry;
+    child_boundry[0] = child_boundry[1] = *current_tree_node->kernel_boundry;
     child_boundry[0].max_lon = child_boundry[1].min_lon = 180.0;
-    child_proc_id[0] = child_proc_id[1] = this->current_tree_node->processing_units_id;
-    this->current_tree_node->split_local_points(midline, child_cells_coord, child_cells_index, child_num_cells);
-    this->workloads[this->current_tree_node->processing_units_id[0]] -= child_num_cells[0] + child_num_cells[1];
+    child_proc_id[0] = child_proc_id[1] = current_tree_node->processing_units_id;
+    current_tree_node->split_local_points(midline, child_cells_coord, child_cells_index, child_num_cells);
+    workloads[current_tree_node->processing_units_id[0]] -= child_num_cells[0] + child_num_cells[1];
 
-    this->current_tree_node->children[0] = alloc_search_tree_node(this->current_tree_node, child_cells_coord,   child_cells_index[0], child_num_cells[0], child_boundry[0],
+    current_tree_node->children[0] = alloc_search_tree_node(current_tree_node, child_cells_coord,   child_cells_index[0], child_num_cells[0], child_boundry[0],
                                                                   child_proc_id[0], PDLN_NODE_TYPE_COMMON);
 
-    this->current_tree_node->children[2] = alloc_search_tree_node(this->current_tree_node, child_cells_coord+2, child_cells_index[1], child_num_cells[1], child_boundry[1],
+    current_tree_node->children[2] = alloc_search_tree_node(current_tree_node, child_cells_coord+2, child_cells_index[1], child_num_cells[1], child_boundry[1],
                                                                   child_proc_id[1], PDLN_NODE_TYPE_COMMON);
 
-    assert(this->have_local_processing_units_id(child_proc_id[0]));
-    this->local_leaf_nodes.push_back(this->current_tree_node->children[0]);
-    this->local_leaf_nodes.push_back(this->current_tree_node->children[2]);
+    assert(have_local_processing_units_id(child_proc_id[0]));
+    local_leaf_nodes.push_back(current_tree_node->children[0]);
+    local_leaf_nodes.push_back(current_tree_node->children[2]);
 
     for(int i = 0; i < 4; i++)
         delete[] child_cells_coord[i];
@@ -1383,7 +1362,6 @@ void Delaunay_grid_decomposition::decompose_with_fixed_longitude(double fixed_lo
     Boundry child_boundry[2];
     int child_num_cells[2];
     vector<int> child_proc_id[2];
-    Midline midline;
 
     for(int i = 0; i < 4; i++)
         child_cells_coord[i] = new double[current_tree_node->num_local_kernel_cells];
@@ -1409,8 +1387,8 @@ void Delaunay_grid_decomposition::decompose_with_fixed_longitude(double fixed_lo
 bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> chunk_id)
 {
     for(unsigned int i = 0; i < chunk_id.size(); i++)
-        for(int j = 0; j < this->processing_info->get_num_local_proc_processing_units(); j++)
-            if(this->active_processing_common_id[chunk_id[i]] == this->processing_info->get_local_proc_common_id()[j])
+        for(int j = 0; j < processing_info->get_num_local_proc_processing_units(); j++)
+            if(active_processing_common_id[chunk_id[i]] == processing_info->get_local_proc_common_id()[j])
                 return true;
 
     return false;
@@ -1427,6 +1405,7 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 
     double min_lon, max_lon, min_lat, max_lat;
     bool is_non_monotonic;
+
     grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
     is_non_monotonic = min_lon > max_lon;
 
@@ -1504,7 +1483,7 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_region(B
     if(fabs(region.min_lat - region.max_lat) < PDLN_FLOAT_EQ_ERROR || fabs(region.min_lon - region.max_lon) < PDLN_FLOAT_EQ_ERROR)
         return leaf_nodes_found;
 
-    search_leaf_nodes_overlapping_with_region_recursively(this->search_tree_root, region, leaf_nodes_found);
+    search_leaf_nodes_overlapping_with_region_recursively(search_tree_root, region, leaf_nodes_found);
 
     double left_min_lon = region.min_lon - 360.0;
     double left_max_lon = region.max_lon - 360.0;
@@ -1565,7 +1544,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 {
     Boundry old_boundry = *tree_node->expanded_boundry;
     Boundry new_boundry = *tree_node->expanded_boundry;
-    int num_points_found;
+    //int num_points_found;
 
     if(tree_node->node_type == PDLN_NODE_TYPE_COMMON)
         new_boundry = new_boundry * expanding_ratio;
@@ -1638,7 +1617,7 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_halo(Bou
     if(*old_boundary == *new_boundary)
         return leaf_nodes_found;
 
-    search_points_in_halo_recursively(this->search_tree_root, old_boundary, new_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
+    search_points_in_halo_recursively(search_tree_root, old_boundary, new_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
 
     return leaf_nodes_found;
 }
@@ -1705,7 +1684,7 @@ void Delaunay_grid_decomposition::search_points_in_halo_recursively(Search_tree_
             if(do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry)) {
-                this->search_points_in_halo_recursively(node->children[i], old_boundary, new_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
+                search_points_in_halo_recursively(node->children[i], old_boundary, new_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
             }
         }
 }
