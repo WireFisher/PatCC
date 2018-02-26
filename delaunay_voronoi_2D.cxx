@@ -1232,7 +1232,7 @@ void Delaunay_Voronoi::relegalize_all_triangles()
 }
 
 
-void Delaunay_Voronoi::remove_triangles_out_of_boundary(double min_x, double max_x, double min_y, double max_y)
+void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, double max_x, double min_y, double max_y)
 {
     for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
         if(result_leaf_triangles[i]->is_leaf) {
@@ -1429,4 +1429,17 @@ void plot_triangles_info_file(const char *prefix, std::vector<Triangle*> t)
     delete tail_coord[0];
     delete tail_coord[1];
 
+}
+
+
+void save_triangles_info_file(const char *prefix, Triangle_Transport *t, int num)
+{
+    char filename[128];
+    FILE* fp;
+
+    snprintf(filename, 128, "%s.txt", prefix);
+    fp = fopen(filename, "w");
+    for(int i = 0; i < num; i++)
+        fprintf(fp, "[%d] (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", i, t[i].v[0].x, t[i].v[0].y, t[i].v[1].x, t[i].v[1].y, t[i].v[2].x, t[i].v[2].y);
+    fclose(fp);
 }

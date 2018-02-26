@@ -173,7 +173,7 @@ class Delaunay_Voronoi
         std::vector<Triangle*> search_cyclic_triangles_for_rotated_grid(Point, Point);
         void correct_cyclic_triangles(std::vector<Triangle*>, bool);
         void relegalize_all_triangles();
-        void remove_triangles_out_of_boundary(double, double, double, double);
+        void remove_triangles_on_or_out_of_boundary(double, double, double, double);
             
 
         /* debug */
@@ -191,5 +191,6 @@ class Triangle_Transport
 
 void plot_triangles_info_file(const char *filename, Triangle_Transport *t, int num);
 void plot_triangles_info_file(const char *filename, std::vector<Triangle*>);
+void save_triangles_info_file(const char *filename, Triangle_Transport *t, int num);
 
 #endif
