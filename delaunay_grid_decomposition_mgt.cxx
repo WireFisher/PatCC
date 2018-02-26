@@ -64,10 +64,18 @@ bool Boundry::operator== (Boundry &boundry)
     return min_lat == boundry.min_lat && min_lon == boundry.min_lon && max_lat == boundry.max_lat && max_lon == boundry.max_lon;
 }
 
+
 bool Boundry::operator!= (Boundry &boundry)
 {
     return !(min_lat == boundry.min_lat && min_lon == boundry.min_lon && max_lat == boundry.max_lat && max_lon == boundry.max_lon);
 }
+
+
+bool Boundry::operator<= (Boundry &boundry)
+{
+    return min_lat >= boundry.min_lat && min_lon >= boundry.min_lon && max_lat <= boundry.max_lat && max_lon <= boundry.max_lon;
+}
+
 
 Boundry& Boundry::operator* (double ratio)
 {
@@ -1544,7 +1552,6 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 {
     Boundry old_boundry = *tree_node->expanded_boundry;
     Boundry new_boundry = *tree_node->expanded_boundry;
-    //int num_points_found;
 
     if(tree_node->node_type == PDLN_NODE_TYPE_COMMON)
         new_boundry = new_boundry * expanding_ratio;
@@ -1554,8 +1561,6 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         new_boundry.min_lat -= (new_boundry.max_lat - new_boundry.min_lat) * expanding_ratio * 2;
 
     new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
-    //if(tree_node->processing_units_id[0] == 0)
-    //    printf("old: %lf, expanded: %lf\n", old_boundry.max_lat, new_boundry.max_lat);
 
     /*
     if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.max_lat >= 90 && new_boundry.max_lat >= 90)
@@ -1564,29 +1569,12 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         return 1;
     */
 
-    /* tree_node->expanded_boundry can be updated by this function */
     add_halo_points(tree_node, &old_boundry, &new_boundry);
-    //transform_into_rectangle(old_boundry, *tree_node->expanded_boundry, sub_rectangles);
-
-    //expanded_cells_coord[0] = new double[search_tree_root->num_local_kernel_cells]; //FIXME: buf too large
-    //expanded_cells_coord[1] = new double[search_tree_root->num_local_kernel_cells];
-    //expanded_index = new int[search_tree_root->num_local_kernel_cells];
-    //for(int i = 0; i < 4; i++){
-    //    num_points_found = 0;
-    //    vector<Search_tree_node*> leaf_nodes_found;
-    //    leaf_nodes_found = search_points_in_region(sub_rectangles[i], expanded_cells_coord, expanded_index, &num_points_found);
-    //    tree_node->add_expanded_points(expanded_cells_coord, expanded_index, num_points_found);
-    //    tree_node->add_neighbors(leaf_nodes_found);
-    //}
-
-    //delete[] expanded_cells_coord[0];
-    //delete[] expanded_cells_coord[1];
-    //delete[] expanded_index;
     return 0;
 }
 
 
-void Delaunay_grid_decomposition::add_halo_points(Search_tree_node* dst_tree_node, Boundry* old_boundary, Boundry* new_boundary)
+void Delaunay_grid_decomposition::add_halo_points(Search_tree_node* dst_tree_node, Boundry* inner_boundary, Boundry* outer_boundary)
 {
     double *expanded_cells_coord[2];
     int *expanded_index;
@@ -1596,7 +1584,7 @@ void Delaunay_grid_decomposition::add_halo_points(Search_tree_node* dst_tree_nod
     expanded_cells_coord[1] = new double[search_tree_root->num_local_kernel_cells];
     expanded_index = new int[search_tree_root->num_local_kernel_cells];
 
-    vector<Search_tree_node*> leaf_nodes_found = search_points_in_halo(old_boundary, new_boundary, expanded_cells_coord, expanded_index, &num_points_found);
+    vector<Search_tree_node*> leaf_nodes_found = search_points_in_halo(inner_boundary, outer_boundary, expanded_cells_coord, expanded_index, &num_points_found);
     dst_tree_node->add_expanded_points(expanded_cells_coord, expanded_index, num_points_found);
     dst_tree_node->add_neighbors(leaf_nodes_found);
 
@@ -1606,7 +1594,7 @@ void Delaunay_grid_decomposition::add_halo_points(Search_tree_node* dst_tree_nod
 }
 
 
-vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_halo(Boundry* old_boundary, Boundry* new_boundary,
+vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_halo(Boundry* inner_boundary, Boundry* outer_boundary,
                                                                              double *coord_values[2], int *global_idx,
                                                                              int *num_points_found)
 {
@@ -1614,17 +1602,17 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::search_points_in_halo(Bou
 
     *num_points_found = 0;
 
-    if(*old_boundary == *new_boundary)
+    if(*inner_boundary == *outer_boundary)
         return leaf_nodes_found;
 
-    search_points_in_halo_recursively(search_tree_root, old_boundary, new_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
+    search_points_in_halo_recursively(search_tree_root, inner_boundary, outer_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
 
     return leaf_nodes_found;
 }
 
 
-void Delaunay_grid_decomposition::search_points_in_halo_recursively(Search_tree_node *node, Boundry *old_boundary,
-                                                                    Boundry *new_boundary, vector<Search_tree_node*> &leaf_nodes_found,
+void Delaunay_grid_decomposition::search_points_in_halo_recursively(Search_tree_node *node, Boundry *inner_boundary,
+                                                                    Boundry *outer_boundary, vector<Search_tree_node*> &leaf_nodes_found,
                                                                     double *coord_values[2], int *global_idx,
                                                                     int *num_points_found)
 {
@@ -1640,16 +1628,16 @@ void Delaunay_grid_decomposition::search_points_in_halo_recursively(Search_tree_
     //}
     assert(node->processing_units_id.size() > 0);
 
-    Boundry region = *new_boundary;
+    Boundry region = *outer_boundary;
     if(node->processing_units_id.size() == 1) {
         if(do_two_regions_overlap(region, *node->kernel_boundry) ||
            do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->kernel_boundry) ||
            do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->kernel_boundry)) {
             //int rank;
             //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            //printf("[%d] (%lf, %lf, %lf, %lf), (%lf, %lf, %lf, %lf)\n", rank, old_boundary->min_lon, old_boundary->max_lon, old_boundary->min_lat, old_boundary->max_lat, node->expanded_boundry->min_lon, node->expanded_boundry->max_lon, node->expanded_boundry->min_lat, node->expanded_boundry->max_lat);
+            //printf("[%d] (%lf, %lf, %lf, %lf), (%lf, %lf, %lf, %lf)\n", rank, inner_boundary->min_lon, inner_boundary->max_lon, inner_boundary->min_lat, inner_boundary->max_lat, node->expanded_boundry->min_lon, node->expanded_boundry->max_lon, node->expanded_boundry->min_lat, node->expanded_boundry->max_lat);
             leaf_nodes_found.push_back(node);
-            node->search_points_in_halo(old_boundary, new_boundary, coord_values, global_idx, num_points_found);
+            node->search_points_in_halo(inner_boundary, outer_boundary, coord_values, global_idx, num_points_found);
         }
         return;
     }
@@ -1684,7 +1672,7 @@ void Delaunay_grid_decomposition::search_points_in_halo_recursively(Search_tree_
             if(do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry)) {
-                search_points_in_halo_recursively(node->children[i], old_boundary, new_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
+                search_points_in_halo_recursively(node->children[i], inner_boundary, outer_boundary, leaf_nodes_found, coord_values, global_idx, num_points_found);
             }
         }
 }
@@ -1695,8 +1683,8 @@ void Search_tree_node::search_points_in_halo(Boundry *inner_boundary, Boundry *o
                                              double *coord_values[2], int *global_idx,
                                              int *num_points_found)
 {
-    //Boundry sub_rectangles[4];
-    //transform_into_rectangle(*inner_boundary, *outer_boundary, sub_rectangles);
+    if(*kernel_boundry <= *inner_boundary)
+        return;
 
     Boundry l_inner = *inner_boundary;
     Boundry l_outer = *outer_boundary;
@@ -1712,26 +1700,26 @@ void Search_tree_node::search_points_in_halo(Boundry *inner_boundary, Boundry *o
     r_outer.max_lon += 360.0;
 
     //TODO: optimize if out of loop
-        for(int j = 0; j < num_local_kernel_cells; j++) {
-            if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], inner_boundary, outer_boundary)) {
-                coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j];
-                coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
-                global_idx[(*num_points_found)++] = local_cells_global_index[j];
-                continue;
-            }
-            if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], &l_inner, &l_outer)) {
-                coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j] + 360.0;
-                coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
-                global_idx[(*num_points_found)++] = local_cells_global_index[j];
-                continue;
-            }
-            if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], &r_inner, &r_outer)) {
-                coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j] - 360.0;
-                coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
-                global_idx[(*num_points_found)++] = local_cells_global_index[j];
-                continue;
-            }
+    for(int j = 0; j < num_local_kernel_cells; j++) {
+        if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], inner_boundary, outer_boundary)) {
+            coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j];
+            coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
+            global_idx[(*num_points_found)++] = local_cells_global_index[j];
+            continue;
         }
+        if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], &l_inner, &l_outer)) {
+            coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j] + 360.0;
+            coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
+            global_idx[(*num_points_found)++] = local_cells_global_index[j];
+            continue;
+        }
+        if (is_coordinate_in_halo(local_cells_coord[PDLN_LON][j], local_cells_coord[PDLN_LAT][j], &r_inner, &r_outer)) {
+            coord_values[PDLN_LON][*num_points_found] = local_cells_coord[PDLN_LON][j] - 360.0;
+            coord_values[PDLN_LAT][*num_points_found] = local_cells_coord[PDLN_LAT][j];
+            global_idx[(*num_points_found)++] = local_cells_global_index[j];
+            continue;
+        }
+    }
 }
 
 

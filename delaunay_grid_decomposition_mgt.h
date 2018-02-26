@@ -34,6 +34,7 @@ public:
     Boundry& operator* (double);
     bool operator== (Boundry& boundry);
     bool operator!= (Boundry& boundry);
+    bool operator<= (Boundry &boundry);
     void legalize();
     void legalize(const Boundry*, bool);
     void max(double, double, double, double);
