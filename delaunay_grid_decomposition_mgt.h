@@ -49,6 +49,7 @@ private:
     Boundry *expanded_boundry;
     Boundry *rotated_kernel_boundry;
     Boundry *rotated_expanded_boundry;
+    Boundry *real_boundry;
     double center[2];
     //double expanding_ratio;
     Midline midline;
@@ -60,17 +61,21 @@ private:
     int num_local_expanded_cells;//TODO:change name
     int num_rotated_cells; /* kernel + part of expanded */
     int node_type;
+    bool non_monotonic;
     
     vector<int> processing_units_id;
     vector<pair<Search_tree_node*, bool> > neighbors;
     Delaunay_Voronoi *triangulation;
+    void calculate_real_boundary();
     void fix_expanded_boundry(int index, int count);
 
 public:    
     Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type); //FIXME: remove default value;
     ~Search_tree_node();
-    void decompose_iteratively(double*, double **, int**, int*, Boundry*, vector<int>*, int);
-    void decompose_with_certain_line(Midline, double**, int**, int*);
+    void decompose_by_processing_units_number(double*, double**, int**, int*, Boundry*, vector<int>*, int);
+    void decompose_by_fixed_longitude(double, double*, double**, int**, int*, Boundry*, vector<int>*);
+    void split_local_points(Midline, double**, int**, int*);
+    void split_processing_units_by_points_number(double*, int, int, vector<int>, vector<int>*);
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
     void generate_local_triangulation(bool);
@@ -109,6 +114,7 @@ private:
     void initialze_workload();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*);
+    void decompose_with_fixed_longitude(double);
     void assign_cyclic_grid_for_single_processing_unit();
     bool have_local_processing_units_id(vector<int>);
     void update_workloads(int, vector<int>&);
@@ -126,7 +132,7 @@ private:
     /* different decompositon consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
     void compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
-    bool check_triangles_consistency(Triangle_Transport*, Triangle_Transport*, int);
+    bool check_triangles_consistency(Triangle_Transport*, Triangle_Transport*, int, bool);
     //void get_triangles_intersecting_with_segment_from_remote(int, Point, Point, vector<Triangle_Transport>*);
     
     /* process thread communication */
