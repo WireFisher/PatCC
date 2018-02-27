@@ -109,7 +109,6 @@ private:
     //int* active_processing_common_id;
     double* workloads;
     
-    int rotate_grid();
     void initialze_workload();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*);
@@ -118,21 +117,17 @@ private:
     bool have_local_processing_units_id(vector<int>);
     void update_workloads(int, vector<int>&);
     int expand_tree_node_boundry(Search_tree_node*, double);
-    vector<Search_tree_node*> search_points_in_region(Boundry, double**, int*, int*);
-    void transform_into_rectangle(Boundry, Boundry, Boundry*);
-    void search_leaf_nodes_overlapping_with_region_recursively(Search_tree_node*, Boundry, vector<Search_tree_node*>&);
     bool do_two_regions_overlap(Boundry, Boundry);
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, vector<int> &, int);
 
-    void add_halo_points(Search_tree_node* dst_tree_node, Boundry* old_boundary, Boundry* new_boundary);
-    vector<Search_tree_node*> search_points_in_halo(Boundry* old_boundary, Boundry* new_boundary,double *coord_values[2], int *global_idx, int *num_points_found);
-    void search_points_in_halo_recursively(Search_tree_node *node, Boundry *old_boundary, Boundry *new_boundary, vector<Search_tree_node*> &leaf_nodes_found, double *coord_values[2], int *global_idx, int *num_points_found);
+    void add_halo_points(Search_tree_node*, Boundry*, Boundry*);
+    vector<Search_tree_node*> search_points_in_halo(Boundry*, Boundry*, double**, int*, int*);
+    void search_down_for_points_in_halo(Search_tree_node*, Boundry*, Boundry*, vector<Search_tree_node*>&, double **, int*, int*);
 
     /* different decompositon consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
     void compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
-    bool check_triangles_consistency(Triangle_Transport*, Triangle_Transport*, int, bool);
-    //void get_triangles_intersecting_with_segment_from_remote(int, Point, Point, vector<Triangle_Transport>*);
+    bool check_triangles_consistency(Triangle_Transport*, Triangle_Transport*, int);
     
     /* process thread communication */
     int recv_triangles_from_remote(int, int, Triangle_Transport *, int, int);
@@ -145,7 +140,6 @@ private:
     void save_ordered_triangles_into_file(Triangle_Transport *, int);
 
 public:
-    //Delaunay_grid_decomposition(int, Processing_resource*);
     Delaunay_grid_decomposition(int, Processing_resource*, int);
     ~Delaunay_grid_decomposition();
     int generate_grid_decomposition();
