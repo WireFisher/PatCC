@@ -393,10 +393,11 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
 
         midline.value = boundry_values[midline.type] + length[midline.type] * child_total_workload[0] / (child_total_workload[0] + child_total_workload[1]);
         split_local_points(midline, child_points_coord, child_points_idx, child_num_points);
-        assert(child_num_points[0] != 0 && child_num_points[1] != 0);
 
         iteration_count = 1;
-        while(fabs(child_num_points[0]/child_num_points[1] - child_total_workload[0]/child_total_workload[1]) > PDLN_TOLERABLE_ERROR) {
+        while (child_num_points[0] == 0 || child_num_points[1] == 0 ||
+               fabs(child_num_points[0]/child_num_points[1] - child_total_workload[0]/child_total_workload[1]) > PDLN_TOLERABLE_ERROR) {
+
             if(iteration_count++ > PDLN_MAX_ITER_COUNT)
                 break;
 
@@ -416,7 +417,6 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
             assert(midline.value < boundry_values[2+midline.type]);
             /* TODO: Search only half of the whole points, but not the whole points */
             split_local_points(midline, child_points_coord, child_points_idx, child_num_points);
-            assert(child_num_points[0] != 0 && child_num_points[1] != 0);
         }
     }
     else
