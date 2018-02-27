@@ -745,14 +745,13 @@ void Delaunay_grid_decomposition::initialze_workload()
     assert(active_processing_common_id.size() == (unsigned int)num_active_processing_units);
 
     search_tree_root->update_processing_units_id(active_processing_common_id);
-
 }
 
 
 void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<int> &ids)
 {
     double old_total_workload = 0.0;
-    double unassigned_workload = 0.0;
+    double unassigned_workload;
 
     /* NOTE: This will make the final workload of leaf node not exactly more than min_num_points_per_chunk */
     if(ids.size() == 1) {
@@ -767,20 +766,22 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
         workloads[ids[i]] = workloads[ids[i]] * total_workload / old_total_workload;
 
     for(unsigned int i = 0; i < ids.size();) {
+        if(ids.size() < 2)
+            break;
+
         if(workloads[ids[i]] < min_num_points_per_chunk) {
-            unassigned_workload += workloads[ids[i]];
+            unassigned_workload = workloads[ids[i]];
             workloads[ids[i]] = 0;
             active_processing_units_flag[ids[i]] = false;
             ids.erase(ids.begin() + i);
+            for(unsigned int j = 0; j < ids.size(); j++)
+                workloads[ids[j]] += unassigned_workload / ids.size();
         }
         else
             i++;
     }
 
-    assert(!0.0 > 0);
-    if(unassigned_workload > 0)
-        for(unsigned int i = 0; i < ids.size(); i++)
-            workloads[ids[i]] += unassigned_workload / ids.size();
+    assert(ids.size() > 0);
 }
 
 
@@ -830,6 +831,7 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
 Search_tree_node* Delaunay_grid_decomposition::alloc_search_tree_node(Search_tree_node* parent, double *coord_values[2], int *index, 
                                                                       int num_points, Boundry boundary, vector<int> &common_ids, int type)
 {
+    assert(common_ids.size() > 0);
     Search_tree_node *new_node = new Search_tree_node(parent, coord_values, index, num_points, boundary, type);
 
     /* common_ids can be modified by update_workloads */
@@ -1835,7 +1837,6 @@ bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
     //TODO: openmp parallel
-    bool expand_fail = false;
 
     if(local_leaf_nodes.size() > 1)
         printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
@@ -1846,13 +1847,11 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         int ret;
         double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
         int iter = 0;
-        bool all_done = false;
         bool local_done = false;
-        while(!all_done) {
+        while(!local_done) {
             if(!local_done && check_leaf_node_triangulation_consistency(local_leaf_nodes[i], iter) &&
                local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic))
                 local_done = true;
-            /* Actually, we don't have confidence in making the loop iterate only once by tuning. TODO: try to delete "don't" */
 
             if(local_done)
                 ret = 0;
@@ -1873,18 +1872,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             printf("===========%d===========\n", iter);
             //print_whole_search_tree_info();*/
 
-            int rets[512];
-            assert(processing_info->get_num_total_processes() <= 512);
-            memset(rets, 0, 512*sizeof(int));
-            MPI_Allgather(&ret, 1, MPI_INT, rets, 1, MPI_INT, processing_info->get_mpi_comm());
-            for (unsigned j = 0; j < 512; j++)
-                if (rets[j] != 0) {
-                    expand_fail = true;
-                    break;
-                }
-
-            if(expand_fail)
-                break;
 
             if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
                 local_leaf_nodes[i]->generate_rotated_grid();
@@ -1901,20 +1888,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 //return 2;
                 //break;
             }
-            bool remote_done[512];
-            assert(processing_info->get_num_total_processes() <= 512);
-            memset(remote_done, 1, 512*sizeof(bool));
-            MPI_Allgather(&local_done, 1*sizeof(bool), MPI_CHAR, remote_done, 1*sizeof(bool), MPI_CHAR, processing_info->get_mpi_comm());
-            all_done = true;
-            for (unsigned j = 0; j < 512; j++)
-                if (!remote_done[j]) {
-                    all_done = false;
-                    break;
-                }
         }
     }
-    if(expand_fail)
-        return 1;
     return 0;
 }
 
