@@ -689,12 +689,13 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lon, &boundry.max_lon, &boundry.min_lat, &boundry.max_lat);
     this->processing_info->get_num_total_processing_units();
 
+    this->active_processing_units_flag = new bool[processing_info->get_num_total_processing_units()];
+
     global_index = new int[num_points];
     for(int i = 0; i < num_points; i++)
         global_index[i] = i;
 
     search_tree_root = new Search_tree_node(NULL, coord_values, global_index, num_points, boundry, PDLN_NODE_TYPE_COMMON);
-    this->active_processing_common_id = NULL;
     this->workloads = NULL;
     //this->initialze_workload();
     
@@ -706,45 +707,45 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
 Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 {
     delete search_tree_root;
-    delete[] active_processing_common_id;
-    delete[] workloads; 
+    if(workloads != NULL)
+        delete[] workloads; 
+    delete[] active_processing_units_flag;
 }
 
 
 void Delaunay_grid_decomposition::initialze_workload()
 {
     int max_num_processing_units, num_active_processing_units;
-    int i, j;
     double average_workload;
-    bool* active_units_flag;
+    std::vector<int> active_processing_common_id;
 
     assert(min_num_points_per_chunk > 0);
     max_num_processing_units = (grid_info_mgr->get_grid_num_points(original_grid) + min_num_points_per_chunk - 1) / min_num_points_per_chunk;
 
     num_active_processing_units = std::min(processing_info->get_num_total_processing_units(), max_num_processing_units);
+    printf("active: %d, total: %d\n", num_active_processing_units, processing_info->get_num_total_processing_units());
+
     average_workload = (double)grid_info_mgr->get_grid_num_points(original_grid) / num_active_processing_units;
 
-    active_units_flag = new bool[processing_info->get_num_total_processing_units()];
-    if(active_processing_common_id != NULL)
-        delete[] active_processing_common_id;
     if(workloads != NULL)
         delete[] workloads;
+    workloads = new double[processing_info->get_num_total_processing_units()];
 
-    processing_info->pick_out_active_processing_units(num_active_processing_units, active_units_flag);
+    processing_info->pick_out_active_processing_units(num_active_processing_units, active_processing_units_flag);
 
-    active_processing_common_id = new int[num_active_processing_units];
-    workloads = new double[num_active_processing_units];
-    for(i = 0, j = 0; i < processing_info->get_num_total_processing_units(); i++)
-        if(active_units_flag[i]) {
-            workloads[j] = average_workload;
-            active_processing_common_id[j++] = i;
+    for(int i = 0; i < processing_info->get_num_total_processing_units(); i++) {
+        if(active_processing_units_flag[i]) {
+            workloads[i] = average_workload;
+            active_processing_common_id.push_back(i);
         }
+        else
+            workloads[i] = 0;
+    }
 
-    assert(j == num_active_processing_units);
+    assert(active_processing_common_id.size() == (unsigned int)num_active_processing_units);
 
-    search_tree_root->update_processing_units_id(num_active_processing_units);
+    search_tree_root->update_processing_units_id(active_processing_common_id);
 
-    delete[] active_units_flag;
 }
 
 
@@ -765,11 +766,16 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
     for(unsigned int i = 0; i < ids.size(); i++)
         workloads[ids[i]] = workloads[ids[i]] * total_workload / old_total_workload;
 
-    for(unsigned int i = 0; i < ids.size(); i++)
+    for(unsigned int i = 0; i < ids.size();) {
         if(workloads[ids[i]] < min_num_points_per_chunk) {
             unassigned_workload += workloads[ids[i]];
+            workloads[ids[i]] = 0;
+            active_processing_units_flag[ids[i]] = false;
             ids.erase(ids.begin() + i);
         }
+        else
+            i++;
+    }
 
     assert(!0.0 > 0);
     if(unassigned_workload > 0)
@@ -1302,7 +1308,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
     child_points_index[1] = new int[search_tree_root->num_kernel_points];
 
     if(assign_south_polar) {
-        printf("South polar need rotating.\n");
+        //printf("South polar need rotating.\n");
         search_tree_root->decompose_by_processing_units_number(workloads, child_points_coord, child_points_index, child_num_points, child_boundry, child_proc_id, PDLN_DECOMPOSE_SPOLAR_MODE);
         if(child_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT || search_tree_root->processing_units_id.size() == 1) {
             midline.type = PDLN_LAT;
@@ -1334,7 +1340,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
     }
     
     if(assign_north_polar) {
-        printf("Nouth polar need rotating.\n");
+        //printf("Nouth polar need rotating.\n");
         current_tree_node->decompose_by_processing_units_number(workloads, child_points_coord, child_points_index, child_num_points, child_boundry, child_proc_id, PDLN_DECOMPOSE_NPOLAR_MODE);
         if(child_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT || current_tree_node->processing_units_id.size() == 1) {
             midline.type = PDLN_LAT;
@@ -1446,9 +1452,9 @@ void Delaunay_grid_decomposition::decompose_with_fixed_longitude(double fixed_lo
 //TODO: get faster
 bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> chunk_id)
 {
-    for(unsigned int i = 0; i < chunk_id.size(); i++)
-        for(int j = 0; j < processing_info->get_num_local_proc_processing_units(); j++)
-            if(active_processing_common_id[chunk_id[i]] == processing_info->get_local_proc_common_id()[j])
+    for(int j = 0; j < processing_info->get_num_local_proc_processing_units(); j++)
+        for(unsigned int i = 0; i < chunk_id.size(); i++)
+            if(chunk_id[i] == processing_info->get_local_proc_common_id()[j])
                 return true;
 
     return false;
@@ -1834,6 +1840,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     if(local_leaf_nodes.size() > 1)
         printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
 
+    if(local_leaf_nodes.size() == 0)
+        printf("NULL: %d\n", processing_info->get_local_process_id());
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
         int ret;
         double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
@@ -2163,7 +2171,7 @@ Grid_info_manager::Grid_info_manager()
         }
 
     delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
-    printf("num points: %d\n", num_points);
+    //printf("num points: %d\n", num_points);
     assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
 
     for(int i = 0; i < num_points/100; i++) {
