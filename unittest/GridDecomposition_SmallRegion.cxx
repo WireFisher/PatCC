@@ -51,12 +51,12 @@ static void get_different_hostname(char* hostname, int len)
         ASSERT_TRUE(false);
 }
 
-static void get_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
+static void get_boundry(int grid_id, double* min_lon, double* max_lon, double* min_lat, double* max_lat)
 {
-    *min_lat = -30.0;
-    *max_lat =  30.0;
     *min_lon =  90.0;
     *max_lon = 180.0;
+    *min_lat = -30.0;
+    *max_lat =  30.0;
 }
 
 TEST(GridDecompositionTest, SmallRegion) {
@@ -118,9 +118,9 @@ TEST(GridDecompositionTest, SmallRegion) {
     log_file = fopen(log_path, "w");
     fprintf(log_file, "size: %zu\n", grid_decomp->get_local_leaf_nodes().size());
     for(unsigned int i = 0; i < grid_decomp->get_local_leaf_nodes().size(); i++) {
-        fprintf(log_file, "-%u: %d-\n",i ,grid_decomp->get_local_leaf_nodes()[i]->get_num_local_kernel_cells());
-        for(int j=0; j < grid_decomp->get_local_leaf_nodes()[i]->get_num_local_kernel_cells(); j++)
-            fprintf(log_file, "  (%lf, %lf)\n", grid_decomp->get_local_leaf_nodes()[i]->get_local_cells_coord()[0][j], grid_decomp->get_local_leaf_nodes()[i]->get_local_cells_coord()[1][j]);
+        fprintf(log_file, "-%u: %d-\n",i ,grid_decomp->get_local_leaf_nodes()[i]->get_num_kernel_points());
+        for(int j=0; j < grid_decomp->get_local_leaf_nodes()[i]->get_num_kernel_points(); j++)
+            fprintf(log_file, "  (%lf, %lf)\n", grid_decomp->get_local_leaf_nodes()[i]->get_points_coord()[0][j], grid_decomp->get_local_leaf_nodes()[i]->get_points_coord()[1][j]);
     }
     fclose(log_file);
 

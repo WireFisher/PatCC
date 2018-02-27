@@ -51,7 +51,7 @@ static void get_different_hostname(char* hostname, int len)
         ASSERT_TRUE(false);
 }
 
-static void get_boundry(int grid_id, double* min_lat, double* max_lat, double* min_lon, double* max_lon)
+static void get_boundry(int grid_id, double* min_lon, double* max_lon, double* min_lat, double* max_lat)
 {
     *min_lat = -90.0;
     *max_lat =  90.0;
