@@ -280,6 +280,7 @@ void Search_tree_node::split_local_points(Midline midline, double *child_points_
         midline.value -= 360.0;
 
     if(non_monotonic && midline.type == PDLN_LON) {
+        assert(false);
         if(midline.value > kernel_boundry->min_lon) {
             for(int i = 0; i < num_kernel_points; i ++) {
                 if(points_coord[midline.type][i] < midline.value && points_coord[midline.type][i] >= kernel_boundry->min_lon) {
@@ -1024,9 +1025,14 @@ bool Delaunay_grid_decomposition::check_triangles_consistency(Triangle_Transport
     }
 
     for(int i = 0; i < num_triangles; i++) {
-        if(hash_table.find(t2[i]) == hash_table.end())
+        if(hash_table.find(t2[i]) == hash_table.end()) {
+            delete[] t1;
+            delete[] t2;
             return false;
+        }
     }
+    delete[] t1;
+    delete[] t2;
     return true;
 }
 
@@ -1199,6 +1205,13 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             }
         }
         leaf_node->neighbors[i].second = true;
+    }
+
+    for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
+        delete [] local_triangle[i];
+        delete [] remote_triangle[i];
+        delete [] extra_local_triangle[i];
+        delete [] extra_remote_triangle[i];
     }
 
     if(check_passed) {
@@ -1779,6 +1792,16 @@ int compare_v0(const void* a, const void* b)
     return 0;
 }
 
+int compare_lon(const void* a, const void* b)
+{
+    Triangle_Transport t1 = *(const Triangle_Transport*)a;
+    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+
+    if(t1.v[0].x < t2.v[0].x) return -1;
+    if(t1.v[0].x > t2.v[0].x) return  1;
+    return 0;
+}
+
 int compare_int(const void* a, const void* b)
 {
     int t1 = *(const int*)a;
@@ -1792,6 +1815,7 @@ int compare_int(const void* a, const void* b)
 static void radix_sort(Triangle_Transport *triangles, int num_triangles)
 {
     assert(sizeof(Triangle_Transport) > sizeof(void *)/2);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_lon);
     merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v2);
     merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v1);
     merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v0);
@@ -1806,27 +1830,28 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
         if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
     }
 
+    printf("sorting %d triangles\n", num_triangles);
     radix_sort(triangles, num_triangles);
+    printf("sorted\n");
 
     for(i = 0, j = 1; j < num_triangles; j++) {
         if(triangles[i].v[0].id == triangles[j].v[0].id &&
            triangles[i].v[1].id == triangles[j].v[1].id &&
-           triangles[i].v[2].id == triangles[j].v[2].id)
+           triangles[i].v[2].id == triangles[j].v[2].id) {
             continue;
+        }
         else
             triangles[++i] = triangles[j];
     }
     int num_different_triangles = i + 1;
+    //int num_different_triangles = num_triangles;
     
     FILE *fp = fopen("log/global_triangles", "w");
     for(i = 0; i < num_different_triangles; i++)
         fprintf(fp, "%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
     fclose(fp);
 
-    //char filename[64];
-    //snprintf(filename, 64, "log/image_global_triangles%d");
-    //plot_triangles_info_file("log/image_global_triangles", triangles, num_different_triangles);
-
+    plot_triangles_info_file("log/image_global_triangles", triangles, num_different_triangles);
 }
 
 
@@ -1864,7 +1889,7 @@ void Delaunay_grid_decomposition::merge_all_triangles()
         for(int i = 1; i < processing_info->get_num_total_processes(); i++)
             MPI_Recv(&num_remote_triangles[i], 1, MPI_INT, i, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm(), &status);
         for(int i = 1; i < processing_info->get_num_total_processes(); i++) {
-            assert(num_remote_triangles[i] > min_num_points_per_chunk/2);
+            //assert(num_remote_triangles[i] > min_num_points_per_chunk/2);
             remote_buf_len += num_remote_triangles[i];
         }
         remote_triangles = new Triangle_Transport[remote_buf_len + num_local_triangles];
@@ -1907,6 +1932,7 @@ static double fRand(double fMin, double fMax)
 
 Grid_info_manager::Grid_info_manager()
 {
+    /*
     int size = 300;
 
     num_points = size * size;
@@ -1926,8 +1952,7 @@ Grid_info_manager::Grid_info_manager()
     coord_values[1][0] = -90.0;
     coord_values[0][299] = 0.0;
     coord_values[1][299] = 90.0;
-
-    /*
+*/
     int num_dims;
     int *dim_size_ptr;
     int field_size;
@@ -1954,16 +1979,13 @@ Grid_info_manager::Grid_info_manager()
     delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
     //printf("num points: %d\n", num_points);
     assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
-    */
 
-    /*
     for(int i = 0; i < num_points/100; i++) {
         coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
         coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
     }
     num_points /= 100;
     printf("num points: %d\n", num_points);
-    */
 
 }
 
@@ -1991,7 +2013,7 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* m
 {
     //*min_lat = -89.0;
     //*max_lat =  89.0;
-    *min_lat = -90.0;
+    *min_lat = -80.0;
     *max_lat =  90.0;
     //*min_lat = -30.0;
     //*max_lat = 30.0;

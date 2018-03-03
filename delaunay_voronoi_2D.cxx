@@ -1255,7 +1255,7 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
     std::vector<Triangle*> ts = find_triangles_intersecting_with_segment(head, tail);
 
     for(unsigned i = 0; i < ts.size(); i++)
-        output_triangles[current++] = Triangle_Transport(Point(ts[i]->v[0]->x, ts[i]->v[0]->y, global_index[ts[i]->v[0]->id]), 
+        output_triangles[current++] = Triangle_Transport(Point(ts[i]->v[0]->x, ts[i]->v[0]->y, global_index[ts[i]->v[0]->id]),  // TODO: use global_index as id directly
                                                          Point(ts[i]->v[1]->x, ts[i]->v[1]->y, global_index[ts[i]->v[1]->id]), 
                                                          Point(ts[i]->v[2]->x, ts[i]->v[2]->y, global_index[ts[i]->v[2]->id]));
 
@@ -1267,9 +1267,10 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
 
 /* including triangles intersecting with boundary */
 void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, double min_y, double max_y, 
-                                               Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
+                                               Triangle_Transport *output_triangles, int *output_num_triangles, int buf_len)
 {
     int current = 0;
+    int num_triangles = 0;
 
     //printf("result_leaf_triangles.size: %lu\n", result_leaf_triangles.size());
     for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
@@ -1285,21 +1286,23 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
             }
 
         if(in) {
-            output_triangles[current++] = Triangle_Transport(*result_leaf_triangles[i]->v[0], *result_leaf_triangles[i]->v[1], *result_leaf_triangles[i]->v[2]);
+            output_triangles[current++] = Triangle_Transport(Point(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, global_index[result_leaf_triangles[i]->v[0]->id]),
+                                                             Point(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, global_index[result_leaf_triangles[i]->v[1]->id]),
+                                                             Point(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, global_index[result_leaf_triangles[i]->v[2]->id]));
             //printf("inner: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
         }
     }
     assert(current < buf_len);
     //printf("kernel: %d, buf_len: %d\n", current, buf_len);
 
-    get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, num_triangles, buf_len-current);
-    current += *num_triangles;
-    get_triangles_intersecting_with_segment(Point(max_x, min_y), Point(max_x, max_y), output_triangles+current, num_triangles, buf_len-current);
-    current += *num_triangles;
-    get_triangles_intersecting_with_segment(Point(max_x, max_y), Point(min_x, max_y), output_triangles+current, num_triangles, buf_len-current);
-    current += *num_triangles;
-    get_triangles_intersecting_with_segment(Point(min_x, max_y), Point(min_x, min_y), output_triangles+current, num_triangles, buf_len-current);
-    *num_triangles += current;
+    get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
+    current += num_triangles;
+    get_triangles_intersecting_with_segment(Point(max_x, min_y), Point(max_x, max_y), output_triangles+current, &num_triangles, buf_len-current);
+    current += num_triangles;
+    get_triangles_intersecting_with_segment(Point(max_x, max_y), Point(min_x, max_y), output_triangles+current, &num_triangles, buf_len-current);
+    current += num_triangles;
+    get_triangles_intersecting_with_segment(Point(min_x, max_y), Point(min_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
+    *output_num_triangles = current + num_triangles;
 }
 
 
