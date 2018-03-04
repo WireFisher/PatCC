@@ -15,6 +15,7 @@
 #include <cmath>
 #include <vector>
 #include <tr1/unordered_map>
+#include <sys/time.h>
 #include "merge_sort.h"
 #include "ccpl_utils.h"
 #include "netcdf_utils.h"
@@ -1153,9 +1154,9 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
                 //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
                 //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
                 
-                printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
-                                                                                    leaf_node->neighbors[i].first->processing_units_id[0],
-                                                                                    num_local_triangle[i], num_remote_triangle[i]);
+                //printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
+                //                                                                    leaf_node->neighbors[i].first->processing_units_id[0],
+                //                                                                    num_local_triangle[i], num_remote_triangle[i]);
                 check_passed = false;
                 continue;
             }
@@ -1166,8 +1167,8 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
                 //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
                 //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
 
-                printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0],
-                                                                               leaf_node->neighbors[i].first->processing_units_id[0]);
+                //printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0],
+                //                                                               leaf_node->neighbors[i].first->processing_units_id[0]);
                 check_passed = false;
                 continue;
             }
@@ -1183,9 +1184,9 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
                 //plot_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
                 //save_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
 
-                printf("[%d] checking extra consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
-                                                                                          leaf_node->neighbors[i].first->processing_units_id[0],
-                                                                                          num_extra_local_triangle[i], num_extra_remote_triangle[i]);
+                //printf("[%d] checking extra consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
+                //                                                                          leaf_node->neighbors[i].first->processing_units_id[0],
+                //                                                                          num_extra_local_triangle[i], num_extra_remote_triangle[i]);
                 check_passed = false;
                 continue;
             }
@@ -1198,8 +1199,8 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
                 //plot_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
                 //save_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
                 
-                printf("[%d] checking extra consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], 
-                                                                                     leaf_node->neighbors[i].first->processing_units_id[0]);
+                //printf("[%d] checking extra consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], 
+                //                                                                     leaf_node->neighbors[i].first->processing_units_id[0]);
                 check_passed = false;
                 continue;
             }
@@ -1215,7 +1216,7 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
     }
 
     if(check_passed) {
-        printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
+        //printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
         return true;
     }
     else {
@@ -1696,8 +1697,16 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
                 local_leaf_nodes[i]->generate_rotated_grid();
 
+            timeval start, end;
+            gettimeofday(&start, NULL);
             if(!local_done)
                 local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
+            gettimeofday(&end, NULL);
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            printf("[%3d] %dth generate_local_triangulation: %ldms, number of points: %d\n", rank, iter,
+                                                                                             ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000,
+                                                                                             local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expanded_points);
 
             expanding_ratio += 0.1;
             iter++;
@@ -1830,9 +1839,9 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
         if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
     }
 
-    printf("sorting %d triangles\n", num_triangles);
+    //printf("sorting %d triangles\n", num_triangles);
     radix_sort(triangles, num_triangles);
-    printf("sorted\n");
+    //printf("sorted\n");
 
     for(i = 0, j = 1; j < num_triangles; j++) {
         if(triangles[i].v[0].id == triangles[j].v[0].id &&
@@ -1985,7 +1994,7 @@ Grid_info_manager::Grid_info_manager()
         coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
     }
     num_points /= 100;
-    printf("num points: %d\n", num_points);
+    //printf("num points: %d\n", num_points);
 
 }
 

@@ -870,7 +870,6 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     gettimeofday(&start, NULL);
     current_delaunay_voronoi = this;
 
-
     num_cells = num_points;
 
     this->is_global_grid = is_global_grid;
@@ -891,7 +890,9 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 
     //assert(is_all_leaf_triangle_legal());
     gettimeofday(&end, NULL);
-    printf("Delaunay time elapsed: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);   
+    //int rank;
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //printf("[%3d] Kernel triangulation: %ldms, number of points: %d\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000, num_points);   
 }
 
 

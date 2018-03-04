@@ -1,6 +1,7 @@
 #include "component.h"
 #include <cassert>
 #include <cstdio>
+#include <sys/time.h>
 #define DEFAULT_MIN_NUM_POINTS 100
 #define MULTIPLICATION_COEFFICIENT 2
 
@@ -26,11 +27,22 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         if(this->delaunay_triangulation)
             delete this->delaunay_triangulation;
         this->delaunay_triangulation = new Delaunay_grid_decomposition(this->grid_id, proc_resource, min_num_points_per_chunk);
+
+        timeval start, end;
+        gettimeofday(&start, NULL);
         if(this->delaunay_triangulation->generate_grid_decomposition()) {
             do_sequentially = true;
             break;
         }
+        gettimeofday(&end, NULL);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        //printf("[%3d] Grid decomposition: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+
+        gettimeofday(&start, NULL);
         ret = this->delaunay_triangulation->generate_trianglulation_for_local_decomp();
+        gettimeofday(&end, NULL);
+        //printf("[%3d] Trianglulation for local decomp: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
         /* Return Values: 0 - success
          *                1 - fail, normal decomp's expanded_boundry exceeded -/+90 (expanding fail)
          *                2 - fail, polar  decomp's expanded_boundry exceeded threshold */
@@ -73,7 +85,7 @@ void Component::generate_delaunay_trianglulation(int grid_id)
 
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
     operating_grid->plot_triangles_into_file();
-    //operating_grid->merge_all_triangles();
+    operating_grid->merge_all_triangles();
     
     delete this->proc_resource;
 }
@@ -84,6 +96,8 @@ Process_thread_manager *process_thread_mgr;
 int main(int argc, char** argv)
 {
     MPI_Init(&argc, &argv);
+    timeval start, end;
+    gettimeofday(&start, NULL);
     process_thread_mgr = new Process_thread_manager();
     grid_info_mgr = new Grid_info_manager();
 
@@ -94,5 +108,10 @@ int main(int argc, char** argv)
 
     delete process_thread_mgr;
     delete grid_info_mgr;
+    gettimeofday(&end, NULL);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(rank == 0)
+        printf("Total time: %ldms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
     MPI_Finalize();
 }

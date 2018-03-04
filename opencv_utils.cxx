@@ -50,7 +50,7 @@ void plot_edge_into_file(const char *filename, double *head_coord[2], double *ta
     catch (cv::Exception& ex) {
         fprintf(stderr, "Exception converting image to PNG format: %s\n", ex.what());
     }
-    fprintf(stdout, "Saved PNG file: %s\n", filename);
+    //fprintf(stdout, "Saved PNG file: %s\n", filename);
 }
 
 
