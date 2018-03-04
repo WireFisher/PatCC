@@ -10,7 +10,7 @@
 #include <list>
 
 #define PI ((double) 3.14159265358979323846)
-#define FLOAT_ERROR (1e-10) // if less than 1e-10 will three point in a line, if more than 1e-15 will not pass check
+#define FLOAT_ERROR (1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
 #define FLOAT_ERROR_HI (1e-11) // normal grid less than 1e-11
 
 bool Print_Error_info=false;
@@ -902,9 +902,11 @@ Delaunay_Voronoi::~Delaunay_Voronoi()
         delete cells[i].center;
     delete [] cells;
     for (unsigned int i = 0; i < edge_pool.size(); i ++)
-        delete edge_pool[i];
+        //delete edge_pool[i];
+        edge_allocator.deleteElement(edge_pool[i]);
     for (unsigned int i = 0; i < triangle_pool.size(); i ++)
-        delete triangle_pool[i];
+        //delete triangle_pool[i];
+        triangle_allocator.deleteElement(triangle_pool[i]);
     current_delaunay_voronoi = NULL;
 }
 
@@ -1001,7 +1003,8 @@ void delete_redundent_points(double *&x, double *&y, int &num)
 
 Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
 {
-    Edge *new_edge = new Edge(head, tail);
+    //Edge *new_edge = new Edge(head, tail);
+    Edge *new_edge = edge_allocator.newElement(Edge(head, tail));
     edge_pool.push_back(new_edge);
 
     return new_edge;
@@ -1010,7 +1013,9 @@ Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
 
 Triangle *Delaunay_Voronoi::allocate_Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
 {
-    Triangle *new_triangle = new Triangle(edge1, edge2, edge3);
+    //Triangle *new_triangle = new Triangle(edge1, edge2, edge3);
+    Triangle *new_triangle = triangle_allocator.newElement(Triangle());
+    new_triangle->initialize_triangle_with_edges(edge1, edge2, edge3);
     triangle_pool.push_back(new_triangle);
 
     return new_triangle;

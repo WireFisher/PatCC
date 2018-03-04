@@ -15,6 +15,7 @@
 #include <list>
 #include <cmath>
 #include <iostream>
+#include "dependency/MemoryPool/C-98/MemoryPool.h"
 
 #ifdef UNITTEST
 #include "gtest/gtest_prod.h"
@@ -96,7 +97,6 @@ class Triangle
         double circum_radius;
         int circum_circle_contains(Point*);
 
-        Triangle(const Triangle &triangle);
         void initialize_triangle_with_edges(Edge*, Edge*, Edge*);
 
     public:
@@ -129,6 +129,8 @@ class Delaunay_Voronoi
         vector<Triangle*> result_leaf_triangles;
         vector<Triangle*> triangle_pool;
         vector<Edge*> edge_pool;
+        MemoryPool<Triangle, 0x10000*sizeof(Triangle)> triangle_allocator;
+        MemoryPool<Edge, 0x10000*sizeof(Edge)> edge_allocator;
         bool is_global_grid;
         int num_cells;
         Point *virtual_point[3];
