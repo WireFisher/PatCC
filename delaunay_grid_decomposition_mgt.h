@@ -127,7 +127,6 @@ private:
     /* different decompositon consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
     void compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
-    bool check_triangles_consistency(Triangle_Transport*, Triangle_Transport*, int);
     
     /* process thread communication */
     int recv_triangles_from_remote(int, int, Triangle_Transport *, int, int);

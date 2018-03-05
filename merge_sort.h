@@ -11,6 +11,7 @@
 #ifndef MERGE_SORT_H
 #define MERGE_SORT_H
 
+#include "cstdlib"
 
 #define ASSIGN(a, b, size)                              \
   do                                                    \

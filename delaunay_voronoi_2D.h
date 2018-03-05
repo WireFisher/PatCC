@@ -29,6 +29,8 @@ class Point;
 class Triangle;
 class Triangle_Transport;
 
+void sort_triangles(Triangle_Transport*, int);
+
 class Point
 {
     public:
@@ -158,6 +160,8 @@ class Delaunay_Voronoi
         bool is_triangle_ambiguous(const Point *pt, const Edge *edge);
         void relegalize_triangles(Point*, Edge*);
         void remove_leaf_triangle(Triangle*);
+        void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
+        unsigned calculate_triangles_checksum(Triangle_Transport*, int);
 
     public:
         Delaunay_Voronoi(int, double*, double*, int*, bool, double, double, double, double, bool*);
@@ -168,7 +172,6 @@ class Delaunay_Voronoi
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
         bool is_all_leaf_triangle_legal();
-        void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
         bool check_if_all_outer_edge_out_of_region(double, double, double, double);
         void get_triangles_in_region(double, double, double, double, Triangle_Transport *, int *, int);
         void update_all_points_coord(double *, double *, int);
@@ -176,7 +179,7 @@ class Delaunay_Voronoi
         void correct_cyclic_triangles(std::vector<Triangle*>, bool);
         void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
-            
+        unsigned calculate_triangles_intersected_checksum(Point, Point);   
 
         /* debug */
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);

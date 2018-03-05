@@ -16,7 +16,6 @@
 #include <vector>
 #include <tr1/unordered_map>
 #include <sys/time.h>
-#include "merge_sort.h"
 #include "ccpl_utils.h"
 #include "netcdf_utils.h"
 #include "opencv_utils.h"
@@ -926,13 +925,6 @@ void Delaunay_grid_decomposition::send_triangles_to_remote(int src_common_id, in
         MPI_Isend(triangles_buf, num_triangles*sizeof(Triangle_Transport), MPI_CHAR,
                   processing_info->get_processing_unit(dst_common_id)->process_id, 
                   tag, processing_info->get_mpi_comm(), &request);
-        /*
-        char filename[64];
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        snprintf(filename, 64, "log/sending_triangle_%dto%d", rank, processing_info->get_processing_unit(dst_common_id)->process_id);
-        plot_triangles_info_file(filename, triangles_buf, num_triangles);
-        */
     }
 }
 
@@ -993,51 +985,6 @@ namespace std
 } 
 
 
-bool Delaunay_grid_decomposition::check_triangles_consistency(Triangle_Transport *triangles1, Triangle_Transport *triangles2, int num_triangles)
-{
-    //int rank;
-    //char filename[64];
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
-    //plot_triangles_info_file(filename, triangles1, num_triangles);
-    //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
-    //plot_triangles_info_file(filename, triangles2, num_triangles);
-
-    if(num_triangles == 0)
-        return true;
-
-    Triangle_ID_Only *t1, *t2;
-    
-    t1 = new Triangle_ID_Only[num_triangles];
-    t2 = new Triangle_ID_Only[num_triangles];
-
-    for(int i = 0; i < num_triangles; i++)
-        for(int j = 0; j < 3; j++) {
-            t1[i].id[j] = triangles1[i].v[j].id;
-            t2[i].id[j] = triangles2[i].v[j].id;
-        }
-
-    std::tr1::unordered_map<Triangle_ID_Only, bool> hash_table;
-
-    for(int i = 0; i < num_triangles; i++) {
-        if(hash_table.find(t1[i]) != hash_table.end())
-            assert(false); //triangles1 has redundant triangles
-        hash_table[t1[i]] = true;
-    }
-
-    for(int i = 0; i < num_triangles; i++) {
-        if(hash_table.find(t2[i]) == hash_table.end()) {
-            delete[] t1;
-            delete[] t2;
-            return false;
-        }
-    }
-    delete[] t1;
-    delete[] t2;
-    return true;
-}
-
-
 #define PDLN_COMM_TAG_MASK 0x0100
 #define PDLN_SET_MASK(tag)       ((PDLN_COMM_TAG_MASK|tag)<<1|0)
 #define PDLN_SET_MASK_EXTRA(tag) ((PDLN_COMM_TAG_MASK|tag)<<1|1)
@@ -1047,89 +994,65 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         return false;
     }
 
-    Triangle_Transport *local_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
-    Triangle_Transport *remote_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
-    Triangle_Transport *extra_local_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
-    Triangle_Transport *extra_remote_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
-    int triangle_buf_len;
-    int num_local_triangle[PDLN_MAX_NUM_PROCESSING_UNITS], num_remote_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
-    int num_extra_local_triangle[PDLN_MAX_NUM_PROCESSING_UNITS], num_extra_remote_triangle[PDLN_MAX_NUM_PROCESSING_UNITS];
+    unsigned *local_checksum, *remote_checksum, *extra_local_checksum, *extra_remote_checksum;
+    Point *common_boundary_head, *common_boundary_tail, *extra_common_boundary_head, *extra_common_boundary_tail;
 
     assert(leaf_node->processing_units_id.size() == 1);
-    assert(leaf_node->neighbors.size() <= PDLN_MAX_NUM_PROCESSING_UNITS);
     assert(iter < PDLN_COMM_TAG_MASK);
-    triangle_buf_len = search_tree_root->num_kernel_points / processing_info->get_num_total_processing_units();
     
-    for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
-        local_triangle[i] = NULL;
-        remote_triangle[i] = NULL;
-        extra_local_triangle[i] = NULL;
-        extra_remote_triangle[i] = NULL;
-        num_local_triangle[i] = 0;
-        num_remote_triangle[i] = 0;
-        num_extra_local_triangle[i] = 0;
-        num_extra_remote_triangle[i] = 0;
-    }
+    local_checksum = new unsigned[leaf_node->neighbors.size()];
+    remote_checksum = new unsigned[leaf_node->neighbors.size()];
+    extra_local_checksum = new unsigned[leaf_node->neighbors.size()];
+    extra_remote_checksum = new unsigned[leaf_node->neighbors.size()];
+
+    common_boundary_head = new Point[leaf_node->neighbors.size()];
+    common_boundary_tail = new Point[leaf_node->neighbors.size()];
+    extra_common_boundary_head = new Point[leaf_node->neighbors.size()];
+    extra_common_boundary_tail = new Point[leaf_node->neighbors.size()];
 
     vector<MPI_Request*> waiting_list;
 
-    /* send local triangles to neighbors */
+    /* calculate local checksum and send to neighbor */
     for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
         if(leaf_node->neighbors[i].second)
             continue;
+
         /* compute shared boundry of leaf_node and its neighbor */
-        Point boundry_head, boundry_tail, boundry2_head, boundry2_tail;
         assert(leaf_node->neighbors[i].first->processing_units_id.size() == 1);
-        compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &boundry_head, &boundry_tail, &boundry2_head, &boundry2_tail);
+        compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &common_boundary_head[i], &common_boundary_tail[i],
+                               &extra_common_boundary_head[i], &extra_common_boundary_tail[i]);
         
-        /* get triangles ,which the common boundry pass through, from leaf_node and its neighbor */
-        if(boundry_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            local_triangle[i] = new Triangle_Transport[triangle_buf_len];
-            remote_triangle[i] = new Triangle_Transport[triangle_buf_len];
-            leaf_node->triangulation->get_triangles_intersecting_with_segment(boundry_head, boundry_tail, local_triangle[i], &num_local_triangle[i], triangle_buf_len);
-            //printf("[%d]x[Send---] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_local_triangle[i], PDLN_SET_MASK(iter));
+        /* get checksum of triangles on the common boundry of leaf_node and its neighbor, and send to neighbors */
+        if(common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
+            local_checksum[i] = leaf_node->triangulation->calculate_triangles_intersected_checksum(common_boundary_head[i], common_boundary_tail[i]);
             waiting_list.push_back(new MPI_Request);
-            MPI_Isend(local_triangle[i], num_local_triangle[i]*sizeof(Triangle_Transport), MPI_CHAR,
-                      processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
+            MPI_Isend(&local_checksum[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
                       PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), waiting_list.back());
         }
 
-        if(boundry2_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            //printf("[common extra boundary] %d -> %d: (%lf, %lf) -> (%lf, %lf)\n", leaf_node->processing_units_id[0],
-            //                                                                 leaf_node->neighbors[i].first->processing_units_id[0],
-            //                                                                 boundry2_head.x, boundry2_head.y,
-            //                                                                 boundry2_tail.x, boundry2_tail.y);
-            extra_local_triangle[i] = new Triangle_Transport[triangle_buf_len];
-            extra_remote_triangle[i] = new Triangle_Transport[triangle_buf_len];
-            leaf_node->triangulation->get_triangles_intersecting_with_segment(boundry2_head, boundry2_tail, extra_local_triangle[i],
-                                                                              &num_extra_local_triangle[i], triangle_buf_len);
-            //printf("[%d]x[Send-EX] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], num_extra_local_triangle[i], PDLN_SET_MASK(iter));
+        if(extra_common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
+            extra_local_checksum[i] = leaf_node->triangulation->calculate_triangles_intersected_checksum(extra_common_boundary_head[i], extra_common_boundary_tail[i]);
             waiting_list.push_back(new MPI_Request);
-            MPI_Isend(extra_local_triangle[i], num_extra_local_triangle[i]*sizeof(Triangle_Transport), MPI_CHAR,
-                      processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
+            MPI_Isend(&extra_local_checksum[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
                       PDLN_SET_MASK_EXTRA(iter), processing_info->get_mpi_comm(), waiting_list.back());
         }
     }
 
-    /* recv triangles from neighbors */
+    /* recv checksum from neighbors */
     for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
         if(leaf_node->neighbors[i].second)
             continue;
-        Point boundry_head, boundry_tail, boundry2_head, boundry2_tail;
-        compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &boundry_head, &boundry_tail, &boundry2_head, &boundry2_tail);
 
-        if(boundry_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            assert(remote_triangle[i] != NULL);
-            num_remote_triangle[i] = recv_triangles_from_remote(leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0],
-                                                                remote_triangle[i], triangle_buf_len, PDLN_SET_MASK(iter));
-            //printf("[%d]x[Recv+++] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0], num_remote_triangle[i], PDLN_SET_MASK(iter));
+        if(common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
+            waiting_list.push_back(new MPI_Request);
+            MPI_Irecv(&remote_checksum[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id,
+                      PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), waiting_list.back());
         }
 
-        if(boundry2_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            assert(extra_remote_triangle[i] != NULL);
-            num_extra_remote_triangle[i] = recv_triangles_from_remote(leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0],
-                                                                      extra_remote_triangle[i], triangle_buf_len, PDLN_SET_MASK_EXTRA(iter));
-            //printf("[%d]x[Recv-EX] %d -> %d, num: %d, tag: %d\n", iter, leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0], num_extra_remote_triangle[i], PDLN_SET_MASK(iter));
+        if(extra_common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
+            waiting_list.push_back(new MPI_Request);
+            MPI_Irecv(&extra_remote_checksum[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id,
+                      PDLN_SET_MASK_EXTRA(iter), processing_info->get_mpi_comm(), waiting_list.back());
         }
     }
 
@@ -1138,69 +1061,29 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         MPI_Wait(waiting_list[i], &status);
     waiting_list.clear();
 
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
     /* do comparision */
     bool check_passed = true;
     for (unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
         if (leaf_node->neighbors[i].second)
             continue;
-        if (local_triangle[i] != NULL) {
-            if (num_local_triangle[i] != num_remote_triangle[i]) {
+        if(common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
+            if (local_checksum[i] != remote_checksum[i]) {
                 //char filename[64];
                 //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
                 //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
                 //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
                 //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
                 
-                //printf("[%d] checking consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
-                //                                                                    leaf_node->neighbors[i].first->processing_units_id[0],
-                //                                                                    num_local_triangle[i], num_remote_triangle[i]);
-                check_passed = false;
-                continue;
-            }
-            if (!check_triangles_consistency(local_triangle[i], remote_triangle[i], num_local_triangle[i])) {
-                //char filename[64];
-                //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
-                //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
-                //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
-                //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
-
-                //printf("[%d] checking consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0],
-                //                                                               leaf_node->neighbors[i].first->processing_units_id[0]);
+                printf("[%d] checking consistency fault\n", leaf_node->processing_units_id[0]);
                 check_passed = false;
                 continue;
             }
         }
 
-        if (extra_local_triangle[i] != NULL) {
-            if (num_extra_local_triangle[i] != num_extra_remote_triangle[i]) {
-                //char filename[64];
-                //snprintf(filename, 64, "log/boundary_triangle_ex_local%d", rank);
-                //plot_triangles_info_file(filename, extra_local_triangle[i], num_extra_local_triangle[i]);
-                //save_triangles_info_file(filename, extra_local_triangle[i], num_extra_local_triangle[i]);
-                //snprintf(filename, 64, "log/boundary_triangle_ex_remot%d", rank);
-                //plot_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
-                //save_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
+        if(extra_common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
+            if (extra_local_checksum[i] != extra_remote_checksum[i]) {
 
-                //printf("[%d] checking extra consistency %d vs %d: number fault %d, %d\n", rank, leaf_node->processing_units_id[0],
-                //                                                                          leaf_node->neighbors[i].first->processing_units_id[0],
-                //                                                                          num_extra_local_triangle[i], num_extra_remote_triangle[i]);
-                check_passed = false;
-                continue;
-            }
-            if (!check_triangles_consistency(extra_local_triangle[i], extra_remote_triangle[i], num_extra_local_triangle[i])) {
-                //char filename[64];
-                //snprintf(filename, 64, "log/boundary_triangle_ex_local%d", rank);
-                //plot_triangles_info_file(filename, extra_local_triangle[i], num_extra_local_triangle[i]);
-                //save_triangles_info_file(filename, extra_local_triangle[i], num_extra_local_triangle[i]);
-                //snprintf(filename, 64, "log/boundary_triangle_ex_remot%d", rank);
-                //plot_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
-                //save_triangles_info_file(filename, extra_remote_triangle[i], num_extra_remote_triangle[i]);
-                
-                //printf("[%d] checking extra consistency %d vs %d: triangle fault\n", rank, leaf_node->processing_units_id[0], 
-                //                                                                     leaf_node->neighbors[i].first->processing_units_id[0]);
+                printf("[%d] checking extra consistency fault\n", leaf_node->processing_units_id[0]);
                 check_passed = false;
                 continue;
             }
@@ -1208,19 +1091,21 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
         leaf_node->neighbors[i].second = true;
     }
 
-    for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
-        delete [] local_triangle[i];
-        delete [] remote_triangle[i];
-        delete [] extra_local_triangle[i];
-        delete [] extra_remote_triangle[i];
-    }
+    delete[] local_checksum;
+    delete[] remote_checksum;
+    delete[] extra_local_checksum;
+    delete[] extra_remote_checksum;
+
+    delete[] common_boundary_head;
+    delete[] common_boundary_tail;
+    delete[] extra_common_boundary_head;
+    delete[] extra_common_boundary_tail;
 
     if(check_passed) {
         //printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
         return true;
     }
     else {
-        //printf("[%d] checking consistency %d: Fail\n", rank, leaf_node->processing_units_id[0]);
         return false;
     }
 }
@@ -1763,86 +1648,11 @@ void Delaunay_grid_decomposition::print_whole_search_tree_info()
 }
 
 
-
-static inline void swap(Point *p1, Point *p2)
-{
-    Point tmp = *p1;
-    *p1 = *p2;
-    *p2 = tmp;
-}
-
-int compare_v2(const void* a, const void* b)
-{
-    Triangle_Transport t1 = *(const Triangle_Transport*)a;
-    Triangle_Transport t2 = *(const Triangle_Transport*)b;
-
-    if(t1.v[2].id < t2.v[2].id) return -1;
-    if(t1.v[2].id > t2.v[2].id) return  1;
-    return 0;
-}
-
-int compare_v1(const void* a, const void* b)
-{
-    Triangle_Transport t1 = *(const Triangle_Transport*)a;
-    Triangle_Transport t2 = *(const Triangle_Transport*)b;
-
-    if(t1.v[1].id < t2.v[1].id) return -1;
-    if(t1.v[1].id > t2.v[1].id) return  1;
-    return 0;
-}
-
-int compare_v0(const void* a, const void* b)
-{
-    Triangle_Transport t1 = *(const Triangle_Transport*)a;
-    Triangle_Transport t2 = *(const Triangle_Transport*)b;
-
-    if(t1.v[0].id < t2.v[0].id) return -1;
-    if(t1.v[0].id > t2.v[0].id) return  1;
-    return 0;
-}
-
-int compare_lon(const void* a, const void* b)
-{
-    Triangle_Transport t1 = *(const Triangle_Transport*)a;
-    Triangle_Transport t2 = *(const Triangle_Transport*)b;
-
-    if(t1.v[0].x < t2.v[0].x) return -1;
-    if(t1.v[0].x > t2.v[0].x) return  1;
-    return 0;
-}
-
-int compare_int(const void* a, const void* b)
-{
-    int t1 = *(const int*)a;
-    int t2 = *(const int*)b;
-
-    if(t1 < t2) return -1;
-    if(t1 > t2) return  1;
-    return 0;
-}
-
-static void radix_sort(Triangle_Transport *triangles, int num_triangles)
-{
-    assert(sizeof(Triangle_Transport) > sizeof(void *)/2);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_lon);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v2);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v1);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v0);
-}
-
 void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Transport *triangles, int num_triangles)
 {
+    sort_triangles(triangles, num_triangles);
+
     int i, j;
-    for(i = 0; i < num_triangles; i++) {
-        if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
-        if(triangles[i].v[1].id > triangles[i].v[2].id) swap(&triangles[i].v[1], &triangles[i].v[2]);
-        if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
-    }
-
-    //printf("sorting %d triangles\n", num_triangles);
-    radix_sort(triangles, num_triangles);
-    //printf("sorted\n");
-
     for(i = 0, j = 1; j < num_triangles; j++) {
         if(triangles[i].v[0].id == triangles[j].v[0].id &&
            triangles[i].v[1].id == triangles[j].v[1].id &&
@@ -1853,7 +1663,6 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
             triangles[++i] = triangles[j];
     }
     int num_different_triangles = i + 1;
-    //int num_different_triangles = num_triangles;
     
     FILE *fp = fopen("log/global_triangles", "w");
     for(i = 0; i < num_different_triangles; i++)
@@ -1967,6 +1776,8 @@ Grid_info_manager::Grid_info_manager()
     int field_size;
     int field_size2;
     void *coord_buf0, *coord_buf1;
+    bool squeeze = true;
+
     read_file_field("../three_polars_grid.nc", "nav_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
     delete dim_size_ptr;
     read_file_field("../three_polars_grid.nc", "nav_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
@@ -1989,12 +1800,14 @@ Grid_info_manager::Grid_info_manager()
     //printf("num points: %d\n", num_points);
     assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
 
-    for(int i = 0; i < num_points/100; i++) {
-        coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
-        coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+    if(squeeze) {
+        for(int i = 0; i < num_points/100; i++) {
+            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
+            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+        }
+        num_points /= 100;
+        //printf("num points: %d\n", num_points);
     }
-    num_points /= 100;
-    //printf("num points: %d\n", num_points);
 
 }
 

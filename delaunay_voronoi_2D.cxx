@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <tr1/unordered_map>
 #include <list>
+#include "merge_sort.h"
 
 #define PI ((double) 3.14159265358979323846)
 #define FLOAT_ERROR (1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
@@ -47,9 +48,81 @@ double compute_three_2D_points_cross_product(double center_coord1_value,
 
 double det(const Point *pt1, const Point *pt2, const Point *pt3)
 {
-//    return (pt1.lon-pt3.lon)*(pt2.lat-pt3.lat) - (pt1.lat-pt3.lat)*(pt2.lon-pt3.lon);
-//    return compute_three_3D_points_cross_product(pt3->x, pt3->y, pt3->z, pt1->x, pt1->y, pt1->z, pt2->x, pt2->y, pt2->z);
     return compute_three_2D_points_cross_product(pt3->x, pt3->y, pt1->x, pt1->y, pt2->x, pt2->y);
+}
+
+
+static inline void swap(Point *p1, Point *p2)
+{
+    Point tmp = *p1;
+    *p1 = *p2;
+    *p2 = tmp;
+}
+
+
+static int compare_v2(const void* a, const void* b)
+{
+    Triangle_Transport t1 = *(const Triangle_Transport*)a;
+    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+
+    if(t1.v[2].id < t2.v[2].id) return -1;
+    if(t1.v[2].id > t2.v[2].id) return  1;
+    return 0;
+}
+
+
+static int compare_v1(const void* a, const void* b)
+{
+    Triangle_Transport t1 = *(const Triangle_Transport*)a;
+    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+
+    if(t1.v[1].id < t2.v[1].id) return -1;
+    if(t1.v[1].id > t2.v[1].id) return  1;
+    return 0;
+}
+
+
+static int compare_v0(const void* a, const void* b)
+{
+    Triangle_Transport t1 = *(const Triangle_Transport*)a;
+    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+
+    if(t1.v[0].id < t2.v[0].id) return -1;
+    if(t1.v[0].id > t2.v[0].id) return  1;
+    return 0;
+}
+
+
+static int compare_lon(const void* a, const void* b)
+{
+    Triangle_Transport t1 = *(const Triangle_Transport*)a;
+    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+
+    if(t1.v[0].x < t2.v[0].x) return -1;
+    if(t1.v[0].x > t2.v[0].x) return  1;
+    return 0;
+}
+
+
+static inline void radix_sort(Triangle_Transport *triangles, int num_triangles)
+{
+    assert(sizeof(Triangle_Transport) > sizeof(void *)/2);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_lon);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v2);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v1);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v0);
+}
+
+
+void sort_triangles(Triangle_Transport *triangles, int num_triangles)
+{
+    for(int i = 0; i < num_triangles; i++) {
+        if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
+        if(triangles[i].v[1].id > triangles[i].v[2].id) swap(&triangles[i].v[1], &triangles[i].v[2]);
+        if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
+    }
+
+    radix_sort(triangles, num_triangles);
 }
 
 
@@ -849,7 +922,7 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
                     (*t)->edge[j]->twin_edge->twin_edge = NULL;
             }
             
-            result_leaf_triangles.erase(t);
+            result_leaf_triangles.erase(t); //TODO: erase is slow
         }
         else
             t++;
@@ -1254,6 +1327,7 @@ void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, doub
         }
 }
 
+
 void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
 {
     int current = 0;
@@ -1267,7 +1341,44 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
 
     assert(current < buf_len);
     *num_triangles = current;
-    return;
+}
+
+
+static inline unsigned hash_triangle_by_id(Triangle_Transport triangle)
+{
+    return triangle.v[0].id ^ (triangle.v[1].id << 1) ^ (triangle.v[2].id << 2);
+}
+
+unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_Transport *triangles, int num_triangles)
+{
+    if(num_triangles < 1)
+        return 0;
+
+    sort_triangles(triangles, num_triangles);
+
+    int checksum = hash_triangle_by_id(triangles[0]);
+    for(int i = 1; i < num_triangles; i ++)
+        checksum = checksum ^ hash_triangle_by_id(triangles[i]);
+
+    return checksum;
+}
+
+
+unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, Point tail)
+{
+    /* Let n be the number of points, if there are b vertices on the convex hull,
+     * then any triangulation of the points has at most 2n − 2 − b triangles,
+     * plus one exterior face */
+    Triangle_Transport *triangles = new Triangle_Transport[2*num_cells];
+    int num_triangles;
+    unsigned checksum;
+
+    get_triangles_intersecting_with_segment(head, tail, triangles, &num_triangles, 2*num_cells);
+
+    checksum = calculate_triangles_checksum(triangles, num_triangles);
+
+    delete[] triangles;
+    return checksum;
 }
 
 
