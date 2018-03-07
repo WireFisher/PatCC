@@ -131,7 +131,7 @@ class Delaunay_Voronoi
         vector<Triangle*> result_leaf_triangles;
         vector<Triangle*> triangle_pool;
         vector<Edge*> edge_pool;
-        MemoryPool<Triangle, 0x10000*sizeof(Triangle)> triangle_allocator;
+        MemoryPool<Triangle, 0x10000*sizeof(Triangle), Edge*, Edge*, Edge*> triangle_allocator;
         MemoryPool<Edge, 0x10000*sizeof(Edge)> edge_allocator;
         bool is_global_grid;
         int num_cells;

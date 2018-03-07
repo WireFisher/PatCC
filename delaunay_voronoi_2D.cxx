@@ -974,12 +974,14 @@ Delaunay_Voronoi::~Delaunay_Voronoi()
     for (int i = 0; i < num_cells; i ++)
         delete cells[i].center;
     delete [] cells;
+    /*
     for (unsigned int i = 0; i < edge_pool.size(); i ++)
-        //delete edge_pool[i];
-        edge_allocator.deleteElement(edge_pool[i]);
+        delete edge_pool[i];
+        //edge_allocator.deleteElement(edge_pool[i]);
     for (unsigned int i = 0; i < triangle_pool.size(); i ++)
-        //delete triangle_pool[i];
-        triangle_allocator.deleteElement(triangle_pool[i]);
+        delete triangle_pool[i];
+        //triangle_allocator.deleteElement(triangle_pool[i]);
+    */
     current_delaunay_voronoi = NULL;
 }
 
@@ -1087,8 +1089,11 @@ Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
 Triangle *Delaunay_Voronoi::allocate_Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
 {
     //Triangle *new_triangle = new Triangle(edge1, edge2, edge3);
-    Triangle *new_triangle = triangle_allocator.newElement(Triangle());
-    new_triangle->initialize_triangle_with_edges(edge1, edge2, edge3);
+    
+    //Triangle *new_triangle = new Triangle();
+    Triangle *new_triangle = triangle_allocator.newElement(edge1, edge2, edge3);
+    //Triangle *new_triangle = triangle_allocator.newElement(Triangle());
+    //new_triangle->initialize_triangle_with_edges(edge1, edge2, edge3);
     triangle_pool.push_back(new_triangle);
 
     return new_triangle;

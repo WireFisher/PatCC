@@ -26,7 +26,8 @@
 #include <limits.h>
 #include <stddef.h>
 
-template <typename T, size_t BlockSize = 4096>
+
+template <typename T, size_t BlockSize = 4096, typename constructor_type1 = unsigned, typename constructor_type2 = unsigned, typename constructor_type3 = unsigned>
 class MemoryPool
 {
   public:
@@ -60,9 +61,11 @@ class MemoryPool
     size_type max_size() const throw();
 
     void construct(pointer p, const_reference val);
+    void construct(pointer p, constructor_type1, constructor_type2, constructor_type3);
     void destroy(pointer p);
 
     pointer newElement(const_reference val);
+    pointer newElement(constructor_type1, constructor_type2, constructor_type3);
     void deleteElement(pointer p);
 
   private:
@@ -85,6 +88,7 @@ class MemoryPool
    /*
     static_assert(BlockSize >= 2 * sizeof(slot_type_), "BlockSize too small.");
     */
+    int alloc_block_times;
 };
 
 #include "MemoryPool.tcc"
