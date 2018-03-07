@@ -88,7 +88,6 @@ class MemoryPool
    /*
     static_assert(BlockSize >= 2 * sizeof(slot_type_), "BlockSize too small.");
     */
-    int alloc_block_times;
 };
 
 #include "MemoryPool.tcc"

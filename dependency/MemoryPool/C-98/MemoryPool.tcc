@@ -45,7 +45,6 @@ throw()
   currentSlot_ = 0;
   lastSlot_ = 0;
   freeSlots_ = 0;
-  alloc_block_times = 0;
 }
 
 
@@ -55,7 +54,6 @@ MemoryPool<T, BlockSize, constructor_type1, constructor_type2, constructor_type3
 throw()
 {
   MemoryPool();
-  alloc_block_times = 0;
 }
 
 
@@ -66,7 +64,6 @@ MemoryPool<T, BlockSize, constructor_type1, constructor_type2, constructor_type3
 throw()
 {
   MemoryPool();
-  alloc_block_times = 0;
 }
 
 
@@ -134,12 +131,8 @@ MemoryPool<T, BlockSize, constructor_type1, constructor_type2, constructor_type3
     return result;
   }
   else {
-    if (currentSlot_ >= lastSlot_) {
-      alloc_block_times ++;
-      //printf("allocing block\n");
-      printf("alloc_block_times: %d\n", alloc_block_times);
+    if (currentSlot_ >= lastSlot_)
       allocateBlock();
-    }
     return reinterpret_cast<pointer>(currentSlot_++);
   }
 }
