@@ -55,7 +55,7 @@ Processing_resource::Processing_resource() {
     if(num_local_threads <= 0)
         assert(false);
 
-    this->local_proc_common_id = new int[num_local_threads];
+    local_proc_common_id = new int[num_local_threads];
     num_threads_per_process = new int[num_total_processes];
     hostname_checksum_per_process = new unsigned int[num_total_processes];
 
@@ -69,13 +69,13 @@ Processing_resource::Processing_resource() {
         for(int j=0; j < num_threads_per_process[i]; j ++) 
             computing_nodes[hostname_checksum_per_process[i]].push_back(new Processing_unit(hostname_checksum_per_process[i], i, j));
 
-    this->identify_processing_units_by_hostname();
+    identify_processing_units_by_hostname();
 
     MAP_UINT_VECTOR_T::iterator it;
     for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
         for(unsigned int i = 0; i < it->second.size(); i++)
             if(it->second[i]->process_id == local_process_id)
-                this->local_proc_common_id[this->num_local_proc_processing_units++] = it->second[i]->common_id;
+                local_proc_common_id[num_local_proc_processing_units++] = it->second[i]->common_id;
 
     assert(num_local_proc_processing_units == num_local_threads);
 
@@ -88,10 +88,10 @@ Processing_resource::~Processing_resource() {
     MAP_UINT_VECTOR_T::iterator it;
 
     delete[] local_proc_common_id;
-    delete[] processing_units;
     for(it = computing_nodes.begin(); it != computing_nodes.end(); it ++)
         it->second.clear();
     computing_nodes.clear();
+    delete[] processing_units;
 }
 
 
