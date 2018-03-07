@@ -4,6 +4,7 @@
 pDelaunay
 run_all_test
 log/*
+*.log
 tmp*
 backup/*
 .DS_Store
