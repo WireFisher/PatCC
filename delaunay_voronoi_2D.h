@@ -160,7 +160,6 @@ class Delaunay_Voronoi
         bool is_triangle_ambiguous(const Point *pt, const Edge *edge);
         void relegalize_triangles(Point*, Edge*);
         void remove_leaf_triangle(Triangle*);
-        void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
         unsigned calculate_triangles_checksum(Triangle_Transport*, int);
 
     public:
@@ -180,6 +179,7 @@ class Delaunay_Voronoi
         void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
         unsigned calculate_triangles_intersected_checksum(Point, Point);   
+        void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
 
         /* debug */
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);

@@ -615,6 +615,7 @@ void Search_tree_node::add_neighbors(vector<Search_tree_node*> ns)
 
 void Search_tree_node::generate_rotated_grid()
 {
+    printf("rotating\n");
     if(projected_coord[0] == NULL) { /* first time to generate rotated grid */
         projected_coord[0] = new double[num_kernel_points + len_expanded_points_coord_buf];
         projected_coord[1] = new double[num_kernel_points + len_expanded_points_coord_buf];
@@ -1068,11 +1069,14 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             continue;
         if(common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
             if (local_checksum[i] != remote_checksum[i]) {
-                //char filename[64];
-                //snprintf(filename, 64, "log/boundary_triangle_local%d", rank);
-                //plot_triangles_info_file(filename, local_triangle[i], num_local_triangle[i]);
-                //snprintf(filename, 64, "log/boundary_triangle_remot%d", rank);
-                //plot_triangles_info_file(filename, remote_triangle[i], num_remote_triangle[i]);
+                Triangle_Transport *tmp_triangles = new Triangle_Transport[search_tree_root->num_kernel_points / processing_info->get_num_total_processing_units()];
+                int num_tmp_triangles;
+                leaf_node->triangulation->get_triangles_intersecting_with_segment(common_boundary_head[i], common_boundary_tail[i], tmp_triangles, &num_tmp_triangles,
+                                                                                  search_tree_root->num_kernel_points / processing_info->get_num_total_processing_units());
+                char filename[64];
+                snprintf(filename, 64, "log/boundary_triangle_%d_to_%d", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
+                plot_triangles_info_file(filename, tmp_triangles, num_tmp_triangles);
+                delete[] tmp_triangles;
                 
                 printf("[%d] checking consistency fault\n", leaf_node->processing_units_id[0]);
                 check_passed = false;
@@ -1667,12 +1671,14 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
     char file_fmt[] = "log/global_triangles_%d";
     char filename[64];
     snprintf(filename, 64, file_fmt, processing_info->get_num_total_processing_units());
-    FILE *fp = fopen("filename", "w");
+    FILE *fp = fopen(filename, "w");
     for(i = 0; i < num_different_triangles; i++)
         fprintf(fp, "%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
     fclose(fp);
 
-    plot_triangles_info_file("log/image_global_triangles", triangles, num_different_triangles);
+    char file_fmt2[] = "log/image_global_triangles_%d";
+    snprintf(filename, 64, file_fmt2, processing_info->get_num_total_processing_units());
+    plot_triangles_info_file(filename, triangles, num_different_triangles);
 }
 
 
@@ -1822,7 +1828,6 @@ void Grid_info_manager::gen_latlon_grid()
     int field_size;
     int field_size2;
     void *coord_buf0, *coord_buf1;
-    bool squeeze = false;
 
     read_file_field_as_double("gridfile/lonlat.nc", "lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
     delete dim_size_ptr;
@@ -1841,16 +1846,7 @@ void Grid_info_manager::gen_latlon_grid()
         }
 
     assert(count == num_points);
-    assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
-
-    if(squeeze) {
-        for(int i = 0; i < num_points/100; i++) {
-            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
-            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
-        }
-        num_points /= 100;
-        //printf("num points: %d\n", num_points);
-    }
+    assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
 }
 
 
@@ -1890,10 +1886,10 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* m
     */
 
     // lonlat grid set
-    *min_lon =   0.0;
+    *min_lon =   1.0;
     *max_lon = 360.0;
-    *min_lat = -90.0;
-    *max_lat =  90.0;
+    *min_lat = -89.0;
+    *max_lat =  89.0;
     //*min_lat = -89.0;
     //*max_lat =  89.0;
     //*min_lat = -30.0;
@@ -1903,7 +1899,7 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* m
 
 bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {
-    return true;
+    return false;
 }
 int Grid_info_manager::get_polar_points(int grid_id, char polar)
 {
