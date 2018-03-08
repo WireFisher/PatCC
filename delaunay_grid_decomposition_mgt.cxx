@@ -1748,9 +1748,8 @@ static double fRand(double fMin, double fMax)
 }
 
 
-Grid_info_manager::Grid_info_manager()
+void Grid_info_manager::gen_basic_grid()
 {
-    /*
     int size = 300;
 
     num_points = size * size;
@@ -1770,7 +1769,10 @@ Grid_info_manager::Grid_info_manager()
     coord_values[1][0] = -90.0;
     coord_values[0][299] = 0.0;
     coord_values[1][299] = 90.0;
-*/
+}
+
+void Grid_info_manager::gen_three_polar_grid()
+{
     int num_dims;
     int *dim_size_ptr;
     int field_size;
@@ -1778,9 +1780,9 @@ Grid_info_manager::Grid_info_manager()
     void *coord_buf0, *coord_buf1;
     bool squeeze = true;
 
-    read_file_field("../three_polars_grid.nc", "nav_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    read_file_field_as_float("gridfile/three_polars_grid.nc", "nav_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
     delete dim_size_ptr;
-    read_file_field("../three_polars_grid.nc", "nav_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    read_file_field_as_float("gridfile/three_polars_grid.nc", "nav_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
     delete dim_size_ptr;
     assert(field_size == field_size2);
     num_points = field_size;
@@ -1808,7 +1810,51 @@ Grid_info_manager::Grid_info_manager()
         num_points /= 100;
         //printf("num points: %d\n", num_points);
     }
+}
 
+void Grid_info_manager::gen_latlon_grid()
+{
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+    bool squeeze = false;
+
+    read_file_field_as_double("gridfile/lonlat.nc", "lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field_as_double("gridfile/lonlat.nc", "lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+
+    num_points = field_size*field_size2;
+    coord_values[PDLN_LON] = new double [num_points];
+    coord_values[PDLN_LAT] = new double [num_points];
+
+    int count = 0;
+    for(int i = 0; i < field_size; i ++)
+        for(int j = 0; j < field_size2; j++) {
+            coord_values[PDLN_LON][count] = ((double*)coord_buf0)[i];
+            coord_values[PDLN_LAT][count++] = ((double*)coord_buf1)[j];
+        }
+
+    assert(count == num_points);
+    assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
+
+    if(squeeze) {
+        for(int i = 0; i < num_points/100; i++) {
+            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
+            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+        }
+        num_points /= 100;
+        //printf("num points: %d\n", num_points);
+    }
+}
+
+
+Grid_info_manager::Grid_info_manager()
+{
+    //gen_three_polar_grid();
+    gen_latlon_grid();
 }
 
 
@@ -1833,15 +1879,23 @@ int Grid_info_manager::get_grid_num_points(int grid_id)
 }
 void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* max_lon, double* min_lat, double* max_lat)
 {
-    //*min_lat = -89.0;
-    //*max_lat =  89.0;
+    /*//three polar set
+    *min_lon =   0.0;
+    *max_lon = 360.0;
     *min_lat = -80.0;
     *max_lat =  90.0;
+    */
+
+    // lonlat grid set
+    *min_lon =   0.0;
+    *max_lon = 360.0;
+    *min_lat = -90.0;
+    *max_lat =  90.0;
+    //*min_lat = -89.0;
+    //*max_lat =  89.0;
     //*min_lat = -30.0;
     //*max_lat = 30.0;
-    *min_lon =   0.0;
     //*max_lon = 359.0;
-    *max_lon = 360.0;
 }
 
 bool Grid_info_manager::is_grid_cyclic(int grid_id)

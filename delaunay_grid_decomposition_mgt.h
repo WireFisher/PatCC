@@ -164,6 +164,10 @@ class Grid_info_manager {
 private:
     double *coord_values[2];
     int num_points;
+
+    void gen_basic_grid();
+    void gen_three_polar_grid();
+    void gen_latlon_grid();
 public:
     /* for unittest */
     Grid_info_manager();
