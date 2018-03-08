@@ -82,6 +82,12 @@ void Grid::merge_all_triangles()
 }
 
 
+Component::Component(int id): component_id(id)
+{
+    proc_resource = NULL;
+}
+
+
 Component::~Component()
 {
     delete proc_resource;
@@ -96,15 +102,17 @@ void Component::generate_delaunay_trianglulation(int grid_id)
     operating_grid = this->search_grid_by_id(grid_id);
     assert(operating_grid);
 
-    if(proc_resource == NULL)
+    if(proc_resource == NULL) {
+        delete proc_resource;
         proc_resource = new Processing_resource();
+    }
     //this->proc_resource->print_all_nodes_info();
 
     /* grid pretreatment */
 
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
-    //operating_grid->plot_triangles_into_file();
-    //operating_grid->merge_all_triangles();
+    operating_grid->plot_triangles_into_file();
+    operating_grid->merge_all_triangles();
 }
 
 Grid_info_manager *grid_info_mgr;

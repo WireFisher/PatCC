@@ -28,7 +28,7 @@ private:
 
     Grid* search_grid_by_id(int);
 public:
-    Component(int id):component_id(id){};
+    Component(int id);
     ~Component();
     void register_grid(Grid* grid){this->grids.push_back(grid); };
     void generate_delaunay_trianglulation(int);

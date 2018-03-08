@@ -1664,7 +1664,10 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
     }
     int num_different_triangles = i + 1;
     
-    FILE *fp = fopen("log/global_triangles", "w");
+    char file_fmt[] = "log/global_triangles_%d";
+    char filename[64];
+    snprintf(filename, 64, file_fmt, processing_info->get_num_total_processing_units());
+    FILE *fp = fopen("filename", "w");
     for(i = 0; i < num_different_triangles; i++)
         fprintf(fp, "%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
     fclose(fp);
