@@ -99,18 +99,18 @@ void Boundry::legalize()
 {
     min_lat = std::max(min_lat, -90.0);
     min_lon = std::max(min_lon, 0.0);
-    max_lat = std::min(max_lat, 90.0);
-    max_lon = std::min(max_lon, 360.0);
+    max_lat = std::min(max_lat, 90.0+PDLN_HIGH_BOUNDRY_SHIFTING);
+    max_lon = std::min(max_lon, 360.0+PDLN_HIGH_BOUNDRY_SHIFTING);
 }
 
 
 void Boundry::legalize(const Boundry *outer_boundry, bool is_cyclic)
 {
     min_lat = std::max(min_lat, outer_boundry->min_lat);
-    max_lat = std::min(max_lat, outer_boundry->max_lat);
+    max_lat = std::min(max_lat, outer_boundry->max_lat+PDLN_HIGH_BOUNDRY_SHIFTING);
     if(!is_cyclic) {
         min_lon = std::max(min_lon, outer_boundry->min_lon);
-        max_lon = std::min(max_lon, outer_boundry->max_lon);
+        max_lon = std::min(max_lon, outer_boundry->max_lon+PDLN_HIGH_BOUNDRY_SHIFTING);
     }
 }
 
@@ -615,7 +615,6 @@ void Search_tree_node::add_neighbors(vector<Search_tree_node*> ns)
 
 void Search_tree_node::generate_rotated_grid()
 {
-    printf("rotating\n");
     if(projected_coord[0] == NULL) { /* first time to generate rotated grid */
         projected_coord[0] = new double[num_kernel_points + len_expanded_points_coord_buf];
         projected_coord[1] = new double[num_kernel_points + len_expanded_points_coord_buf];
@@ -1069,6 +1068,7 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
             continue;
         if(common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
             if (local_checksum[i] != remote_checksum[i]) {
+#ifdef DEBUG
                 Triangle_Transport *tmp_triangles = new Triangle_Transport[search_tree_root->num_kernel_points / processing_info->get_num_total_processing_units()];
                 int num_tmp_triangles;
                 leaf_node->triangulation->get_triangles_intersecting_with_segment(common_boundary_head[i], common_boundary_tail[i], tmp_triangles, &num_tmp_triangles,
@@ -1077,6 +1077,7 @@ bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Sear
                 snprintf(filename, 64, "log/boundary_triangle_%d_to_%d", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
                 plot_triangles_info_file(filename, tmp_triangles, num_tmp_triangles);
                 delete[] tmp_triangles;
+#endif
                 
                 printf("[%d] checking consistency fault\n", leaf_node->processing_units_id[0]);
                 check_passed = false;
@@ -1567,11 +1568,11 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 ret = 0;
             else
                 ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+            
             /*
             printf("[%d]ID:%d expanded boundary (%lf, %lf, %lf, %lf)\n", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->expanded_boundry->min_lon,
                                                                        local_leaf_nodes[0]->expanded_boundry->max_lon, local_leaf_nodes[0]->expanded_boundry->min_lat,
                                                                        local_leaf_nodes[0]->expanded_boundry->max_lat);
-            
             printf("[%d]x[INFO] ID: %d, (%lf, %lf, %lf, %lf), Neighbors: [", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->kernel_boundry->min_lon,
                                                                        local_leaf_nodes[0]->kernel_boundry->max_lon, local_leaf_nodes[0]->kernel_boundry->min_lat,
                                                                        local_leaf_nodes[0]->kernel_boundry->max_lat);
@@ -1852,8 +1853,8 @@ void Grid_info_manager::gen_latlon_grid()
 
 Grid_info_manager::Grid_info_manager()
 {
-    //gen_three_polar_grid();
-    gen_latlon_grid();
+    gen_three_polar_grid();
+    //gen_latlon_grid();
 }
 
 
@@ -1878,18 +1879,18 @@ int Grid_info_manager::get_grid_num_points(int grid_id)
 }
 void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* max_lon, double* min_lat, double* max_lat)
 {
-    /*//three polar set
+    //three polar set
     *min_lon =   0.0;
     *max_lon = 360.0;
     *min_lat = -80.0;
     *max_lat =  90.0;
-    */
 
-    // lonlat grid set
+    /*// lonlat grid set
     *min_lon =   1.0;
     *max_lon = 360.0;
     *min_lat = -89.0;
     *max_lat =  89.0;
+    */
     //*min_lat = -89.0;
     //*max_lat =  89.0;
     //*min_lat = -30.0;
@@ -1899,7 +1900,7 @@ void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* m
 
 bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {
-    return false;
+    return true;
 }
 int Grid_info_manager::get_polar_points(int grid_id, char polar)
 {
