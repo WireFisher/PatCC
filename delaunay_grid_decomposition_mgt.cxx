@@ -955,13 +955,15 @@ namespace std
 } 
 
 
-#define PDLN_COMM_TAG_MASK 0x0100
-#define PDLN_SET_MASK(tag)       ((PDLN_COMM_TAG_MASK|tag)<<1|0)
+#define PDLN_SET_TAG_ITER(tag)          ( tag  &0x000000FF)
+#define PDLN_SET_TAG_SRC(tag, id)       ((id<<20&0xFFF00000) | tag)
+#define PDLN_SET_TAG_DST(tag, id)       ((id<< 8&0x000FFF00) | tag)
+#define PDLN_SET_TAG(src, dst, iter)    (PDLN_SET_TAG_DST(PDLN_SET_TAG_SRC(PDLN_SET_TAG_ITER(iter), src), dst))
 void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree_node *leaf_node, unsigned *local_checksums,
                                                                      unsigned *remote_checksums, vector<MPI_Request*> *waiting_list, int iter)
 {
     /* calculate local checksum and send to neighbor */
-    Point common_boundary_head, common_boundary_tail, extra_common_boundary_head, extra_common_boundary_tail;
+    Point common_boundary_head, common_boundary_tail, cyclic_common_boundary_head, cyclic_common_boundary_tail;
     unsigned checksum;
 
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
@@ -971,9 +973,12 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
         /* compute shared boundry of leaf_node and its neighbor */
 #ifdef DEBUG
         assert(leaf_node->neighbors[i].first->processing_units_id.size() == 1);
+        assert(iter <= 0xFF);
+        assert(leaf_node->processing_units_id[0] <= 0xFFF);
+        assert(leaf_node->neighbors[i].first->processing_units_id[0] <= 0xFFF);
 #endif
         compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &common_boundary_head, &common_boundary_tail,
-                               &extra_common_boundary_head, &extra_common_boundary_tail);
+                               &cyclic_common_boundary_head, &cyclic_common_boundary_tail);
         
         local_checksums[i] = 0;
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
@@ -985,8 +990,8 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
                 local_checksums[i] ^= checksum;
         }
 
-        if(extra_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            checksum = leaf_node->triangulation->calculate_triangles_intersected_checksum(extra_common_boundary_head, extra_common_boundary_tail);
+        if(cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
+            checksum = leaf_node->triangulation->calculate_triangles_intersected_checksum(cyclic_common_boundary_head, cyclic_common_boundary_tail);
 
             if(checksum == PDLN_CHECKSUM_FALSE || local_checksums[i] == PDLN_CHECKSUM_FALSE)
                 local_checksums[i] = PDLN_CHECKSUM_FALSE;
@@ -994,19 +999,16 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
                 local_checksums[i] ^= checksum;
         }
 
-        if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE || extra_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            //waiting_list->push_back(new MPI_Request);
-            int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            MPI_Request req;
-            //printf("sending: %d -> %d\n", rank, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id);
+        if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE || cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
+            waiting_list->push_back(new MPI_Request);
             MPI_Isend(&local_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
-                      PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), &req/*waiting_list->back()*/); // FIXME: tag
+                      PDLN_SET_TAG(leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], iter),
+                      processing_info->get_mpi_comm(), waiting_list->back()); 
 
-            printf("[%d]Irecv: %d\n", rank, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id);
             waiting_list->push_back(new MPI_Request);
             MPI_Irecv(&remote_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id,
-                      PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), waiting_list->back());
+                      PDLN_SET_TAG(leaf_node->neighbors[i].first->processing_units_id[0], leaf_node->processing_units_id[0], iter),
+                      processing_info->get_mpi_comm(), waiting_list->back());
         }
         else
             remote_checksums[i] = 0;
@@ -1017,24 +1019,24 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
 bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf_node, unsigned *local_checksums, unsigned *remote_checksums)
 {
     if(leaf_node->neighbors.size() == 0) {
-        printf("are_checksums_identical fase ending\n");
+        //printf("are_checksums_identical fase ending\n");
         return false;
     }
 
     bool ok = true;
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
         if(leaf_node->neighbors[i].second) {
-            printf("[%d] neighbor %d already done\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
+            //printf("[%d] neighbor %d already done\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
             continue;
         }
 
         //printf("checking %u vs %u\n", local_checksums[i], remote_checksums[i]);
         if(local_checksums[i] == remote_checksums[i] && local_checksums[i] != PDLN_CHECKSUM_FALSE) {
-            printf("[%d] neighbor %d done, %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
+            //printf("[%d] neighbor %d done, %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
             leaf_node->neighbors[i].second = true;
         }
         else {
-            printf("[%d] neighbor %d not , %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
+            //printf("[%d] neighbor %d not , %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
             ok = false;
         }
     }
@@ -1463,8 +1465,10 @@ bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
 }
 
 
+#define PDLN_MAX_NUM_NEIGHBORS 128
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
+    bool all_finished;
     //TODO: openmp parallel
 
     assert(local_leaf_nodes.size() > 0);
@@ -1478,13 +1482,15 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     local_leaf_checksums = new unsigned*[local_leaf_nodes.size()];
     remote_leaf_checksums = new unsigned*[local_leaf_nodes.size()];
 
+#ifdef DEBUG
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
         assert(is_local_leaf_node_finished[i] == false);
     }
+#endif
 
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
-        local_leaf_checksums[i] = new unsigned[local_leaf_nodes[i]->neighbors.size()];
-        remote_leaf_checksums[i] = new unsigned[local_leaf_nodes[i]->neighbors.size()];
+        local_leaf_checksums[i] = new unsigned[PDLN_MAX_NUM_NEIGHBORS];
+        remote_leaf_checksums[i] = new unsigned[PDLN_MAX_NUM_NEIGHBORS];
     }
 
     vector<MPI_Request*> *waiting_lists = new vector<MPI_Request*> [local_leaf_nodes.size()];
@@ -1523,17 +1529,20 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         }
 
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
-            if(!is_local_leaf_node_finished[i])
+            if(!is_local_leaf_node_finished[i]) {
+#ifdef DEBUG
+                assert(local_leaf_nodes[i]->neighbors.size() < PDLN_MAX_NUM_NEIGHBORS);
+#endif
                 send_recv_checksums_with_neighbors(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i], waiting_lists + i, iter);
+            }
 
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Status status;
-        int flag;
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
                 for(unsigned j = 0; j < waiting_lists[i].size(); j++) {
-                    MPI_Wait(waiting_lists[i][j], &status);
+                    MPI_Wait(waiting_lists[i][j], MPI_STATUS_IGNORE);
+                    delete waiting_lists[i][j];
                     //printf("[%d] wait   done %d\n", rank, status.MPI_SOURCE);
                 }
                 waiting_lists[i].clear();
@@ -1551,19 +1560,36 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 printf("[%d] already done, no need for checksum\n", local_leaf_nodes[i]->processing_units_id[0]);
         }
 
-        bool all_finished = true;
+        all_finished = true;
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i])
                 all_finished = false;
 
         if(all_finished)
-            return 0;
+            break;
 
         expanding_ratio += 0.1;
         iter++;
     }
 
-    return 1;
+    delete [] is_local_leaf_node_finished;
+
+    for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+        delete [] local_leaf_checksums[i];
+        delete [] remote_leaf_checksums[i];
+        local_leaf_checksums[i] = NULL;
+        remote_leaf_checksums[i] = NULL;
+    }
+
+    delete [] local_leaf_checksums;
+    delete [] remote_leaf_checksums;
+
+    delete [] waiting_lists;
+    
+    if(all_finished)
+        return 0;
+    else
+        return 1;
 }
 /* 
  * Return Values: 0 - Success

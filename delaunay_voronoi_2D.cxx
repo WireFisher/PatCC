@@ -1430,7 +1430,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
 
 void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double max_x, double min_y, double max_y)
 {
-    int num_edges;
+    unsigned num_edges;
     double *head_coord[2], *tail_coord[2];
 
     num_edges = 3 * result_leaf_triangles.size();
@@ -1440,9 +1440,9 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
     tail_coord[1] = new double[num_edges];
 
     num_edges = 0;
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i ++)
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i ++)
         if(result_leaf_triangles[i]->is_leaf)
-            for(int j = 0; j < 3; j++) {
+            for(unsigned j = 0; j < 3; j++) {
                 head_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->head->x;
                 head_coord[1][num_edges] = result_leaf_triangles[i]->edge[j]->head->y;
                 tail_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->tail->x;
@@ -1450,6 +1450,7 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
             }
 
     assert(num_edges%3 == 0);
+    assert(num_edges <= 3 * result_leaf_triangles.size());
     plot_edge_into_file(filename, head_coord, tail_coord, num_edges, min_x, max_x, min_y, max_y);
 
     delete head_coord[0];
