@@ -281,19 +281,23 @@ void Search_tree_node::split_local_points(Midline midline, double *child_points_
 
     if(non_monotonic && midline.type == PDLN_LON)
         assert(false);
-    else
+    else {
+        #pragma omp parallel for
         for(int i = 0; i < num_kernel_points; i ++) {
             if(points_coord[midline.type][i] < midline.value) {
                 child_points_coord[midline.type][child_num_points[0]] = points_coord[midline.type][i];
                 child_points_coord[(midline.type+1)%2][child_num_points[0]] = points_coord[(midline.type+1)%2][i];
+                #pragma omp critical
                 child_points_idx[0][child_num_points[0]++] = points_global_index[i];
             }
             else {
                 child_points_coord[2+midline.type][child_num_points[1]] = points_coord[midline.type][i];
                 child_points_coord[2+(midline.type+1)%2][child_num_points[1]] = points_coord[(midline.type+1)%2][i];
+                #pragma omp critical 
                 child_points_idx[1][child_num_points[1]++] = points_global_index[i];
             }
         }
+    }
 }
 
 
@@ -589,31 +593,21 @@ void Search_tree_node::generate_rotated_grid()
         projected_coord[0] = new double[num_kernel_points + len_expanded_points_coord_buf];
         projected_coord[1] = new double[num_kernel_points + len_expanded_points_coord_buf];
 
+        #pragma omp parallel for
         for(int i = 0; i < num_kernel_points + num_expanded_points; i++) {
-            //int rank;
-            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            //if(rank == 0)
-            //printf("origi: %.20lf, %.20lf\n", points_coord[PDLN_LON][i], points_coord[PDLN_LAT][i]);
-
-            calculate_stereographic_projection(points_coord[PDLN_LON][i], points_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT], projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
-            //if(rank == 0)
-            //printf("coord: %.40lf, %.40lf\n", projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
-            projected_coord[PDLN_LON][i] += 90; /* shift to avoid cyclic situation */
-            if(projected_coord[PDLN_LON][i] >= 360.0) projected_coord[PDLN_LON][i] -= 360.0;
+            calculate_stereographic_projection(points_coord[PDLN_LON][i], points_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
+                                               projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
+            projected_coord[PDLN_LON][i] += 90; /* shift to avoid cyclic situation */ //FIXME: this should be deleted
         }
 
         num_rotated_points = num_kernel_points + num_expanded_points;
-
     }
     else {
+        #pragma omp parallel for
         for(int i = num_rotated_points; i < num_kernel_points + num_expanded_points; i++) {
-            calculate_stereographic_projection(points_coord[PDLN_LON][i], points_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT], projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
-            //int rank;
-            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            //if(rank == 0)
-            //printf("coord: %lf, %lf\n", projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
+            calculate_stereographic_projection(points_coord[PDLN_LON][i], points_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
+                                               projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
             projected_coord[PDLN_LON][i] += 90;
-            if(projected_coord[PDLN_LON][i] >= 360.0) projected_coord[PDLN_LON][i] -= 360.0;
         }
         num_rotated_points = num_kernel_points + num_expanded_points;
     }
@@ -1329,9 +1323,6 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
         if(do_two_regions_overlap(region, *node->kernel_boundry) ||
            do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->kernel_boundry) ||
            do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->kernel_boundry)) {
-            //int rank;
-            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            //printf("[%d] (%lf, %lf, %lf, %lf), (%lf, %lf, %lf, %lf)\n", rank, inner_boundary->min_lon, inner_boundary->max_lon, inner_boundary->min_lat, inner_boundary->max_lat, node->expanded_boundry->min_lon, node->expanded_boundry->max_lon, node->expanded_boundry->min_lat, node->expanded_boundry->max_lat);
             leaf_nodes_found.push_back(node);
             node->search_points_in_halo(inner_boundary, outer_boundary, coord_values, global_idx, num_points_found);
         }
@@ -1395,7 +1386,7 @@ void Search_tree_node::search_points_in_halo(Boundry *inner_boundary, Boundry *o
     r_outer.min_lon += 360.0;
     r_outer.max_lon += 360.0;
 
-    //TODO: optimize if out of loop
+    #pragma omp parallel for
     for(int j = 0; j < num_kernel_points; j++) {
         if (is_coordinate_in_halo(points_coord[PDLN_LON][j], points_coord[PDLN_LAT][j], inner_boundary, outer_boundary)) {
             coord_values[PDLN_LON][*num_points_found] = points_coord[PDLN_LON][j];
@@ -1468,13 +1459,7 @@ bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
 #define PDLN_MAX_NUM_NEIGHBORS 128
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
-    bool all_finished;
-    //TODO: openmp parallel
-
-    if(local_leaf_nodes.size() > 1)
-        printf("size of local leaf: %lu\n", local_leaf_nodes.size());
-
-    bool *is_local_leaf_node_finished;
+    bool all_finished, *is_local_leaf_node_finished;
     unsigned **local_leaf_checksums, **remote_leaf_checksums;
 
     is_local_leaf_node_finished = new bool[local_leaf_nodes.size()]();
@@ -1508,7 +1493,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
         /* TODO: allgather ret */
 
-        #pragma omp parallel for private(i)
+        #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
 
@@ -1527,6 +1512,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             }
         }
 
+        #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
 #ifdef DEBUG
@@ -1550,6 +1536,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 assert(waiting_lists[i].size() == 0);
         }
 
+        #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
                 is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]) &&
