@@ -279,38 +279,8 @@ void Search_tree_node::split_local_points(Midline midline, double *child_points_
     if(midline.type == PDLN_LON && midline.value >= 360.0)
         midline.value -= 360.0;
 
-    if(non_monotonic && midline.type == PDLN_LON) {
+    if(non_monotonic && midline.type == PDLN_LON)
         assert(false);
-        if(midline.value > kernel_boundry->min_lon) {
-            for(int i = 0; i < num_kernel_points; i ++) {
-                if(points_coord[midline.type][i] < midline.value && points_coord[midline.type][i] >= kernel_boundry->min_lon) {
-                    child_points_coord[midline.type][child_num_points[0]] = points_coord[midline.type][i];
-                    child_points_coord[(midline.type+1)%2][child_num_points[0]] = points_coord[(midline.type+1)%2][i];
-                    child_points_idx[0][child_num_points[0]++] = points_global_index[i];
-                }
-                else {
-                    child_points_coord[2+midline.type][child_num_points[1]] = points_coord[midline.type][i];
-                    child_points_coord[2+(midline.type+1)%2][child_num_points[1]] = points_coord[(midline.type+1)%2][i];
-                    child_points_idx[1][child_num_points[1]++] = points_global_index[i];
-                }
-            }
-        }
-        else {
-            assert(midline.value < kernel_boundry->max_lon);
-            for(int i = 0; i < num_kernel_points; i ++) {
-                if(points_coord[midline.type][i] >= midline.value && points_coord[midline.type][i] < kernel_boundry->max_lon) {
-                    child_points_coord[2+midline.type][child_num_points[1]] = points_coord[midline.type][i];
-                    child_points_coord[2+(midline.type+1)%2][child_num_points[1]] = points_coord[(midline.type+1)%2][i];
-                    child_points_idx[1][child_num_points[1]++] = points_global_index[i];
-                }
-                else {
-                    child_points_coord[midline.type][child_num_points[0]] = points_coord[midline.type][i];
-                    child_points_coord[(midline.type+1)%2][child_num_points[0]] = points_coord[(midline.type+1)%2][i];
-                    child_points_idx[0][child_num_points[0]++] = points_global_index[i];
-                }
-            }
-        }
-    }
     else
         for(int i = 0; i < num_kernel_points; i ++) {
             if(points_coord[midline.type][i] < midline.value) {
@@ -987,132 +957,89 @@ namespace std
 
 #define PDLN_COMM_TAG_MASK 0x0100
 #define PDLN_SET_MASK(tag)       ((PDLN_COMM_TAG_MASK|tag)<<1|0)
-#define PDLN_SET_MASK_EXTRA(tag) ((PDLN_COMM_TAG_MASK|tag)<<1|1)
-bool Delaunay_grid_decomposition::check_leaf_node_triangulation_consistency(Search_tree_node *leaf_node, int iter)
+void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree_node *leaf_node, unsigned *local_checksums,
+                                                                     unsigned *remote_checksums, vector<MPI_Request*> *waiting_list, int iter)
 {
-    if(leaf_node->neighbors.size() == 0) {
-        return false;
-    }
-
-    unsigned *local_checksum, *remote_checksum, *extra_local_checksum, *extra_remote_checksum;
-    Point *common_boundary_head, *common_boundary_tail, *extra_common_boundary_head, *extra_common_boundary_tail;
-
-    assert(leaf_node->processing_units_id.size() == 1);
-    assert(iter < PDLN_COMM_TAG_MASK);
-    
-    local_checksum = new unsigned[leaf_node->neighbors.size()];
-    remote_checksum = new unsigned[leaf_node->neighbors.size()];
-    extra_local_checksum = new unsigned[leaf_node->neighbors.size()];
-    extra_remote_checksum = new unsigned[leaf_node->neighbors.size()];
-
-    common_boundary_head = new Point[leaf_node->neighbors.size()];
-    common_boundary_tail = new Point[leaf_node->neighbors.size()];
-    extra_common_boundary_head = new Point[leaf_node->neighbors.size()];
-    extra_common_boundary_tail = new Point[leaf_node->neighbors.size()];
-
-    vector<MPI_Request*> waiting_list;
-
     /* calculate local checksum and send to neighbor */
-    for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
+    Point common_boundary_head, common_boundary_tail, extra_common_boundary_head, extra_common_boundary_tail;
+    unsigned checksum;
+
+    for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
         if(leaf_node->neighbors[i].second)
             continue;
 
         /* compute shared boundry of leaf_node and its neighbor */
-        assert(leaf_node->neighbors[i].first->processing_units_id.size() == 1);
-        compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &common_boundary_head[i], &common_boundary_tail[i],
-                               &extra_common_boundary_head[i], &extra_common_boundary_tail[i]);
-        
-        /* get checksum of triangles on the common boundry of leaf_node and its neighbor, and send to neighbors */
-        if(common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
-            local_checksum[i] = leaf_node->triangulation->calculate_triangles_intersected_checksum(common_boundary_head[i], common_boundary_tail[i]);
-            waiting_list.push_back(new MPI_Request);
-            MPI_Isend(&local_checksum[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
-                      PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), waiting_list.back());
-        }
-
-        if(extra_common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
-            extra_local_checksum[i] = leaf_node->triangulation->calculate_triangles_intersected_checksum(extra_common_boundary_head[i], extra_common_boundary_tail[i]);
-            waiting_list.push_back(new MPI_Request);
-            MPI_Isend(&extra_local_checksum[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
-                      PDLN_SET_MASK_EXTRA(iter), processing_info->get_mpi_comm(), waiting_list.back());
-        }
-    }
-
-    /* recv checksum from neighbors */
-    for(unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
-        if(leaf_node->neighbors[i].second)
-            continue;
-
-        if(common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
-            waiting_list.push_back(new MPI_Request);
-            MPI_Irecv(&remote_checksum[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id,
-                      PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), waiting_list.back());
-        }
-
-        if(extra_common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
-            waiting_list.push_back(new MPI_Request);
-            MPI_Irecv(&extra_remote_checksum[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id,
-                      PDLN_SET_MASK_EXTRA(iter), processing_info->get_mpi_comm(), waiting_list.back());
-        }
-    }
-
-    MPI_Status status;
-    for(unsigned int i = 0; i < waiting_list.size(); i++)
-        MPI_Wait(waiting_list[i], &status);
-    waiting_list.clear();
-
-    /* do comparision */
-    bool check_passed = true;
-    for (unsigned int i = 0; i < leaf_node->neighbors.size(); i++) {
-        if (leaf_node->neighbors[i].second)
-            continue;
-        if(common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
-            if (local_checksum[i] != remote_checksum[i]) {
 #ifdef DEBUG
-                Triangle_Transport *tmp_triangles = new Triangle_Transport[search_tree_root->num_kernel_points / processing_info->get_num_total_processing_units()];
-                int num_tmp_triangles;
-                leaf_node->triangulation->get_triangles_intersecting_with_segment(common_boundary_head[i], common_boundary_tail[i], tmp_triangles, &num_tmp_triangles,
-                                                                                  search_tree_root->num_kernel_points / processing_info->get_num_total_processing_units());
-                char filename[64];
-                snprintf(filename, 64, "log/boundary_triangle_%d_to_%d", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
-                plot_triangles_info_file(filename, tmp_triangles, num_tmp_triangles);
-                delete[] tmp_triangles;
+        assert(leaf_node->neighbors[i].first->processing_units_id.size() == 1);
 #endif
-                
-                printf("[%d] checking consistency fault\n", leaf_node->processing_units_id[0]);
-                check_passed = false;
-                continue;
-            }
+        compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &common_boundary_head, &common_boundary_tail,
+                               &extra_common_boundary_head, &extra_common_boundary_tail);
+        
+        local_checksums[i] = 0;
+        if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
+            checksum = leaf_node->triangulation->calculate_triangles_intersected_checksum(common_boundary_head, common_boundary_tail);
+
+            if(checksum == PDLN_CHECKSUM_FALSE)
+                local_checksums[i] = PDLN_CHECKSUM_FALSE;
+            else
+                local_checksums[i] ^= checksum;
         }
 
-        if(extra_common_boundary_head[i].x != PDLN_DOUBLE_INVALID_VALUE) {
-            if (extra_local_checksum[i] != extra_remote_checksum[i]) {
+        if(extra_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
+            checksum = leaf_node->triangulation->calculate_triangles_intersected_checksum(extra_common_boundary_head, extra_common_boundary_tail);
 
-                printf("[%d] checking extra consistency fault\n", leaf_node->processing_units_id[0]);
-                check_passed = false;
-                continue;
-            }
+            if(checksum == PDLN_CHECKSUM_FALSE || local_checksums[i] == PDLN_CHECKSUM_FALSE)
+                local_checksums[i] = PDLN_CHECKSUM_FALSE;
+            else
+                local_checksums[i] ^= checksum;
         }
-        leaf_node->neighbors[i].second = true;
+
+        if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE || extra_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
+            //waiting_list->push_back(new MPI_Request);
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            MPI_Request req;
+            //printf("sending: %d -> %d\n", rank, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id);
+            MPI_Isend(&local_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id, 
+                      PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), &req/*waiting_list->back()*/); // FIXME: tag
+
+            printf("[%d]Irecv: %d\n", rank, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id);
+            waiting_list->push_back(new MPI_Request);
+            MPI_Irecv(&remote_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(leaf_node->neighbors[i].first->processing_units_id[0])->process_id,
+                      PDLN_SET_MASK(iter), processing_info->get_mpi_comm(), waiting_list->back());
+        }
+        else
+            remote_checksums[i] = 0;
     }
+}
 
-    delete[] local_checksum;
-    delete[] remote_checksum;
-    delete[] extra_local_checksum;
-    delete[] extra_remote_checksum;
 
-    delete[] common_boundary_head;
-    delete[] common_boundary_tail;
-    delete[] extra_common_boundary_head;
-    delete[] extra_common_boundary_tail;
-
-    if(check_passed) {
-        //printf("[%d] checking consistency %d: Pass\n", rank, leaf_node->processing_units_id[0]);
-        return true;
-    }
-    else {
+bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf_node, unsigned *local_checksums, unsigned *remote_checksums)
+{
+    if(leaf_node->neighbors.size() == 0) {
+        printf("are_checksums_identical fase ending\n");
         return false;
     }
+
+    bool ok = true;
+    for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
+        if(leaf_node->neighbors[i].second) {
+            printf("[%d] neighbor %d already done\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
+            continue;
+        }
+
+        //printf("checking %u vs %u\n", local_checksums[i], remote_checksums[i]);
+        if(local_checksums[i] == remote_checksums[i] && local_checksums[i] != PDLN_CHECKSUM_FALSE) {
+            printf("[%d] neighbor %d done, %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
+            leaf_node->neighbors[i].second = true;
+        }
+        else {
+            printf("[%d] neighbor %d not , %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
+            ok = false;
+        }
+    }
+
+    return ok;
 }
 
 
@@ -1146,6 +1073,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
                     delete[] child_points_coord[i];
                 delete[] child_points_index[0];
                 delete[] child_points_index[1];
+                printf("assign_polars fault, %d vs %d\n", child_num_points[0], min_num_points_per_chunk);
                 return 1;
             }
             child_boundry[0].max_lat = PDLN_SPOLAR_MAX_LAT;
@@ -1178,6 +1106,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
                     delete[] child_points_coord[i];
                 delete[] child_points_index[0];
                 delete[] child_points_index[1];
+                printf("assign_polars fault, %d vs %d\n", child_num_points[1], min_num_points_per_chunk);
                 return 1;
             }
             child_boundry[0].max_lat = PDLN_NPOLAR_MIN_LAT;
@@ -1312,15 +1241,7 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
         return 0;
     }
 
-    if(is_non_monotonic) {
-        decompose_with_fixed_longitude(0.0);
-        if(have_local_processing_units_id(current_tree_node->children[0]->processing_units_id)) 
-            decompose_common_node_recursively(current_tree_node->children[0]);
-        if(have_local_processing_units_id(current_tree_node->children[2]->processing_units_id)) 
-            decompose_common_node_recursively(current_tree_node->children[2]);
-    }
-    else
-        decompose_common_node_recursively(current_tree_node);
+    decompose_common_node_recursively(current_tree_node);
     return 0;
 }
 
@@ -1541,76 +1462,116 @@ bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
     return node != NULL && node->node_type != PDLN_NODE_TYPE_COMMON;
 }
 
+
+int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
+{
+    //TODO: openmp parallel
+
+    assert(local_leaf_nodes.size() > 0);
+    if(local_leaf_nodes.size() > 1)
+        printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
+
+    bool *is_local_leaf_node_finished;
+    unsigned **local_leaf_checksums, **remote_leaf_checksums;
+
+    is_local_leaf_node_finished = new bool[local_leaf_nodes.size()]();
+    local_leaf_checksums = new unsigned*[local_leaf_nodes.size()];
+    remote_leaf_checksums = new unsigned*[local_leaf_nodes.size()];
+
+    for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+        assert(is_local_leaf_node_finished[i] == false);
+    }
+
+    for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+        local_leaf_checksums[i] = new unsigned[local_leaf_nodes[i]->neighbors.size()];
+        remote_leaf_checksums[i] = new unsigned[local_leaf_nodes[i]->neighbors.size()];
+    }
+
+    vector<MPI_Request*> *waiting_lists = new vector<MPI_Request*> [local_leaf_nodes.size()];
+
+    int iter = 0;
+    double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
+    while(iter < 10) {
+
+        int ret;
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+            if(!is_local_leaf_node_finished[i]) {
+                ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+
+                if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
+                    local_leaf_nodes[i]->generate_rotated_grid();
+            }
+
+        /* TODO: allgather ret */
+
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+            if(!is_local_leaf_node_finished[i]) {
+
+                timeval start, end;
+                gettimeofday(&start, NULL);
+
+                local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
+
+                gettimeofday(&end, NULL);
+                int rank;
+                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                printf("[%3d] %dth generate_local_triangulation: %ldms, number of points: %d\n", rank, iter,
+                                                                                    ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000,
+                                                                                    local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expanded_points);
+
+            }
+        }
+
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+            if(!is_local_leaf_node_finished[i])
+                send_recv_checksums_with_neighbors(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i], waiting_lists + i, iter);
+
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Status status;
+        int flag;
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+            if(!is_local_leaf_node_finished[i]) {
+                for(unsigned j = 0; j < waiting_lists[i].size(); j++) {
+                    MPI_Wait(waiting_lists[i][j], &status);
+                    //printf("[%d] wait   done %d\n", rank, status.MPI_SOURCE);
+                }
+                waiting_lists[i].clear();
+            }
+            else
+                assert(waiting_lists[i].size() == 0);
+        }
+
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+            if(!is_local_leaf_node_finished[i]) {
+                is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]) &&
+                                                 local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic);
+            }
+            else
+                printf("[%d] already done, no need for checksum\n", local_leaf_nodes[i]->processing_units_id[0]);
+        }
+
+        bool all_finished = true;
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+            if(!is_local_leaf_node_finished[i])
+                all_finished = false;
+
+        if(all_finished)
+            return 0;
+
+        expanding_ratio += 0.1;
+        iter++;
+    }
+
+    return 1;
+}
 /* 
  * Return Values: 0 - Success
  *                1 - Failed in expanding
  *                2 x Fail, polar decomp's expanded_boundry exceeded threshold
  *                2 - Fail, expanding loop too many times
  */
-int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
-{
-    //TODO: openmp parallel
 
-    if(local_leaf_nodes.size() > 1)
-        printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
-
-    for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
-        int ret;
-        double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
-        int iter = 0;
-        bool local_done = false;
-        while(!local_done) {
-            if(!local_done && check_leaf_node_triangulation_consistency(local_leaf_nodes[i], iter) &&
-               local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic))
-                local_done = true;
-
-            if(local_done)
-                ret = 0;
-            else
-                ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
-            
-            /*
-            printf("[%d]ID:%d expanded boundary (%lf, %lf, %lf, %lf)\n", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->expanded_boundry->min_lon,
-                                                                       local_leaf_nodes[0]->expanded_boundry->max_lon, local_leaf_nodes[0]->expanded_boundry->min_lat,
-                                                                       local_leaf_nodes[0]->expanded_boundry->max_lat);
-            printf("[%d]x[INFO] ID: %d, (%lf, %lf, %lf, %lf), Neighbors: [", iter, local_leaf_nodes[0]->processing_units_id[0], local_leaf_nodes[0]->kernel_boundry->min_lon,
-                                                                       local_leaf_nodes[0]->kernel_boundry->max_lon, local_leaf_nodes[0]->kernel_boundry->min_lat,
-                                                                       local_leaf_nodes[0]->kernel_boundry->max_lat);
-            for(unsigned int j = 0; j < local_leaf_nodes[0]->neighbors.size(); j++)
-                printf("%d=%p, ", local_leaf_nodes[0]->neighbors[j].first->processing_units_id[0], local_leaf_nodes[0]->neighbors[j].first);
-            printf("]\n");
-            
-            printf("===========%d===========\n", iter);
-            //print_whole_search_tree_info();*/
-
-
-            if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
-                local_leaf_nodes[i]->generate_rotated_grid();
-
-            timeval start, end;
-            gettimeofday(&start, NULL);
-            if(!local_done)
-                local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
-            gettimeofday(&end, NULL);
-            int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            printf("[%3d] %dth generate_local_triangulation: %ldms, number of points: %d\n", rank, iter,
-                                                                                             ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000,
-                                                                                             local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expanded_points);
-
-            expanding_ratio += 0.1;
-            iter++;
-            if(iter == 3) {
-                //plot_local_triangles("log/chunk");
-                //MPI_Barrier(MPI_COMM_WORLD);
-                //exit(1);
-                //return 2;
-                //break;
-            }
-        }
-    }
-    return 0;
-}
 
 int Delaunay_grid_decomposition::generate_trianglulation_for_whole_grid()
 {

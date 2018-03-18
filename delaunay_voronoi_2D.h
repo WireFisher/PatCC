@@ -22,6 +22,8 @@
 #include "opencv2/opencv.hpp"
 #endif
 
+#define PDLN_CHECKSUM_FALSE (0xFFFFFFFF)
+
 using std::vector;
 
 class Edge;

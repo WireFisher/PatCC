@@ -28,6 +28,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
 
     min_num_points_per_chunk = DEFAULT_MIN_NUM_POINTS;
     do {
+        printf("main loop\n");
         min_num_points_per_chunk *= MULTIPLICATION_COEFFICIENT;
         if(delaunay_triangulation) {
             delete delaunay_triangulation;
@@ -111,8 +112,8 @@ void Component::generate_delaunay_trianglulation(int grid_id)
     /* grid pretreatment */
 
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
-    operating_grid->plot_triangles_into_file();
-    operating_grid->merge_all_triangles();
+    //operating_grid->plot_triangles_into_file();
+    //operating_grid->merge_all_triangles();
 }
 
 Grid_info_manager *grid_info_mgr;

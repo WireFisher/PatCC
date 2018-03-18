@@ -146,6 +146,8 @@ public:
     vector<Search_tree_node*> get_local_leaf_nodes() {return local_leaf_nodes; };
     int generate_trianglulation_for_local_decomp();
     int generate_trianglulation_for_whole_grid();
+    void send_recv_checksums_with_neighbors(Search_tree_node*, unsigned*, unsigned*, vector<MPI_Request*> *, int);
+    bool are_checksums_identical(Search_tree_node*, unsigned*, unsigned*);
 
     /* debug */
     void plot_local_triangles(const char*);

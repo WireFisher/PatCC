@@ -1357,7 +1357,7 @@ static inline unsigned hash_triangle_by_id(Triangle_Transport triangle)
 unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_Transport *triangles, int num_triangles)
 {
     if(num_triangles < 1)
-        return 0;
+        return PDLN_CHECKSUM_FALSE;
 
     sort_triangles(triangles, num_triangles);
 
