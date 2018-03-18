@@ -16,8 +16,6 @@
 
 bool Print_Error_info=false;
 
-Delaunay_Voronoi *current_delaunay_voronoi = NULL; //thread safe?
-
 /*
  *           o Center
  *           ^
@@ -246,18 +244,18 @@ Edge::Edge(Point *head, Point *tail)
 }
 
 
-Edge *Edge::generate_twins_edge()
+Edge::~Edge()
 {
-    Edge *twins_edge = current_delaunay_voronoi->allocate_edge(tail, head);
-    twins_edge->twin_edge = this;
-    this->twin_edge = twins_edge;
-
-    return twins_edge;
 }
 
 
-Edge::~Edge()
+Edge* Delaunay_Voronoi::generate_twins_edge(Edge *e)
 {
+    Edge *twins_edge = allocate_edge(e->tail, e->head);
+    twins_edge->twin_edge = e;
+    e->twin_edge = twins_edge;
+
+    return twins_edge;
 }
 
 
@@ -451,10 +449,10 @@ void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle
     Edge *eji = eij->twin_edge;
     Edge *eik = eji->next_edge_in_triangle;
     Edge *ekj = eik->next_edge_in_triangle;
-    Edge *erk = current_delaunay_voronoi->allocate_edge(vr, vk);
-    Edge *ekr = erk->generate_twins_edge();
-    Triangle* tikr = current_delaunay_voronoi->allocate_Triangle(eik,ekr,eri);
-    Triangle* tjrk = current_delaunay_voronoi->allocate_Triangle(ejr,erk,ekj);
+    Edge *erk = allocate_edge(vr, vk);
+    Edge *ekr = generate_twins_edge(erk);
+    Triangle* tikr = allocate_Triangle(eik,ekr,eri);
+    Triangle* tjrk = allocate_Triangle(ejr,erk,ekj);
     leaf_triangles->push_back(tikr);
     leaf_triangles->push_back(tjrk);
     tikr->reference_count ++;
@@ -485,8 +483,8 @@ void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
     Edge *eji = eij->twin_edge;
     Edge *eik = eji->next_edge_in_triangle;
     Edge *ekj = eik->next_edge_in_triangle;
-    Edge *erk = current_delaunay_voronoi->allocate_edge(vr, vk);
-    Edge *ekr = erk->generate_twins_edge();
+    Edge *erk = allocate_edge(vr, vk);
+    Edge *ekr = generate_twins_edge(erk);
 
     triangle_origin->initialize_triangle_with_edges(eik,ekr,eri);
     triangle_twin->initialize_triangle_with_edges(ejr,erk,ekj);
@@ -723,18 +721,18 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
     triangle->remained_points_in_triangle.erase(triangle->remained_points_in_triangle.begin()+best_candidate_point_id);
 
     if (best_candidate_point->position_to_triangle(triangle) == 0) { //inside
-        Edge *e_v1_can = current_delaunay_voronoi->allocate_edge(triangle->v[0], best_candidate_point);
-        Edge *e_can_v1 = e_v1_can->generate_twins_edge();
-        Edge *e_v2_can = current_delaunay_voronoi->allocate_edge(triangle->v[1], best_candidate_point);
-        Edge *e_can_v2 = e_v2_can->generate_twins_edge();
-        Edge *e_v3_can = current_delaunay_voronoi->allocate_edge(triangle->v[2], best_candidate_point);
-        Edge *e_can_v3 = e_v3_can->generate_twins_edge();
-        //Triangle *t_v1_v2_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[0], e_v2_can, e_can_v1);
-        //Triangle *t_v2_v3_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[1], e_v3_can, e_can_v2);
-        //Triangle *t_v3_v1_can = current_delaunay_voronoi->allocate_Triangle(triangle->edge[2], e_v1_can, e_can_v3);
-        Triangle *t_can_v1_v2 = current_delaunay_voronoi->allocate_Triangle(e_can_v1, triangle->edge[0], e_v2_can);
-        Triangle *t_can_v2_v3 = current_delaunay_voronoi->allocate_Triangle(e_can_v2, triangle->edge[1], e_v3_can);
-        Triangle *t_can_v3_v1 = current_delaunay_voronoi->allocate_Triangle(e_can_v3, triangle->edge[2], e_v1_can);
+        Edge *e_v1_can = allocate_edge(triangle->v[0], best_candidate_point);
+        Edge *e_can_v1 = generate_twins_edge(e_v1_can);
+        Edge *e_v2_can = allocate_edge(triangle->v[1], best_candidate_point);
+        Edge *e_can_v2 = generate_twins_edge(e_v2_can);
+        Edge *e_v3_can = allocate_edge(triangle->v[2], best_candidate_point);
+        Edge *e_can_v3 = generate_twins_edge(e_v3_can);
+        //Triangle *t_v1_v2_can = allocate_Triangle(triangle->edge[0], e_v2_can, e_can_v1);
+        //Triangle *t_v2_v3_can = allocate_Triangle(triangle->edge[1], e_v3_can, e_can_v2);
+        //Triangle *t_v3_v1_can = allocate_Triangle(triangle->edge[2], e_v1_can, e_can_v3);
+        Triangle *t_can_v1_v2 = allocate_Triangle(e_can_v1, triangle->edge[0], e_v2_can);
+        Triangle *t_can_v2_v3 = allocate_Triangle(e_can_v2, triangle->edge[1], e_v3_can);
+        Triangle *t_can_v3_v1 = allocate_Triangle(e_can_v3, triangle->edge[2], e_v1_can);
         leaf_triangles.push_back(triangle);
         leaf_triangles.push_back(t_can_v1_v2);
         leaf_triangles.push_back(t_can_v2_v3);
@@ -794,14 +792,14 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
             elj = eil->next_edge_in_triangle;
             vl = elj->head;
         }
-        //Edge *eri = current_delaunay_voronoi->allocate_edge(best_candidate_point, vi);
-        //Edge *eir = eri->generate_twins_edge();
-        Edge *eir = current_delaunay_voronoi->allocate_edge(vi, best_candidate_point);
-        Edge *erk = current_delaunay_voronoi->allocate_edge(best_candidate_point, vk);
-        Edge *ekr = erk->generate_twins_edge();
-        Edge *erj = current_delaunay_voronoi->allocate_edge(best_candidate_point, vj);
-        Triangle* tirk = current_delaunay_voronoi->allocate_Triangle(eir, erk, eki);
-        Triangle* tjkr = current_delaunay_voronoi->allocate_Triangle(ejk, ekr, erj);
+        //Edge *eri = allocate_edge(best_candidate_point, vi);
+        //Edge *eir = generate_twins_edge(eri);
+        Edge *eir = allocate_edge(vi, best_candidate_point);
+        Edge *erk = allocate_edge(best_candidate_point, vk);
+        Edge *ekr = generate_twins_edge(erk);
+        Edge *erj = allocate_edge(best_candidate_point, vj);
+        Triangle* tirk = allocate_Triangle(eir, erk, eki);
+        Triangle* tjkr = allocate_Triangle(ejk, ekr, erj);
         leaf_triangles.push_back(triangle);
         leaf_triangles.push_back(tirk);
         leaf_triangles.push_back(tjkr);
@@ -811,12 +809,12 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         legalize_triangles(best_candidate_point, ejk, &leaf_triangles);
         legalize_triangles(best_candidate_point, eki, &leaf_triangles); 
         if (eij->twin_edge != NULL) {
-            Edge *eri = eir->generate_twins_edge();
-            Edge *ejr = erj->generate_twins_edge();
-            Edge *erl = current_delaunay_voronoi->allocate_edge(best_candidate_point, vl);
-            Edge *elr = erl->generate_twins_edge();
-            Triangle* tilr = current_delaunay_voronoi->allocate_Triangle(eil, elr, eri);
-            Triangle* tjrl = current_delaunay_voronoi->allocate_Triangle(ejr, erl, elj);
+            Edge *eri = generate_twins_edge(eir);
+            Edge *ejr = generate_twins_edge(erj);
+            Edge *erl = allocate_edge(best_candidate_point, vl);
+            Edge *elr = generate_twins_edge(erl);
+            Triangle* tilr = allocate_Triangle(eil, elr, eri);
+            Triangle* tjrl = allocate_Triangle(ejr, erl, elj);
             leaf_triangles.push_back(eij->twin_edge->triangle);
             leaf_triangles.push_back(tilr);
             leaf_triangles.push_back(tjrl);
@@ -883,9 +881,9 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
     virtual_point[1] = new Point(minX - dy - 1.0, minY - 1.0, -1);
     virtual_point[2] = new Point(maxX + dy + 1.0, minY - 1.0, -1);
 
-    super = current_delaunay_voronoi->allocate_Triangle(current_delaunay_voronoi->allocate_edge(virtual_point[0], virtual_point[1]),
-                                                        current_delaunay_voronoi->allocate_edge(virtual_point[1], virtual_point[2]),
-                                                        current_delaunay_voronoi->allocate_edge(virtual_point[2], virtual_point[0]));
+    super = allocate_Triangle(allocate_edge(virtual_point[0], virtual_point[1]),
+                              allocate_edge(virtual_point[1], virtual_point[2]),
+                              allocate_edge(virtual_point[2], virtual_point[0]));
 
     cells = new Cell[num_points];
 
@@ -941,7 +939,6 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 #endif
 
     gettimeofday(&start, NULL);
-    current_delaunay_voronoi = this;
 
     num_cells = num_points;
 
@@ -982,7 +979,6 @@ Delaunay_Voronoi::~Delaunay_Voronoi()
         delete triangle_pool[i];
         //triangle_allocator.deleteElement(triangle_pool[i]);
     */
-    current_delaunay_voronoi = NULL;
 }
 
 
@@ -1249,12 +1245,12 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
                 if (vl[j]->x >= 0.0 && vl[(j+1)%3]->x >= 0.0)
                     el[j] = cyclic_triangles[i]->edge[j];
                 else
-                    el[j] = current_delaunay_voronoi->allocate_edge(vl[j], vl[(j+1)%3]);
+                    el[j] = allocate_edge(vl[j], vl[(j+1)%3]);
 
                 if (vr[j]->x < 360.0 && vr[(j+1)%3]->x < 360.0)
                     er[j] = cyclic_triangles[i]->edge[j];
                 else
-                    er[j] = current_delaunay_voronoi->allocate_edge(vr[j], vr[(j+1)%3]);
+                    er[j] = allocate_edge(vr[j], vr[(j+1)%3]);
                 
             }
             
@@ -1265,7 +1261,7 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
             cyclic_triangles[i]->initialize_triangle_with_edges(el[0], el[1], el[2]);
 
             /* Alloc new triangles for right triangles */
-            Triangle *t = current_delaunay_voronoi->allocate_Triangle(er[0], er[1], er[2]);
+            Triangle *t = allocate_Triangle(er[0], er[1], er[2]);
             right_triangles.push_back(t);
             result_leaf_triangles.push_back(t);
         }

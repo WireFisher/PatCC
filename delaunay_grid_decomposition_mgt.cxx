@@ -1471,9 +1471,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     bool all_finished;
     //TODO: openmp parallel
 
-    assert(local_leaf_nodes.size() > 0);
     if(local_leaf_nodes.size() > 1)
-        printf("local_leaf_nodes.size(): %lu\n", local_leaf_nodes.size());
+        printf("size of local leaf: %lu\n", local_leaf_nodes.size());
 
     bool *is_local_leaf_node_finished;
     unsigned **local_leaf_checksums, **remote_leaf_checksums;
@@ -1498,7 +1497,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     int iter = 0;
     double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
     while(iter < 10) {
-
         int ret;
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i]) {
@@ -1510,6 +1508,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
         /* TODO: allgather ret */
 
+        #pragma omp parallel for private(i)
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
 
@@ -1528,13 +1527,14 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             }
         }
 
-        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
 #ifdef DEBUG
                 assert(local_leaf_nodes[i]->neighbors.size() < PDLN_MAX_NUM_NEIGHBORS);
 #endif
                 send_recv_checksums_with_neighbors(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i], waiting_lists + i, iter);
             }
+        }
 
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -1543,7 +1543,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 for(unsigned j = 0; j < waiting_lists[i].size(); j++) {
                     MPI_Wait(waiting_lists[i][j], MPI_STATUS_IGNORE);
                     delete waiting_lists[i][j];
-                    //printf("[%d] wait   done %d\n", rank, status.MPI_SOURCE);
                 }
                 waiting_lists[i].clear();
             }
@@ -1556,8 +1555,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]) &&
                                                  local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic);
             }
-            else
-                printf("[%d] already done, no need for checksum\n", local_leaf_nodes[i]->processing_units_id[0]);
         }
 
         all_finished = true;

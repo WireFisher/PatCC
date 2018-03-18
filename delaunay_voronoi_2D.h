@@ -156,6 +156,7 @@ class Delaunay_Voronoi
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
         double calculate_angle(const Point *, const Point *, const Point *);
         std::vector<Triangle*> find_triangles_intersecting_with_segment(Point, Point);
+        Edge* generate_twins_edge(Edge*);
 
         bool is_triangle_legal(const Point *pt, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
