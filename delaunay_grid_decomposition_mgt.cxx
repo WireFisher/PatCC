@@ -41,7 +41,7 @@
 
 #define PDLN_DOUBLE_INVALID_VALUE ((double)0xDEADBEEFDEADBEEF)
 
-#define PDLN_HIGH_BOUNDRY_SHIFTING (0.0001)
+#define PDLN_HIGH_BOUNDRY_SHIFTING (1e-8)
 
 #define PDLN_MAX_NUM_PROCESSING_UNITS 512
 
@@ -95,22 +95,13 @@ Boundry& Boundry::operator* (double ratio)
 }
 
 
-void Boundry::legalize()
-{
-    min_lat = std::max(min_lat, -90.0);
-    min_lon = std::max(min_lon, 0.0);
-    max_lat = std::min(max_lat, 90.0+PDLN_HIGH_BOUNDRY_SHIFTING);
-    max_lon = std::min(max_lon, 360.0+PDLN_HIGH_BOUNDRY_SHIFTING);
-}
-
-
 void Boundry::legalize(const Boundry *outer_boundry, bool is_cyclic)
 {
     min_lat = std::max(min_lat, outer_boundry->min_lat);
-    max_lat = std::min(max_lat, outer_boundry->max_lat+PDLN_HIGH_BOUNDRY_SHIFTING);
+    max_lat = std::min(max_lat, outer_boundry->max_lat);
     if(!is_cyclic) {
         min_lon = std::max(min_lon, outer_boundry->min_lon);
-        max_lon = std::min(max_lon, outer_boundry->max_lon+PDLN_HIGH_BOUNDRY_SHIFTING);
+        max_lon = std::min(max_lon, outer_boundry->max_lon);
     }
 }
 
@@ -234,10 +225,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                 calculate_stereographic_projection(lon, real_boundry->min_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
                 calculate_stereographic_projection(lon, real_boundry->max_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
             }
-            head_lon += 90.0;
-            tail_lon += 90.0;
-            if(head_lon > 360.0) head_lon -= 360.0;
-            if(tail_lon > 360.0) tail_lon -= 360.0;
 
             //printf("(%lf, %lf) -- (%lf, %lf)\n", head_lon, head_lat, tail_lon, tail_lat);
             std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
@@ -254,10 +241,16 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             triangulation->relegalize_all_triangles();
         }
         else {
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+
             calculate_real_boundary();
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
+            printf("[%d] delaunay triangle done1\n", rank);
             triangulation->relegalize_all_triangles();
+            printf("[%d] delaunay triangle done2\n", rank);
         }
     }
     else {
@@ -597,7 +590,6 @@ void Search_tree_node::generate_rotated_grid()
         for(int i = 0; i < num_kernel_points + num_expanded_points; i++) {
             calculate_stereographic_projection(points_coord[PDLN_LON][i], points_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
                                                projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
-            projected_coord[PDLN_LON][i] += 90; /* shift to avoid cyclic situation */ //FIXME: this should be deleted
         }
 
         num_rotated_points = num_kernel_points + num_expanded_points;
@@ -607,13 +599,12 @@ void Search_tree_node::generate_rotated_grid()
         for(int i = num_rotated_points; i < num_kernel_points + num_expanded_points; i++) {
             calculate_stereographic_projection(points_coord[PDLN_LON][i], points_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
                                                projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
-            projected_coord[PDLN_LON][i] += 90;
         }
         num_rotated_points = num_kernel_points + num_expanded_points;
     }
 
     /* recalculate expanded boundary */
-    double top = -91.0, bot = 91.0, left = 540.0, right = -180.0;
+    double top = -1e20, bot = 1e20, left = 1e20, right = -1e20;
     for(int i = 0; i < num_rotated_points; i++) { //TODO: i can be started from non-zero
         if (projected_coord[PDLN_LON][i] < left)  left = projected_coord[PDLN_LON][i];
         if (projected_coord[PDLN_LON][i] > right) right = projected_coord[PDLN_LON][i];
@@ -655,6 +646,11 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     for(int i = 0; i < num_points; i++)
         global_index[i] = i;
 
+    if(boundry.max_lon - boundry.min_lon < 360.0)
+        boundry.max_lon += PDLN_HIGH_BOUNDRY_SHIFTING;
+    boundry.max_lat += PDLN_HIGH_BOUNDRY_SHIFTING;
+
+    assert(boundry.max_lon - boundry.min_lon <= 360.0);
     search_tree_root = new Search_tree_node(NULL, coord_values, global_index, num_points, boundry, PDLN_NODE_TYPE_COMMON);
     this->workloads = NULL;
     //this->initialze_workload();
@@ -1256,6 +1252,14 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
     new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
 
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //printf("[%d] boundary: %lf, %lf, %lf, %lf\n", rank, new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
+    if(new_boundry == *search_tree_root->kernel_boundry || new_boundry.max_lon - new_boundry.min_lon > 360.0) {
+        printf("expanged to the max\n");
+        return -1;
+    }
+
     /*
     if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.max_lat >= 90 && new_boundry.max_lat >= 90)
         return 1;
@@ -1459,7 +1463,7 @@ bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
 #define PDLN_MAX_NUM_NEIGHBORS 128
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
-    bool all_finished, *is_local_leaf_node_finished;
+    bool *is_local_leaf_node_finished;
     unsigned **local_leaf_checksums, **remote_leaf_checksums;
 
     is_local_leaf_node_finished = new bool[local_leaf_nodes.size()]();
@@ -1480,6 +1484,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     vector<MPI_Request*> *waiting_lists = new vector<MPI_Request*> [local_leaf_nodes.size()];
 
     int iter = 0;
+    bool all_finished = false;
     double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
     while(iter < 10) {
         int ret;
@@ -1491,6 +1496,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                     local_leaf_nodes[i]->generate_rotated_grid();
             }
 
+        if(ret)
+            return 0;
         /* TODO: allgather ret */
 
         #pragma omp parallel for
@@ -1541,6 +1548,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(!is_local_leaf_node_finished[i]) {
                 is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]) &&
                                                  local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic);
+                is_local_leaf_node_finished[i] = false;
             }
         }
 

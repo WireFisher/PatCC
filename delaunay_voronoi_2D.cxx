@@ -584,7 +584,9 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
         this->edge[2] = edge3;
     }
     else {
-        printf("assert false\n");
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        printf("[%d] assert false\n", rank);
         while(true);
         assert(false);
         v[1] = pt3;
