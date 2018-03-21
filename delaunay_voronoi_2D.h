@@ -183,9 +183,13 @@ class Delaunay_Voronoi
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
         unsigned calculate_triangles_intersected_checksum(Point, Point);   
         void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
+        bool is_triangle_in_circle(Triangle*, Point, double);
+        void remove_triangles_in_circle(Point, double);
+        void remove_triangles_on_segment(Point, Point);
 
         /* debug */
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
+        void plot_projection_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
 };
 
 class Triangle_Transport

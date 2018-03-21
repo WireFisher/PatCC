@@ -1193,9 +1193,65 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
 }
 
 
+void Delaunay_Voronoi::remove_triangles_on_segment(Point head, Point tail)
+{
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+        if(!result_leaf_triangles[i]->is_leaf)
+            continue;
+
+        if(result_leaf_triangles[i]->v[0]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) > 0 &&
+           result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[2]->position_to_edge(&head, &tail) > 0 )
+            continue;
+
+        /* two points of segment is in/on triangle */
+        if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
+            remove_leaf_triangle(result_leaf_triangles[i]);
+            continue;
+        }
+
+        /* segment is intersected with at least one edge of triangle */
+        for(int j = 0; j < 3; j++)
+            if((head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ||
+               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ) &&
+               head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
+               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) < 0 &&
+               result_leaf_triangles[i]->v[j]->position_to_edge(&head, &tail) *
+               result_leaf_triangles[i]->v[(j+1)%3]->position_to_edge(&head, &tail) <= 0) {
+                remove_leaf_triangle(result_leaf_triangles[i]);
+                break;
+            }
+    }
+}
+
+
 std::vector<Triangle*> Delaunay_Voronoi::search_cyclic_triangles_for_rotated_grid(Point cyclic_boundary_head, Point cyclic_bounary_tail)
 {
     return find_triangles_intersecting_with_segment(cyclic_boundary_head, cyclic_bounary_tail);
+}
+
+
+inline double calculate_distence_square(double x1, double y1, double x2, double y2)
+{
+    return (x1-x2)*(x1-x2)+(y1-y2)*(y1-y2);
+}
+
+
+inline bool Delaunay_Voronoi::is_triangle_in_circle(Triangle* t, Point center, double radius)
+{
+    return calculate_distence_square(center.x,
+                                     center.y,
+                                     (t->v[0]->x + t->v[1]->x + t->v[2]->x) * 0.33333333333,
+                                     (t->v[0]->y + t->v[1]->y + t->v[2]->y) * 0.33333333333) < radius*radius;
+}
+
+
+void Delaunay_Voronoi::remove_triangles_in_circle(Point center, double radius)
+{
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
+        if(result_leaf_triangles[i]->is_leaf) {
+            if (is_triangle_in_circle(result_leaf_triangles[i], center, radius))
+                remove_leaf_triangle(result_leaf_triangles[i]);
+        }
 }
 
 
@@ -1377,6 +1433,11 @@ unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, 
     unsigned checksum;
 
     get_triangles_intersecting_with_segment(head, tail, triangles, &num_triangles, 2*num_cells);
+    char filename[64];
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    snprintf(filename, 64, "log/boundary_triangles_%d", rank);
+    plot_triangles_info_file(filename, triangles, num_triangles);
 
     checksum = calculate_triangles_checksum(triangles, num_triangles);
 
@@ -1450,6 +1511,38 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
     assert(num_edges%3 == 0);
     assert(num_edges <= 3 * result_leaf_triangles.size());
     plot_edge_into_file(filename, head_coord, tail_coord, num_edges, min_x, max_x, min_y, max_y);
+
+    delete head_coord[0];
+    delete head_coord[1];
+    delete tail_coord[0];
+    delete tail_coord[1];
+}
+
+
+void Delaunay_Voronoi::plot_projection_into_file(const char *filename, double min_x, double max_x, double min_y, double max_y)
+{
+    unsigned num_edges;
+    double *head_coord[2], *tail_coord[2];
+
+    num_edges = 3 * result_leaf_triangles.size();
+    head_coord[0] = new double[num_edges];
+    head_coord[1] = new double[num_edges];
+    tail_coord[0] = new double[num_edges];
+    tail_coord[1] = new double[num_edges];
+
+    num_edges = 0;
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i ++)
+        if(result_leaf_triangles[i]->is_leaf)
+            for(unsigned j = 0; j < 3; j++) {
+                head_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->head->x;
+                head_coord[1][num_edges] = result_leaf_triangles[i]->edge[j]->head->y;
+                tail_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->tail->x;
+                tail_coord[1][num_edges++] = result_leaf_triangles[i]->edge[j]->tail->y;
+            }
+
+    assert(num_edges%3 == 0);
+    assert(num_edges <= 3 * result_leaf_triangles.size());
+    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, min_x, max_x, min_y, max_y);
 
     delete head_coord[0];
     delete head_coord[1];
