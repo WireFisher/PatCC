@@ -89,6 +89,61 @@ Component::Component(int id): component_id(id)
 }
 
 
+void Component::grid_pretreatment(int grid_id)
+{
+    double min_lon, max_lon, min_lat, max_lat;
+    double **coord_values;
+    int num_points;
+
+    int num_npolar, num_spolar;
+    double max_lat_without_polar, min_lat_without_polar;
+
+    grid_info_mgr->get_grid_boundry(grid_id, &min_lon, &max_lon, &min_lat, &max_lat);
+    coord_values = grid_info_mgr->get_grid_coord_values(grid_id);
+    num_points = grid_info_mgr->get_grid_num_points(grid_id);
+
+    /* deal with non-monotonic grid */
+    if(min_lon > max_lon) {
+        assert(min_lon >= 0 && min_lon <= 360);
+        assert(max_lon >= 0 && max_lon <= 360);
+
+        double split_line = (min_lon + max_lon) * 0.5;
+        for(int i = 0; i < num_points; i++) {
+            if(coord_values[PDLN_LON][i] > split_line) coord_values[PDLN_LON][i] -= 360;
+        }
+        min_lon -= 360;
+        grid_info_mgr->set_grid_boundry(grid_id, min_lon, max_lon, min_lat, max_lat);
+    }
+
+    /* deal with redundent polar points */
+    num_npolar = 0;
+    num_spolar = 0;
+    max_lat_without_polar = -1e10;
+    min_lat_without_polar = 1e10;
+    for(int i = 0; i < num_points; i++) {
+        if(coord_values[PDLN_LAT][i] == 90.0) {
+            polars_index.push_back(std::pair<int, bool>(i, 0));
+            num_npolar++;
+        }
+        else if(coord_values[PDLN_LAT][i] == -90.0) {
+            polars_index.push_back(std::pair<int, bool>(i, 1));
+            num_spolar++;
+        }
+        else {
+            if(max_lat_without_polar < coord_values[PDLN_LAT][i]) max_lat_without_polar = coord_values[PDLN_LAT][i];
+            if(min_lat_without_polar > coord_values[PDLN_LAT][i]) min_lat_without_polar = coord_values[PDLN_LAT][i];
+        }
+    }
+
+    for(unsigned i = 0; i < polars_index.size(); i++) {
+        if(polars_index[i].second == 0)
+            coord_values[PDLN_LON][polars_index[i].first] = (90.0 + max_lat_without_polar) * 0.5;
+        else
+            coord_values[PDLN_LON][polars_index[i].first] = (-90.0 + min_lat_without_polar) * 0.5;
+    }
+}
+
+
 Component::~Component()
 {
     delete proc_resource;
@@ -109,7 +164,7 @@ void Component::generate_delaunay_trianglulation(int grid_id)
     }
     //this->proc_resource->print_all_nodes_info();
 
-    /* grid pretreatment */
+    grid_pretreatment(grid_id);
 
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
     operating_grid->plot_triangles_into_file();

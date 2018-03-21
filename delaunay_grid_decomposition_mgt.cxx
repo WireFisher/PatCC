@@ -1914,6 +1914,24 @@ Grid_info_manager::Grid_info_manager()
 {
     gen_three_polar_grid();
     //gen_latlon_grid();
+
+    //three polar set
+    min_lon =   0.0;
+    max_lon = 360.0;
+    min_lat = -80.0;
+    max_lat =  90.0;
+
+    /*// lonlat grid set
+    min_lon =   1.0;
+    max_lon = 360.0;
+    min_lat = -89.0;
+    max_lat =  89.0;
+    */
+    //min_lat = -89.0;
+    //max_lat =  89.0;
+    //min_lat = -30.0;
+    //max_lat = 30.0;
+    //max_lon = 359.0;
 }
 
 
@@ -1936,26 +1954,23 @@ int Grid_info_manager::get_grid_num_points(int grid_id)
 {
     return num_points;
 }
-void Grid_info_manager::get_grid_boundry(int grid_id, double* min_lon, double* max_lon, double* min_lat, double* max_lat)
+void Grid_info_manager::get_grid_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
 {
-    //three polar set
-    *min_lon =   0.0;
-    *max_lon = 360.0;
-    *min_lat = -80.0;
-    *max_lat =  90.0;
-
-    /*// lonlat grid set
-    *min_lon =   1.0;
-    *max_lon = 360.0;
-    *min_lat = -89.0;
-    *max_lat =  89.0;
-    */
-    //*min_lat = -89.0;
-    //*max_lat =  89.0;
-    //*min_lat = -30.0;
-    //*max_lat = 30.0;
-    //*max_lon = 359.0;
+    *mi_lon = min_lon;
+    *ma_lon = max_lon;
+    *mi_lat = min_lat;
+    *ma_lat = max_lat;
 }
+
+
+void Grid_info_manager::set_grid_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat)
+{
+    min_lon = mi_lon;
+    max_lon = ma_lon;
+    min_lat = mi_lat;
+    max_lat = ma_lat;
+}
+
 
 bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {

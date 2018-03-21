@@ -166,6 +166,10 @@ class Grid_info_manager {
 private:
     double *coord_values[2];
     int num_points;
+    double min_lon;
+    double max_lon;
+    double min_lat;
+    double max_lat;
 
     void gen_basic_grid();
     void gen_three_polar_grid();
@@ -178,6 +182,7 @@ public:
     virtual double** get_grid_coord_values(int);
     virtual int get_grid_num_points(int);
     virtual void get_grid_boundry(int, double*, double*, double*, double*);
+    virtual void set_grid_boundry(int, double, double, double, double);
     virtual int get_polar_points(int, char);
     virtual bool is_grid_cyclic(int);
 };
