@@ -1000,6 +1000,7 @@ bool have_redundent_points(const double *x, const double *y, int num)
     if(num == 0)
         return false;
 
+    bool have_redundent = false;
     for(int i = 0; i < num; i++) {
         it_hash = hash_table.find(x[i] * 1000.0 + y[i]);
         if(it_hash != hash_table.end()) {
@@ -1010,8 +1011,8 @@ bool have_redundent_points(const double *x, const double *y, int num)
                     break;
                 }
             if(same){
-                //printf("redundent_point: %lf, %lf\n", x[i], y[i]);
-                return true;
+                printf("redundent_point: %lf, %lf\n", x[i], y[i]);
+                have_redundent = true;
             }
             else {
                 it_hash->second.push_back(i);
@@ -1021,6 +1022,9 @@ bool have_redundent_points(const double *x, const double *y, int num)
             hash_table[x[i] * 1000.0 + y[i]].push_back(i);
         }
     }
+
+    if(have_redundent)
+        return true;
 
     return false;
 }
@@ -1551,6 +1555,27 @@ void Delaunay_Voronoi::plot_projection_into_file(const char *filename, double mi
 }
 
 
+void Delaunay_Voronoi::plot_original_points_into_file(const char *filename, double min_x, double max_x, double min_y, double max_y)
+{
+    double *coord[2];
+
+    coord[0] = new double[num_cells];
+    coord[1] = new double[num_cells];
+
+    int num = 0;
+    for(int i = 0; i < num_cells; i ++) {
+        coord[0][num] = cells[i].center->x;
+        coord[1][num++] = cells[i].center->y;
+    }
+
+    assert(num == num_cells);
+    plot_points_info_file(filename, coord[0], coord[1], num_cells, min_x, max_x, min_y, max_y);
+
+    delete coord[0];
+    delete coord[1];
+}
+
+
 void Delaunay_Voronoi::update_all_points_coord(double *x_values, double *y_values, int num)
 {
     assert(num == num_cells);
@@ -1563,6 +1588,7 @@ void Delaunay_Voronoi::update_all_points_coord(double *x_values, double *y_value
         if(result_leaf_triangles[i]->is_leaf)
             result_leaf_triangles[i]->calulate_circum_circle();
 }
+
 
 Triangle_Transport::Triangle_Transport(Point p0, Point p1, Point p2)
 {

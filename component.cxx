@@ -121,11 +121,11 @@ void Component::grid_pretreatment(int grid_id)
     max_lat_without_polar = -1e10;
     min_lat_without_polar = 1e10;
     for(int i = 0; i < num_points; i++) {
-        if(coord_values[PDLN_LAT][i] == 90.0) {
+        if(std::abs(coord_values[PDLN_LAT][i] - 90.0) < PDLN_FLOAT_EQ_ERROR) {
             polars_index.push_back(std::pair<int, bool>(i, 0));
             num_npolar++;
         }
-        else if(coord_values[PDLN_LAT][i] == -90.0) {
+        else if(std::abs(coord_values[PDLN_LAT][i] - -90.0) < PDLN_FLOAT_EQ_ERROR) {
             polars_index.push_back(std::pair<int, bool>(i, 1));
             num_spolar++;
         }
@@ -137,9 +137,9 @@ void Component::grid_pretreatment(int grid_id)
 
     for(unsigned i = 0; i < polars_index.size(); i++) {
         if(polars_index[i].second == 0)
-            coord_values[PDLN_LON][polars_index[i].first] = (90.0 + max_lat_without_polar) * 0.5;
+            coord_values[PDLN_LAT][polars_index[i].first] = (90.0 + max_lat_without_polar) * 0.5;
         else
-            coord_values[PDLN_LON][polars_index[i].first] = (-90.0 + min_lat_without_polar) * 0.5;
+            coord_values[PDLN_LAT][polars_index[i].first] = (-90.0 + min_lat_without_polar) * 0.5;
     }
 }
 
@@ -168,7 +168,7 @@ void Component::generate_delaunay_trianglulation(int grid_id)
 
     operating_grid->generate_delaunay_trianglulation(this->proc_resource);
     operating_grid->plot_triangles_into_file();
-    //operating_grid->merge_all_triangles();
+    operating_grid->merge_all_triangles();
 }
 
 Grid_info_manager *grid_info_mgr;

@@ -9,10 +9,13 @@
 #ifndef DELAUNAY_GRID_DECOMPOSITION_MGT_H
 #define DELAUNAY_GRID_DECOMPOSITION_MGT_H
 
-#define PDLN_LON 0
-#define PDLN_LAT 1
 #include "processing_unit_mgt.h"
 #include "delaunay_voronoi_2D.h"
+
+#define PDLN_LON 0
+#define PDLN_LAT 1
+
+#define PDLN_FLOAT_EQ_ERROR (1e-10)
 
 using std::pair;
 
@@ -174,6 +177,8 @@ private:
     void gen_basic_grid();
     void gen_three_polar_grid();
     void gen_latlon_grid();
+    void gen_latlon_90_grid();
+
 public:
     /* for unittest */
     Grid_info_manager();
