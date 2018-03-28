@@ -10,9 +10,10 @@
 #include <list>
 #include "merge_sort.h"
 
-#define PI ((double) 3.14159265358979323846)
-#define FLOAT_ERROR (1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
-#define FLOAT_ERROR_HI (1e-11) // normal grid less than 1e-11
+//#define PI ((double) 3.14159265358979323846)
+#define PI ((double) 3.1415926535897932384626433)
+#define FLOAT_ERROR ((double) 1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
+#define FLOAT_ERROR_HI ((double) 1e-11) // normal grid less than 1e-11
 
 bool Print_Error_info=false;
 
@@ -302,20 +303,23 @@ bool Delaunay_Voronoi::is_angle_ambiguous(const Point *pt, const Edge *edge)
 bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 {
     double sum_angle_value;
+    double angle_value[2];
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    sum_angle_value = calculate_angle(pt, edge->head, edge->tail) + calculate_angle(edge->twin_edge->prev_edge_in_triangle->head, edge->head, edge->tail);
+
+    angle_value[0] = calculate_angle(pt, edge->head, edge->tail);
+    angle_value[1] = calculate_angle(edge->twin_edge->prev_edge_in_triangle->head, edge->head, edge->tail);
+    sum_angle_value = angle_value[0] + angle_value[1];
     if(std::fabs(sum_angle_value - PI) < FLOAT_ERROR){
+    //if(std::fabs(angle_value[0] - PI*0.5) < FLOAT_ERROR && std::fabs(angle_value[1] - PI*0.5) < FLOAT_ERROR || sum_angle_value == PI){
         if(Print_Error_info)
-            if(rank == 5)
             printf("angle1 \n");
         if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
            edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
             return false;
         else {
         if(Print_Error_info)
-            if(rank == 5)
             printf("(%lf, %lf),(%lf, %lf),(%lf, %lf),(%lf, %lf). %p,%p,%p,%p vs %p\n", pt->x, pt->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y,
                                                                                        edge->twin_edge->prev_edge_in_triangle->head->x,
                                                                                        edge->twin_edge->prev_edge_in_triangle->head->y, 
@@ -325,7 +329,6 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
         }
     }
         if(Print_Error_info)
-            if(rank == 5)
             printf("angle2 \n");
     if(sum_angle_value > PI) {
         return true;
@@ -340,21 +343,18 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (!edge->twin_edge) {
         if(Print_Error_info)
-            if(rank == 5)
             printf("fast1 \n");
         return true;
     }
 
     if(!edge->twin_edge->triangle) {
         if(Print_Error_info)
-            if(rank == 5)
             printf("fast2 \n");
         return true;
     }
 
     if(!edge->twin_edge->triangle->is_leaf) {
         if(Print_Error_info)
-            if(rank == 5)
             printf("fast3 \n");
         return true;
     }
@@ -362,20 +362,17 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
     int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
     if (ret == -1) {
         if(Print_Error_info)
-            if(rank == 5)
             printf("fast4 \n");
         return true;
     }
 
     if (ret == 0) {
         if(Print_Error_info)
-            if(rank == 5)
             printf("fast5 \n");
         return !is_angle_too_large(pt, edge);
     }
 
         if(Print_Error_info)
-            if(rank == 5)
             printf("fast6 \n");
     return false;
 }
@@ -407,10 +404,12 @@ bool Delaunay_Voronoi::is_triangle_ambiguous(const Point *pt, const Edge *edge)
 bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 {
     //Print_Error_info = true;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
     for(int i = 0; i < 3; i++)
         if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i])) {
-            printf("illegal\n");
-            while(true);
+            printf("[%d] illegal triangle: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, t->v[0]->x, t->v[0]->y, t->v[1]->x, t->v[1]->y, t->v[2]->x, t->v[2]->y);
             return false;
         }
     return true;
@@ -420,11 +419,15 @@ bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
 {
     //Print_Error_info = true;
+    bool is_legal = true;
     for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
         if(result_leaf_triangles[i]->is_leaf)
             if(!is_triangle_legal(result_leaf_triangles[i]))
-                return false;
-    return true;
+                is_legal = false;
+    if(is_legal)
+        return true;
+    else
+        return false;
 }
 
 
@@ -953,6 +956,8 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 
     root = initialize_super_triangle(num_points, x_values, y_values, redundant_cell_mark);
 
+    save_original_points_into_file();
+
     triangularization_process(root);
 
     clear_triangle_containing_virtual_point();
@@ -960,7 +965,9 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
-    //assert(is_all_leaf_triangle_legal());
+    //is_all_leaf_triangle_legal();
+    //MPI_Barrier(MPI_COMM_WORLD);
+    assert(is_all_leaf_triangle_legal());
     gettimeofday(&end, NULL);
     //int rank;
     //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -1437,11 +1444,11 @@ unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, 
     unsigned checksum;
 
     get_triangles_intersecting_with_segment(head, tail, triangles, &num_triangles, 2*num_cells);
-    char filename[64];
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    snprintf(filename, 64, "log/boundary_triangles_%d", rank);
-    plot_triangles_info_file(filename, triangles, num_triangles);
+    //char filename[64];
+    //int rank;
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //snprintf(filename, 64, "log/boundary_triangles_%d", rank);
+    //plot_triangles_info_file(filename, triangles, num_triangles);
 
     checksum = calculate_triangles_checksum(triangles, num_triangles);
 
@@ -1573,6 +1580,60 @@ void Delaunay_Voronoi::plot_original_points_into_file(const char *filename, doub
 
     delete coord[0];
     delete coord[1];
+}
+
+
+static int compare_cell_x(const void* a, const void* b)
+{
+    Cell t1 = *(const Cell*)a;
+    Cell t2 = *(const Cell*)b;
+
+    if(t1.center->x < t2.center->x) return -1;
+    if(t1.center->x > t2.center->x) return  1;
+    return 0;
+}
+
+
+static int compare_cell_y(const void* a, const void* b)
+{
+    Cell t1 = *(const Cell*)a;
+    Cell t2 = *(const Cell*)b;
+
+    if(t1.center->y < t2.center->y) return -1;
+    if(t1.center->y > t2.center->y) return  1;
+    return 0;
+}
+
+
+void sort_cells(Cell *cells, int num_cells)
+{
+    merge_sort(cells, num_cells, sizeof(Cell), compare_cell_x);
+    merge_sort(cells, num_cells, sizeof(Cell), compare_cell_y);
+}
+
+
+void Delaunay_Voronoi::save_original_points_into_file()
+{
+    Cell *tmp_cells;
+    tmp_cells = new Cell[num_cells];
+
+    memcpy(tmp_cells, cells, num_cells*sizeof(Cell));
+    
+    sort_cells(tmp_cells, num_cells);
+
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    if(rank == size - 1) {
+        FILE *fp;
+        fp = fopen("log/input_point_npolar.txt", "w");
+        for(int i = 0; i < num_cells; i++)
+            if(tmp_cells[i].center->x < 5 && tmp_cells[i].center->x > -5 && tmp_cells[i].center->y < 5 && tmp_cells[i].center->y > -5)
+                fprintf(fp, "%.20lf, %.20lf\n", tmp_cells[i].center->x, tmp_cells[i].center->y);
+        fclose(fp);
+    }
+
+    delete [] tmp_cells;
 }
 
 
