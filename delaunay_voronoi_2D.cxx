@@ -441,7 +441,6 @@ void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge->twin_edge->triangle->is_leaf, "remap software error2 in legalize_triangles %lx\n", (long)(edge->twin_edge->triangle));
     assert(edge->twin_edge->triangle->is_leaf);
     leaf_triangles->push_back(edge->twin_edge->triangle);
-    edge->twin_edge->triangle->reference_count ++;
     edge->triangle->is_leaf = false;
     edge->twin_edge->triangle->is_leaf = false;
 
@@ -458,8 +457,6 @@ void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle
     Triangle* tjrk = allocate_Triangle(ejr,erk,ekj);
     leaf_triangles->push_back(tikr);
     leaf_triangles->push_back(tjrk);
-    tikr->reference_count ++;
-    tjrk->reference_count ++;
     legalize_triangles(vr, eik, leaf_triangles);
     legalize_triangles(vr, ekj, leaf_triangles);
 }
@@ -548,7 +545,6 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     Point *pt1, *pt2, *pt3;
 
     is_leaf = true;
-    reference_count = 1;
     
     pt1 = edge1->head;
     pt2 = edge2->head;
@@ -706,11 +702,8 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
     int best_candidate_point_id;
     Point *best_candidate_point;
     vector<Triangle *> leaf_triangles;
-    vector<Triangle *> existing_triangles;
-
 
     if (!triangle->is_leaf) {
-        triangle->reference_count --;
         return;
     }
         
@@ -742,10 +735,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         leaf_triangles.push_back(t_can_v1_v2);
         leaf_triangles.push_back(t_can_v2_v3);
         leaf_triangles.push_back(t_can_v3_v1);
-        triangle->reference_count ++;
-        t_can_v1_v2->reference_count ++;
-        t_can_v2_v3->reference_count ++;
-        t_can_v3_v1->reference_count ++;
         //legalize_triangles(best_candidate_point, triangle->edge[0], &leaf_triangles);
         //legalize_triangles(best_candidate_point, triangle->edge[1], &leaf_triangles);
         //legalize_triangles(best_candidate_point, triangle->edge[2], &leaf_triangles);
@@ -808,9 +797,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         leaf_triangles.push_back(triangle);
         leaf_triangles.push_back(tirk);
         leaf_triangles.push_back(tjkr);
-        triangle->reference_count ++;
-        tirk->reference_count ++;
-        tjkr->reference_count ++;
         legalize_triangles(best_candidate_point, ejk, &leaf_triangles);
         legalize_triangles(best_candidate_point, eki, &leaf_triangles); 
         if (eij->twin_edge != NULL) {
@@ -823,8 +809,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
             leaf_triangles.push_back(eij->twin_edge->triangle);
             leaf_triangles.push_back(tilr);
             leaf_triangles.push_back(tjrl);
-            tilr->reference_count ++;
-            tjrl->reference_count ++;
             legalize_triangles(best_candidate_point, eil, &leaf_triangles);
             legalize_triangles(best_candidate_point, elj, &leaf_triangles);
         }
@@ -846,7 +830,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
     for (unsigned int i = 0; i < leaf_triangles.size(); i ++)
         triangularization_process(leaf_triangles[i]);
 
-    triangle->reference_count --;
 }
 
 /* This function should be call only once for the root virtual triangle,

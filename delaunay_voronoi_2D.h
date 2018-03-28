@@ -94,7 +94,6 @@ class Triangle
         //Point center;    /* circumcenter */
         Edge *edge[3];
         bool is_leaf;
-        int reference_count;    /* reference count, used to destruct */
         vector<Point*> remained_points_in_triangle;
         vector<Triangle*> children;
         double circum_center[2];
