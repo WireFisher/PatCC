@@ -191,6 +191,7 @@ class Delaunay_Voronoi
         void plot_projection_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void plot_original_points_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void save_original_points_into_file();
+        void plot_current_step_into_file(const char*);
 };
 
 class Triangle_Transport

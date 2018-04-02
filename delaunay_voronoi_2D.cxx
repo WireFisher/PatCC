@@ -14,6 +14,7 @@
 #define PI ((double) 3.1415926535897932384626433)
 #define FLOAT_ERROR ((double) 1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
 #define FLOAT_ERROR_HI ((double) 1e-11) // normal grid less than 1e-11
+int triangulate_count = 0;
 
 bool Print_Error_info=false;
 
@@ -433,6 +434,10 @@ bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
 
 void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle*> *leaf_triangles)
 {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(triangulate_count == 261 && rank == 79)
+        printf("(%lf, %lf)->(%lf, %lf)-(%lf, %lf): %d\n", vr->x, vr->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y, is_triangle_legal(vr, edge));
     if (is_triangle_legal(vr, edge))
         return;
 
@@ -740,9 +745,15 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         //legalize_triangles(best_candidate_point, triangle->edge[2], &leaf_triangles);
         
         /* t_can_v1_v2->v[0] is best_candidate_point, actually */
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if(triangulate_count == 261 && rank == 79)
+            printf("inside: legalizing start\n");
         legalize_triangles(t_can_v1_v2->v[0], t_can_v1_v2->edge[1], &leaf_triangles);
         legalize_triangles(t_can_v2_v3->v[0], t_can_v2_v3->edge[1], &leaf_triangles);
         legalize_triangles(t_can_v3_v1->v[0], t_can_v3_v1->edge[1], &leaf_triangles);
+        if(triangulate_count == 261 && rank == 79)
+            printf("inside: legalizing end\n");
     }
     else { // on the side
         Point *vi, *vj, *vk, *vl;
@@ -797,6 +808,10 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         leaf_triangles.push_back(triangle);
         leaf_triangles.push_back(tirk);
         leaf_triangles.push_back(tjkr);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if(triangulate_count == 261 && rank == 79)
+            printf("on edge: legalizing1 start\n");
         legalize_triangles(best_candidate_point, ejk, &leaf_triangles);
         legalize_triangles(best_candidate_point, eki, &leaf_triangles); 
         if (eij->twin_edge != NULL) {
@@ -809,6 +824,10 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
             leaf_triangles.push_back(eij->twin_edge->triangle);
             leaf_triangles.push_back(tilr);
             leaf_triangles.push_back(tjrl);
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            if(triangulate_count == 261 && rank == 79)
+                printf("on edge: legalizing2 start\n");
             legalize_triangles(best_candidate_point, eil, &leaf_triangles);
             legalize_triangles(best_candidate_point, elj, &leaf_triangles);
         }
@@ -826,7 +845,18 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         if (leaf_triangles[i]->is_leaf)
             continue;
         distribute_points_into_triangles(&(leaf_triangles[i]->remained_points_in_triangle), &leaf_triangles);
-    }       
+    }
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(rank == 79) {
+        //char filename[64];
+        //snprintf(filename, 64, "log/single_step/step_%d.png", triangulate_count++);
+        //plot_current_step_into_file(filename);
+        //printf("plot step %d\n", triangulate_count);
+        triangulate_count++;
+    }
+
     for (unsigned int i = 0; i < leaf_triangles.size(); i ++)
         triangularization_process(leaf_triangles[i]);
 
@@ -950,7 +980,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 
     //is_all_leaf_triangle_legal();
     //MPI_Barrier(MPI_COMM_WORLD);
-    assert(is_all_leaf_triangle_legal());
+    //assert(is_all_leaf_triangle_legal());
     gettimeofday(&end, NULL);
     //int rank;
     //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -1505,6 +1535,38 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
     assert(num_edges%3 == 0);
     assert(num_edges <= 3 * result_leaf_triangles.size());
     plot_edge_into_file(filename, head_coord, tail_coord, num_edges, min_x, max_x, min_y, max_y);
+
+    delete head_coord[0];
+    delete head_coord[1];
+    delete tail_coord[0];
+    delete tail_coord[1];
+}
+
+
+void Delaunay_Voronoi::plot_current_step_into_file(const char *filename)
+{
+    unsigned num_edges;
+    double *head_coord[2], *tail_coord[2];
+
+    num_edges = 3 * triangle_pool.size();
+    head_coord[0] = new double[num_edges];
+    head_coord[1] = new double[num_edges];
+    tail_coord[0] = new double[num_edges];
+    tail_coord[1] = new double[num_edges];
+
+    num_edges = 0;
+    for(unsigned i = 0; i < triangle_pool.size(); i ++)
+        if(triangle_pool[i]->is_leaf)
+            for(unsigned j = 0; j < 3; j++) {
+                head_coord[0][num_edges] = triangle_pool[i]->edge[j]->head->x;
+                head_coord[1][num_edges] = triangle_pool[i]->edge[j]->head->y;
+                tail_coord[0][num_edges] = triangle_pool[i]->edge[j]->tail->x;
+                tail_coord[1][num_edges++] = triangle_pool[i]->edge[j]->tail->y;
+            }
+
+    assert(num_edges%3 == 0);
+    assert(num_edges <= 3 * triangle_pool.size());
+    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges);
 
     delete head_coord[0];
     delete head_coord[1];

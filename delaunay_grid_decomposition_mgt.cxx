@@ -227,7 +227,13 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
                                              rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
 
-        if(node_type != PDLN_NODE_TYPE_COMMON) { 
+        if(node_type != PDLN_NODE_TYPE_COMMON) {
+            char filename[64];
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            snprintf(filename, 64, "log/origin_points_%d.png", rank);
+            triangulation->plot_original_points_into_file(filename);
+
             double lon, head_lon, head_lat, tail_lon, tail_lat;
 
             calculate_real_boundary();
@@ -251,6 +257,12 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
             //snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
             //plot_triangles_info_file(filename, cyclic_triangles);
+
+            //char filename[64];
+            //int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            snprintf(filename, 64, "log/projected_triangles_%d.png", rank);
+            triangulation->plot_projection_into_file(filename);
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
@@ -616,10 +628,10 @@ void Search_tree_node::calculate_real_boundary()
 
 void Search_tree_node::fix_expanded_boundry(int index, int count)
 {
-    double min_lon = 9999.9;
-    double max_lon = -9999.9;
-    double min_lat = 100.0;
-    double max_lat = -100.0;
+    double min_lon = 1e10;
+    double max_lon = -1e10;
+    double min_lat = 1e10;
+    double max_lat = -1e10;
 
     for(int i = index; i < index + count; i++) {
         if (min_lon > points_coord[PDLN_LON][i]) min_lon = points_coord[PDLN_LON][i];
@@ -630,9 +642,9 @@ void Search_tree_node::fix_expanded_boundry(int index, int count)
     if (node_type == PDLN_DECOMPOSE_COMMON_MODE)
         expanded_boundry->max(min_lon, max_lon + PDLN_HIGH_BOUNDRY_SHIFTING, min_lat, max_lat + PDLN_HIGH_BOUNDRY_SHIFTING);
     else if (node_type == PDLN_DECOMPOSE_SPOLAR_MODE)
-        expanded_boundry->max_lat = max_lat + PDLN_HIGH_BOUNDRY_SHIFTING;
+        expanded_boundry->max_lat = std::max(expanded_boundry->max_lat, max_lat + PDLN_HIGH_BOUNDRY_SHIFTING);
     else if (node_type == PDLN_DECOMPOSE_NPOLAR_MODE)
-        expanded_boundry->min_lat = min_lat;
+        expanded_boundry->min_lat = std::min(expanded_boundry->min_lat, min_lat);
 }
 
 
@@ -731,7 +743,6 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     
     delete global_index;
 }
-
 
 
 Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
@@ -1100,7 +1111,7 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
             leaf_node->neighbors[i].second = true;
         }
         else {
-            printf("[%d] neighbor %d not , %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
+            //printf("[%d] neighbor %d not , %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
             ok = false;
         }
     }
@@ -1339,13 +1350,6 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         printf("expanged to the max2\n");
         return -1;
     }
-
-    /*
-    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.max_lat >= 90 && new_boundry.max_lat >= 90)
-        return 1;
-    if(tree_node->node_type == PDLN_NODE_TYPE_COMMON && old_boundry.min_lat <= -90 && new_boundry.min_lat <= -90)
-        return 1;
-    */
 
     add_halo_points(tree_node, &old_boundry, &new_boundry);
     return 0;
@@ -1628,6 +1632,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(!is_local_leaf_node_finished[i]) {
                 is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]) &&
                                                  local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic);
+                if(iter > -1)
+                    is_local_leaf_node_finished[i] = true;
             }
         }
 
@@ -1732,7 +1738,10 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
     snprintf(filename, 64, file_fmt, processing_info->get_num_total_processing_units());
     FILE *fp = fopen(filename, "w");
     for(i = 0; i < num_different_triangles; i++)
-        fprintf(fp, "%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
+        fprintf(fp, "%d, %d, %d, (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id,
+                                                                        triangles[i].v[0].x, triangles[i].v[0].y,
+                                                                        triangles[i].v[1].x, triangles[i].v[1].y,
+                                                                        triangles[i].v[2].x, triangles[i].v[2].y);
     fclose(fp);
 
     char file_fmt2[] = "log/image_global_triangles_%d";
@@ -1941,8 +1950,8 @@ void Grid_info_manager::gen_latlon_90_grid()
     coord_values[PDLN_LAT] = new double [num_points];
 
     int count = 0;
-    for(int i = 0; i < field_size; i ++)
-        for(int j = 0; j < field_size2; j++) {
+    for(int j = field_size2-1; j >= 0; j--)
+        for(int i = 0; i < field_size; i ++) {
             coord_values[PDLN_LON][count] = ((double*)coord_buf0)[i];
             coord_values[PDLN_LAT][count++] = ((double*)coord_buf1)[j];
         }
