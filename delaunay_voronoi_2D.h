@@ -55,6 +55,7 @@ class Point
         Point(double, double, int id=-1);
         ~Point();
         double calculate_distance(const Point*) const;
+        double calculate_distance(double, double) const;
         int position_to_edge(const Point*, const Point*) const;
         int position_to_triangle(const Triangle*) const;
         int is_in_region(double min_x, double max_x, double min_y, double max_y) const;
