@@ -866,17 +866,13 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 
 /* This function should be call only once for the root virtual triangle,
  * becase it will alloc new memory for all points and cells. */
-Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x, double *y, bool *redundant_cell_mark)
+vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, double *x, double *y, bool *redundant_cell_mark)
 {
     double minX, maxX, minY, maxY;
-    double dx, dy, deltaMax, midx, midy;
-    //Edge *e1, *e2, *e3;
-    Triangle *super;
+    double dx, dy, deltaMax;
+    vector<Triangle *> virtual_triangles;
+    vector<Point*> pnts;
 
-    //int rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    //if(rank == 5)
-    //    while(true);
 
     assert(x != NULL);
     assert(y != NULL);
@@ -894,37 +890,33 @@ Triangle* Delaunay_Voronoi::initialize_super_triangle(int num_points, double *x,
     dx = maxX - minX;
     dy = maxY - minY;
     deltaMax = std::max(dx, dy);
-    midx = (minX + maxX) / 2.0;
-    midy = (minY + maxY) / 2.0;
 
-    virtual_point[0] = new Point(midx, maxY + dx/2.0, -1); //(midx, maxY + dx/2.0)
-    virtual_point[1] = new Point(minX - dy - 1.0, minY - 1.0, -1);
-    virtual_point[2] = new Point(maxX + dy + 1.0, minY - 1.0, -1);
+    virtual_point[0] = new Point(minX-deltaMax*0.01, minY-deltaMax*0.01, -1);
+    virtual_point[1] = new Point(minX-deltaMax*0.01, maxY+deltaMax*0.01, -1);
+    virtual_point[2] = new Point(maxX+deltaMax*0.01, minY-deltaMax*0.01, -1);
+    virtual_point[3] = new Point(maxX+deltaMax*0.01, maxY+deltaMax*0.01, -1);
 
-    super = allocate_Triangle(allocate_edge(virtual_point[0], virtual_point[1]),
-                              allocate_edge(virtual_point[1], virtual_point[2]),
-                              allocate_edge(virtual_point[2], virtual_point[0]));
+    virtual_triangles.push_back(allocate_Triangle(allocate_edge(virtual_point[0], virtual_point[2]),
+                                                  allocate_edge(virtual_point[2], virtual_point[1]),
+                                                  allocate_edge(virtual_point[1], virtual_point[0])));
+    virtual_triangles.push_back(allocate_Triangle(allocate_edge(virtual_point[3], virtual_point[1]),
+                                                  allocate_edge(virtual_point[1], virtual_point[2]),
+                                                  allocate_edge(virtual_point[2], virtual_point[3])));
+    virtual_triangles[0]->edge[1]->twin_edge = virtual_triangles[1]->edge[1];
+    virtual_triangles[1]->edge[1]->twin_edge = virtual_triangles[0]->edge[1];
 
     cells = new Cell[num_points];
 
-    if(redundant_cell_mark == NULL) {
-        for (int i = 0; i < num_points; i ++) {
-            cells[i].center = new Point(x[i], y[i], i);
-            cells[i].center->current_triangle = super;
-            super->remained_points_in_triangle.push_back(cells[i].center);
-        }
-    }
-    else {
-        for (int i = 0; i < num_points; i ++) {
-            cells[i].center = new Point(x[i], y[i], i);
-            if (!redundant_cell_mark[i]) {
-                cells[i].center->current_triangle = super;
-                super->remained_points_in_triangle.push_back(cells[i].center);
-            }
-        }
-    }
+    for (int i = 0; i < num_points; i ++)
+        cells[i].center = new Point(x[i], y[i], i);
 
-    return super;
+    for (int i = 0; i < num_points; i ++)
+        if (redundant_cell_mark == NULL || !redundant_cell_mark[i])
+            pnts.push_back(cells[i].center);
+
+    distribute_points_into_triangles(&pnts, &virtual_triangles);
+
+    return virtual_triangles;
 }
 
 
@@ -933,8 +925,11 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     for(vector<Triangle*>::iterator t = result_leaf_triangles.begin(); t != result_leaf_triangles.end(); )
-        if((*t)->is_leaf && ((*t)->contain_vertex(virtual_point[0]) || (*t)->contain_vertex(virtual_point[1]) || (*t)->contain_vertex(virtual_point[2]))) {
-            for(unsigned int j = 0; j < 3; j++) {
+        if((*t)->is_leaf && ((*t)->contain_vertex(virtual_point[0]) ||
+                             (*t)->contain_vertex(virtual_point[1]) ||
+                             (*t)->contain_vertex(virtual_point[2]) ||
+                             (*t)->contain_vertex(virtual_point[3]))) {
+            for(unsigned j = 0; j < 3; j++) {
                 (*t)->edge[j]->triangle = NULL;
                 if((*t)->edge[j]->twin_edge)
                     (*t)->edge[j]->twin_edge->twin_edge = NULL;
@@ -950,9 +945,7 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, int *global_idx, bool is_global_grid,
                                    double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark)
 {
-    Triangle *root;
     timeval start, end;
-    //bool cyclic = min_lon==0 && max_lon==360; // double ==?
 
 #ifdef DEBUG
     assert(have_redundent_points(x_values, y_values, num_points) == false);
@@ -971,20 +964,19 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
         memcpy(global_index, global_idx, num_points*sizeof(int));
     }
 
-    root = initialize_super_triangle(num_points, x_values, y_values, redundant_cell_mark);
+    vector<Triangle*> initial_triangles = generate_initial_triangles(num_points, x_values, y_values, redundant_cell_mark);
 
-    save_original_points_into_file();
+    //save_original_points_into_file();
 
-    triangularization_process(root);
+    for(unsigned i = 0; i < initial_triangles.size(); i++)
+        triangularization_process(initial_triangles[i]);
 
     clear_triangle_containing_virtual_point();
 
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
-    //is_all_leaf_triangle_legal();
-    //MPI_Barrier(MPI_COMM_WORLD);
-        assert(is_all_leaf_triangle_legal());
+    assert(is_all_leaf_triangle_legal());
     if(rank == 79) {
         Print_Error_info = true;
         Print_Error_info = false;
@@ -993,9 +985,6 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     if(rank == 79)
     printf("on count: %d\n not on count: %d\n", on_circle_count, not_on_circle_count);
     gettimeofday(&end, NULL);
-    //int rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    //printf("[%3d] Kernel triangulation: %ldms, number of points: %d\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000, num_points);   
 }
 
 
@@ -1677,17 +1666,12 @@ void Delaunay_Voronoi::save_original_points_into_file()
     
     sort_cells(tmp_cells, num_cells);
 
-    //int rank, size;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    //MPI_Comm_size(MPI_COMM_WORLD, &size);
-    //if(rank == size - 1) {
-    //    FILE *fp;
-    //    fp = fopen("log/input_point_npolar.txt", "w");
-    //    for(int i = 0; i < num_cells; i++)
-    //        if(tmp_cells[i].center->x < 5 && tmp_cells[i].center->x > -5 && tmp_cells[i].center->y < 5 && tmp_cells[i].center->y > -5)
-    //            fprintf(fp, "%.20lf, %.20lf\n", tmp_cells[i].center->x, tmp_cells[i].center->y);
-    //    fclose(fp);
-    //}
+    FILE *fp;
+    fp = fopen("log/original_points.txt", "w");
+    for(int i = 0; i < num_cells; i++)
+        if(tmp_cells[i].center->x < 5 && tmp_cells[i].center->x > -5 && tmp_cells[i].center->y < 5 && tmp_cells[i].center->y > -5)
+            fprintf(fp, "%.20lf, %.20lf\n", tmp_cells[i].center->x, tmp_cells[i].center->y);
+    fclose(fp);
 
     delete [] tmp_cells;
 }

@@ -137,7 +137,7 @@ class Delaunay_Voronoi
         MemoryPool<Edge, 0x10000*sizeof(Edge)> edge_allocator;
         bool is_global_grid;
         int num_cells;
-        Point *virtual_point[3];
+        Point *virtual_point[4];
         int *global_index;
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
@@ -149,7 +149,7 @@ class Delaunay_Voronoi
         void generate_Voronoi_diagram();
         void extract_vertex_coordinate_values(int, bool, double**, double**, int*);
         void get_convex_set(int, double*, double*, double, double, int &, int **);
-        Triangle* initialize_super_triangle(int, double*, double*, bool*);
+        vector<Triangle*> generate_initial_triangles(int, double*, double*, bool*);
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);
         bool is_angle_ambiguous(const Point *pt, const Edge *edge);
