@@ -208,13 +208,13 @@ Process_thread_manager::~Process_thread_manager() {
 
 int Process_thread_manager::get_mpi_rank() {
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(get_mpi_comm(), &rank);
     return rank;
 }
 
 int Process_thread_manager::get_mpi_size() {
     int size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(get_mpi_comm(), &size);
     return size;
 }
 

@@ -217,7 +217,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 
     //char filename[64];
     //int rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     //snprintf(filename, 64, "log/local_points_%d.png", rank);
     //plot_points_info_file(filename, points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
 
@@ -230,7 +230,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
         if(node_type != PDLN_NODE_TYPE_COMMON) {
             //char filename[64];
             //int rank;
-            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
             //snprintf(filename, 64, "log/origin_points_%d.png", rank);
             //triangulation->plot_original_points_into_file(filename);
 
@@ -254,13 +254,13 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             //printf("cyclic_triangles.size(): %lu\n", cyclic_triangles.size());
             //char filename[64];
             //int rank;
-            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
             //snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
             //plot_triangles_info_file(filename, cyclic_triangles);
 
             char filename[64];
             int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
             snprintf(filename, 64, "log/projected_triangles_%d.png", rank);
             triangulation->plot_projection_into_file(filename);
 
@@ -277,7 +277,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 
             //char filename[64];
             //int rank;
-            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
             //snprintf(filename, 64, "log/projected_triangles_%d_a.png", rank);
             //triangulation->plot_projection_into_file(filename);
 
@@ -592,7 +592,7 @@ void Search_tree_node::add_expanded_points(double *coord_value[2], int *global_i
     memcpy(points_global_index + num_kernel_points + num_expanded_points, global_idx, sizeof(int) * num_points);
 
     //int rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     //printf("[%d] %lf, %lf, %lf, %lf\n", rank, expanded_boundry->min_lon, expanded_boundry->max_lon, expanded_boundry->min_lat, expanded_boundry->max_lat);
     fix_expanded_boundry(num_kernel_points + num_expanded_points, num_points);
     //printf("[%d] %lf, %lf, %lf, %lf\n", rank, expanded_boundry->min_lon, expanded_boundry->max_lon, expanded_boundry->min_lat, expanded_boundry->max_lat);
@@ -860,7 +860,7 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     //TODO: optimize new delete
     
     //int rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
     //printf("[Rank%d]x[ST-INFO-PRE] p: %p, first: %p, third: %p\n", rank, node, node->children[0], node->children[2]);
 
     if(have_local_processing_units_id(node->children[0]->processing_units_id)) 
@@ -1338,7 +1338,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
 
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
     //printf("[%d] boundary: %lf, %lf, %lf, %lf\n", rank, new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
     if(processing_info->get_num_total_processing_units() > 4 &&
        new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
@@ -1525,7 +1525,7 @@ bool Search_tree_node::check_if_all_outer_edge_out_of_kernel_boundry(Boundry *or
                 (kernel_boundry->max_lon+kernel_boundry->min_lon)/2.0 : kernel_boundry->min_lon;
     } 
     //int rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
     //printf("[%d] checking boundary: %lf, %lf, %lf, %lf\n", rank, top, bot, left, right);
 
     //return triangulation->check_if_all_outer_edge_out_of_region(left, right, bot, top);
@@ -1595,7 +1595,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
                 gettimeofday(&end, NULL);
                 int rank;
-                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
                 printf("[%3d] %dth generate_local_triangulation: %ldms, number of points: %d\n", rank, iter,
                                                                                     ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000,
                                                                                     local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expanded_points);
@@ -1614,7 +1614,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         }
 
         int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
                 for(unsigned j = 0; j < waiting_lists[i].size(); j++) {

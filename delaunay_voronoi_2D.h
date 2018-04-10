@@ -11,6 +11,7 @@
 #ifndef __DELAUNAY_VORONOI_H__
 #define __DELAUNAY_VORONOI_H__
 
+#include "processing_unit_mgt.h" // only for output debugging message
 #include <vector>
 #include <list>
 #include <cmath>

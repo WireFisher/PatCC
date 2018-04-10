@@ -321,7 +321,7 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
     //if(std::fabs(angle_value[0] - PI*0.5) < FLOAT_ERROR && std::fabs(angle_value[1] - PI*0.5) < FLOAT_ERROR || sum_angle_value == PI){
 
         int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
         if(rank == 79 && triangulate_count == 209) {
         }
 
@@ -330,7 +330,7 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
             return false;
         else {
             int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
             if(rank == 79 && Print_Error_info) {
                 printf("not lowest point in rectangle\n");
             }
@@ -343,7 +343,7 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 
     if(sum_angle_value > PI) {
         int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
         if(rank == 79 && Print_Error_info) {
             printf("sum angle too large, %.20lf vs PI:(%.20lf)\n", sum_angle_value, PI);
         }
@@ -359,7 +359,7 @@ int not_on_circle_count = 0;
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     if (!edge->twin_edge) {
         return true;
     }
@@ -414,7 +414,7 @@ bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 {
     //Print_Error_info = true;
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
 
     for(int i = 0; i < 3; i++)
         if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i])) {
@@ -443,7 +443,7 @@ bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
 void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle*> *leaf_triangles)
 {
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     //if(triangulate_count == 261 && rank == 79)
     //    printf("(%lf, %lf)->(%lf, %lf)-(%lf, %lf): %d\n", vr->x, vr->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y, is_triangle_legal(vr, edge));
     if (is_triangle_legal(vr, edge))
@@ -597,7 +597,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     }
     else {
         int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
         printf("[%d] assert false\n", rank);
         while(true);
         assert(false);
@@ -748,7 +748,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         
         /* t_can_v1_v2->v[0] is best_candidate_point, actually */
         int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
         if(triangulate_count == 261 && rank == 79)
             printf("inside: legalizing start\n");
         legalize_triangles(t_can_v1_v2->v[0], t_can_v1_v2->edge[1], &leaf_triangles);
@@ -811,7 +811,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         leaf_triangles.push_back(tirk);
         leaf_triangles.push_back(tjkr);
         int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
         legalize_triangles(best_candidate_point, ejk, &leaf_triangles);
         legalize_triangles(best_candidate_point, eki, &leaf_triangles); 
         if (eij->twin_edge != NULL) {
@@ -844,7 +844,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
     }
 
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     if(rank == 79) {
         //char filename[64];
         //snprintf(filename, 64, "log/single_step/step_%d.png", triangulate_count++);
@@ -917,7 +917,7 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
 void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 {
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     for(vector<Triangle*>::iterator t = result_leaf_triangles.begin(); t != result_leaf_triangles.end(); )
         if((*t)->is_leaf && ((*t)->contain_vertex(virtual_point[0]) ||
                              (*t)->contain_vertex(virtual_point[1]) ||
@@ -945,7 +945,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     assert(have_redundent_points(x_values, y_values, num_points) == false);
 #endif
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
 
     gettimeofday(&start, NULL);
 
@@ -1332,7 +1332,7 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
             
             /* Change cyclic triangles directly into left triangles */
             //int rank;
-            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
             //printf("[%d] (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, el[0]->head->x, el[0]->head->y, el[1]->head->x, el[1]->head->y, el[2]->head->x, el[2]->head->y);
             cyclic_triangles[i]->initialize_triangle_with_edges(el[0], el[1], el[2]);
 
@@ -1368,7 +1368,7 @@ void Delaunay_Voronoi::relegalize_all_triangles()
             continue;
 
         //int rank;
-        //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
         
         //printf("legalizing %d: (%lf, %lf) (%lf, %lf) (%lf, %lf)\n", i, result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, result_leaf_triangles[i]->v[1]->x,
                                                     //result_leaf_triangles[i]->v[1]->y, result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y);
@@ -1453,7 +1453,7 @@ unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, 
     get_triangles_intersecting_with_segment(head, tail, triangles, &num_triangles, 2*num_cells);
     //char filename[64];
     //int rank;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     //snprintf(filename, 64, "log/boundary_triangles_%d", rank);
     //plot_triangles_info_file(filename, triangles, num_triangles);
 
