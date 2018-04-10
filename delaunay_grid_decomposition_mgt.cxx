@@ -228,11 +228,11 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                                              rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
 
         if(node_type != PDLN_NODE_TYPE_COMMON) {
-            char filename[64];
-            int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            snprintf(filename, 64, "log/origin_points_%d.png", rank);
-            triangulation->plot_original_points_into_file(filename);
+            //char filename[64];
+            //int rank;
+            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            //snprintf(filename, 64, "log/origin_points_%d.png", rank);
+            //triangulation->plot_original_points_into_file(filename);
 
             double lon, head_lon, head_lat, tail_lon, tail_lat;
 
@@ -258,8 +258,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             //snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
             //plot_triangles_info_file(filename, cyclic_triangles);
 
-            //char filename[64];
-            //int rank;
+            char filename[64];
+            int rank;
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
             snprintf(filename, 64, "log/projected_triangles_%d.png", rank);
             triangulation->plot_projection_into_file(filename);
@@ -275,11 +275,11 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 
             calculate_real_boundary();
 
-            char filename[64];
-            int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            snprintf(filename, 64, "log/projected_triangles_%d_a.png", rank);
-            triangulation->plot_projection_into_file(filename);
+            //char filename[64];
+            //int rank;
+            //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            //snprintf(filename, 64, "log/projected_triangles_%d_a.png", rank);
+            //triangulation->plot_projection_into_file(filename);
 
             if(real_boundry->min_lat < 0) {
                 calculate_stereographic_projection(0, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
@@ -333,8 +333,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                 }
             }
 
-            snprintf(filename, 64, "log/projected_triangles_%d_b.png", rank);
-            triangulation->plot_projection_into_file(filename);
+            //snprintf(filename, 64, "log/projected_triangles_%d_b.png", rank);
+            //triangulation->plot_projection_into_file(filename);
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
@@ -1632,8 +1632,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(!is_local_leaf_node_finished[i]) {
                 is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]) &&
                                                  local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic);
-                if(iter > -1)
-                    is_local_leaf_node_finished[i] = true;
             }
         }
 
@@ -1968,9 +1966,9 @@ void Grid_info_manager::gen_latlon_90_grid()
 
 Grid_info_manager::Grid_info_manager()
 {
-    //gen_three_polar_grid();
+    gen_three_polar_grid();
     //gen_latlon_grid();
-    gen_latlon_90_grid();
+    //gen_latlon_90_grid();
 }
 
 

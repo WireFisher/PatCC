@@ -812,8 +812,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         leaf_triangles.push_back(tjkr);
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if(triangulate_count == 261 && rank == 79)
-            printf("on edge: legalizing1 start\n");
         legalize_triangles(best_candidate_point, ejk, &leaf_triangles);
         legalize_triangles(best_candidate_point, eki, &leaf_triangles); 
         if (eij->twin_edge != NULL) {
@@ -826,10 +824,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
             leaf_triangles.push_back(eij->twin_edge->triangle);
             leaf_triangles.push_back(tilr);
             leaf_triangles.push_back(tjrl);
-            int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            if(triangulate_count == 261 && rank == 79)
-                printf("on edge: legalizing2 start\n");
             legalize_triangles(best_candidate_point, eil, &leaf_triangles);
             legalize_triangles(best_candidate_point, elj, &leaf_triangles);
         }
