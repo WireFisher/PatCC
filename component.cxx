@@ -158,10 +158,8 @@ void Component::generate_delaunay_trianglulation(int grid_id)
     operating_grid = this->search_grid_by_id(grid_id);
     assert(operating_grid);
 
-    if(proc_resource == NULL) {
-        delete proc_resource;
+    if(proc_resource == NULL)
         proc_resource = new Processing_resource();
-    }
     //this->proc_resource->print_all_nodes_info();
 
     grid_pretreatment(grid_id);
