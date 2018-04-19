@@ -5,6 +5,7 @@
 #include "../component.h"
 #include "../processing_unit_mgt.h"
 #include "../delaunay_grid_decomposition_mgt.h"
+#include "../netcdf_utils.h"
 
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
@@ -12,7 +13,6 @@ extern Process_thread_manager *process_thread_mgr;
 class Mock_Process_thread_manager3 : public Process_thread_manager
 {
 public:
-    MOCK_METHOD2(get_hostname, void(char* hostname, int len));
     MOCK_METHOD0(get_openmp_size, int());
     MOCK_METHOD0(get_mpi_comm, MPI_Comm());
 };
@@ -54,11 +54,9 @@ static void prepare_grid()
 {
     int size = 300;
     num_points = size * size;
-    if (coord_values[0] || coord_values[1]) {
-        delete coord_values[0];
-        delete coord_values[1];
-        coord_values[0] = coord_values[1] = NULL;
-    }
+    delete coord_values[0];
+    delete coord_values[1];
+    coord_values[0] = coord_values[1] = NULL;
 
     coord_values[0] = new double[num_points]();
     coord_values[1] = new double[num_points]();
@@ -76,11 +74,116 @@ static void prepare_grid()
 }
 
 
-void get_default_hostname2(char* hostname, int len)
+void prepare_three_polar_grid()
 {
-    memcpy(hostname, "default", len);
-};
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+    bool squeeze = true;
 
+    read_file_field_as_float("gridfile/three_polars_grid.nc", "nav_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field_as_float("gridfile/three_polars_grid.nc", "nav_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+    assert(field_size == field_size2);
+    num_points = field_size;
+    coord_values[PDLN_LON] = (double*)coord_buf0;
+    coord_values[PDLN_LAT] = (double*)coord_buf1;
+
+    for(int i = 0; i < num_points; i++)
+        if(coord_values[PDLN_LON][i] < 0.0)
+            coord_values[PDLN_LON][i] += 360.0;
+
+    for(int i = 0; i < num_points; i++)
+        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_FLOAT_EQ_ERROR) {
+            coord_values[PDLN_LON][i] = 0.0;
+        }
+
+    delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+    assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
+
+    if(squeeze) {
+        for(int i = 0; i < num_points/100; i++) {
+            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
+            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+        }
+        num_points /= 100;
+    }
+
+    min_lon =   0.0;
+    max_lon = 360.0;
+    min_lat = -80.0;
+    max_lat =  90.0;
+}
+
+void prepare_latlon_grid()
+{
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+
+    read_file_field_as_double("gridfile/lonlat.nc", "lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field_as_double("gridfile/lonlat.nc", "lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+
+    num_points = field_size*field_size2;
+    coord_values[PDLN_LON] = new double [num_points];
+    coord_values[PDLN_LAT] = new double [num_points];
+
+    int count = 0;
+    for(int i = 0; i < field_size; i ++)
+        for(int j = 0; j < field_size2; j++) {
+            coord_values[PDLN_LON][count] = ((double*)coord_buf0)[i];
+            coord_values[PDLN_LAT][count++] = ((double*)coord_buf1)[j];
+        }
+
+    assert(count == num_points);
+    assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+
+    min_lon =   1.0;
+    max_lon = 360.0;
+    min_lat = -89.0;
+    max_lat =  89.0;
+}
+
+
+void prepare_latlon_90_grid()
+{
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+
+    read_file_field_as_double("gridfile/lonlat_90.nc", "lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field_as_double("gridfile/lonlat_90.nc", "lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+
+    num_points = field_size*field_size2;
+    coord_values[PDLN_LON] = new double [num_points];
+    coord_values[PDLN_LAT] = new double [num_points];
+
+    int count = 0;
+    for(int j = field_size2-1; j >= 0; j--)
+        for(int i = 0; i < field_size; i ++) {
+            coord_values[PDLN_LON][count] = ((double*)coord_buf0)[i];
+            coord_values[PDLN_LAT][count++] = ((double*)coord_buf1)[j];
+        }
+
+    assert(count == num_points);
+    assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+
+    min_lon =   0.0;
+    max_lon = 360.0;
+    min_lat = -90.0;
+    max_lat =  90.0;
+}
 
 TEST(FullProcess, Basic) {
     const int num_thread = 1;
@@ -115,9 +218,6 @@ TEST(FullProcess, Basic) {
 
     ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
         .WillByDefault(Return(true));
-
-    ON_CALL(*mock_process_thread_manager, get_hostname(_, _))
-        .WillByDefault(Invoke(get_default_hostname2));
 
     Component* comp;
     comp = new Component(0);
@@ -155,7 +255,239 @@ TEST(FullProcess, Basic) {
         fp = popen(cmd, "r");
         fgets(md5[0], 64, fp);
         fgets(md5[1], 64, fp);
-        ASSERT_EQ(strcmp(md5[0], md5[1]), 0);
+        ASSERT_STREQ(md5[0], md5[1]);
+    }
+    delete process_thread_mgr;
+    delete grid_info_mgr;
+};
+
+
+
+TEST(FullProcess, latlon) {
+    const int num_thread = 1;
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
+    NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
+    process_thread_mgr = mock_process_thread_manager;
+    grid_info_mgr = mock_grid_info_manager;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    ON_CALL(*mock_process_thread_manager, get_openmp_size())
+        .WillByDefault(Return(num_thread));
+    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+        .WillByDefault(Return(comm));
+
+    prepare_latlon_grid();
+
+    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
+        .WillByDefault(Return(coord_values));
+
+    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
+        .WillByDefault(Return(num_points));
+
+    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
+        .WillByDefault(Invoke(get_boundry));
+
+    ON_CALL(*mock_grid_info_manager, get_polar_points(1, _))
+        .WillByDefault(Return(3));
+
+    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
+        .WillByDefault(Return(true));
+
+    Component* comp;
+    comp = new Component(0);
+    comp->register_grid(new Grid(1));
+    comp->generate_delaunay_trianglulation(1);
+
+    delete comp;
+
+    MPI_Comm split_world;
+    if (mpi_size/3 > 1)
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+
+    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+        comm = split_world;
+        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+            .WillByDefault(Return(comm));
+
+        comp = new Component(1);
+        comp->register_grid(new Grid(1));
+        comp->generate_delaunay_trianglulation(1);
+
+        delete comp;
+
+        int new_mpi_size;
+        MPI_Comm_size(split_world, &new_mpi_size);
+
+        FILE *fp;
+        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
+        char cmd[256];
+        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+
+        char md5[2][64];
+        memset(md5[0], 0, 64);
+        memset(md5[1], 0, 64);
+        fp = popen(cmd, "r");
+        fgets(md5[0], 64, fp);
+        fgets(md5[1], 64, fp);
+        ASSERT_STREQ(md5[0], md5[1]);
+    }
+    delete process_thread_mgr;
+    delete grid_info_mgr;
+};
+
+
+TEST(FullProcess, latlon90) {
+    const int num_thread = 1;
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
+    NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
+    process_thread_mgr = mock_process_thread_manager;
+    grid_info_mgr = mock_grid_info_manager;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    ON_CALL(*mock_process_thread_manager, get_openmp_size())
+        .WillByDefault(Return(num_thread));
+    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+        .WillByDefault(Return(comm));
+
+    prepare_latlon_90_grid();
+
+    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
+        .WillByDefault(Return(coord_values));
+
+    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
+        .WillByDefault(Return(num_points));
+
+    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
+        .WillByDefault(Invoke(get_boundry));
+
+    ON_CALL(*mock_grid_info_manager, get_polar_points(1, _))
+        .WillByDefault(Return(3));
+
+    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
+        .WillByDefault(Return(true));
+
+    Component* comp;
+    comp = new Component(0);
+    comp->register_grid(new Grid(1));
+    comp->generate_delaunay_trianglulation(1);
+
+    delete comp;
+
+    MPI_Comm split_world;
+    if (mpi_size/3 > 1)
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+
+    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+        comm = split_world;
+        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+            .WillByDefault(Return(comm));
+
+        comp = new Component(1);
+        comp->register_grid(new Grid(1));
+        comp->generate_delaunay_trianglulation(1);
+
+        delete comp;
+
+        int new_mpi_size;
+        MPI_Comm_size(split_world, &new_mpi_size);
+
+        FILE *fp;
+        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
+        char cmd[256];
+        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+
+        char md5[2][64];
+        memset(md5[0], 0, 64);
+        memset(md5[1], 0, 64);
+        fp = popen(cmd, "r");
+        fgets(md5[0], 64, fp);
+        fgets(md5[1], 64, fp);
+        ASSERT_STREQ(md5[0], md5[1]);
+    }
+    delete process_thread_mgr;
+    delete grid_info_mgr;
+};
+
+
+TEST(FullProcess, 3polar) {
+    const int num_thread = 1;
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
+    NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
+    process_thread_mgr = mock_process_thread_manager;
+    grid_info_mgr = mock_grid_info_manager;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    ON_CALL(*mock_process_thread_manager, get_openmp_size())
+        .WillByDefault(Return(num_thread));
+    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+        .WillByDefault(Return(comm));
+
+    prepare_three_polar_grid();
+
+    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
+        .WillByDefault(Return(coord_values));
+
+    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
+        .WillByDefault(Return(num_points));
+
+    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
+        .WillByDefault(Invoke(get_boundry));
+
+    ON_CALL(*mock_grid_info_manager, get_polar_points(_, _))
+        .WillByDefault(Return(0));
+
+    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
+        .WillByDefault(Return(true));
+
+    Component* comp;
+    comp = new Component(0);
+    comp->register_grid(new Grid(1));
+    comp->generate_delaunay_trianglulation(1);
+
+    delete comp;
+
+    MPI_Comm split_world;
+    if (mpi_size/3 > 1)
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+
+    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+        comm = split_world;
+        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+            .WillByDefault(Return(comm));
+
+        comp = new Component(1);
+        comp->register_grid(new Grid(1));
+        comp->generate_delaunay_trianglulation(1);
+
+        delete comp;
+
+        int new_mpi_size;
+        MPI_Comm_size(split_world, &new_mpi_size);
+
+        FILE *fp;
+        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
+        char cmd[256];
+        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+
+        char md5[2][64];
+        memset(md5[0], 0, 64);
+        memset(md5[1], 0, 64);
+        fp = popen(cmd, "r");
+        fgets(md5[0], 64, fp);
+        fgets(md5[1], 64, fp);
+        ASSERT_STREQ(md5[0], md5[1]);
     }
     delete process_thread_mgr;
     delete grid_info_mgr;
