@@ -1105,7 +1105,6 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
             continue;
         }
 
-        //printf("checking %u vs %u\n", local_checksums[i], remote_checksums[i]);
         if(local_checksums[i] == remote_checksums[i] && local_checksums[i] != PDLN_CHECKSUM_FALSE) {
             //printf("[%d] neighbor %d done, %d vs %d\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0], local_checksums[i], remote_checksums[i]);
             leaf_node->neighbors[i].second = true;
@@ -1596,10 +1595,11 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 gettimeofday(&end, NULL);
                 int rank;
                 MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
+#ifdef TIME_PERF
                 printf("[%3d] %dth generate_local_triangulation: %ldms, number of points: %d\n", rank, iter,
                                                                                     ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000,
                                                                                     local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expanded_points);
-
+#endif
             }
         }
 

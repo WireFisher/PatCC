@@ -45,7 +45,9 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         gettimeofday(&end, NULL);
         int rank;
         MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+#ifdef TIME_PERF
         printf("[%3d] Grid decomposition: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
 
         gettimeofday(&start, NULL);
         ret = delaunay_triangulation->generate_trianglulation_for_local_decomp();
