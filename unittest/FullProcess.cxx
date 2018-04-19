@@ -33,12 +33,33 @@ using ::testing::_;
 using ::testing::Invoke;
 using ::testing::ExitedWithCode;
 
-
 static int mpi_rank = -1;
 static int mpi_size = 0;
 static double *coord_values[2] = {NULL, NULL};
 static int num_points = 0;
 static double min_lat, max_lat, min_lon, max_lon;
+
+
+class FullProcess : public ::testing::Test
+{
+public:
+    virtual void SetUp() {
+        mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
+        mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
+
+        process_thread_mgr = mock_process_thread_manager;
+        grid_info_mgr = mock_grid_info_manager;
+    }
+    virtual void TearDown() {
+        delete mock_process_thread_manager;
+        delete mock_grid_info_manager;
+        process_thread_mgr = NULL;
+        grid_info_mgr = NULL;
+    }
+
+    NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager;
+    NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager;
+};
 
 
 static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
@@ -185,14 +206,10 @@ void prepare_latlon_90_grid()
     max_lat =  90.0;
 }
 
-TEST(FullProcess, Basic) {
+TEST_F(FullProcess, Basic) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
-    NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
-    NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
-    process_thread_mgr = mock_process_thread_manager;
-    grid_info_mgr = mock_grid_info_manager;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -257,20 +274,13 @@ TEST(FullProcess, Basic) {
         fgets(md5[1], 64, fp);
         ASSERT_STREQ(md5[0], md5[1]);
     }
-    delete process_thread_mgr;
-    delete grid_info_mgr;
 };
 
 
 
-TEST(FullProcess, latlon) {
+TEST_F(FullProcess, latlon) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
-
-    NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
-    NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
-    process_thread_mgr = mock_process_thread_manager;
-    grid_info_mgr = mock_grid_info_manager;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -292,7 +302,7 @@ TEST(FullProcess, latlon) {
         .WillByDefault(Invoke(get_boundry));
 
     ON_CALL(*mock_grid_info_manager, get_polar_points(1, _))
-        .WillByDefault(Return(3));
+        .WillByDefault(Return(0));
 
     ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
         .WillByDefault(Return(true));
@@ -335,19 +345,12 @@ TEST(FullProcess, latlon) {
         fgets(md5[1], 64, fp);
         ASSERT_STREQ(md5[0], md5[1]);
     }
-    delete process_thread_mgr;
-    delete grid_info_mgr;
 };
 
 
-TEST(FullProcess, latlon90) {
+TEST_F(FullProcess, latlon90) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
-
-    NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
-    NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
-    process_thread_mgr = mock_process_thread_manager;
-    grid_info_mgr = mock_grid_info_manager;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -369,7 +372,7 @@ TEST(FullProcess, latlon90) {
         .WillByDefault(Invoke(get_boundry));
 
     ON_CALL(*mock_grid_info_manager, get_polar_points(1, _))
-        .WillByDefault(Return(3));
+        .WillByDefault(Return(0));
 
     ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
         .WillByDefault(Return(true));
@@ -412,12 +415,10 @@ TEST(FullProcess, latlon90) {
         fgets(md5[1], 64, fp);
         ASSERT_STREQ(md5[0], md5[1]);
     }
-    delete process_thread_mgr;
-    delete grid_info_mgr;
 };
 
 
-TEST(FullProcess, 3polar) {
+TEST_F(FullProcess, 3polar) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
