@@ -285,9 +285,9 @@ double Delaunay_Voronoi::calculate_angle(const Point *center, const Point *p1, c
 const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const Point *p2, const Point *p3, const Point *p4)
 {
     const Point *p = p1;
-    if((std::fabs(p2->x - p->x) < FLOAT_ERROR && p2->y < p->y) || p2->x < p->x) p = p2;
-    if((std::fabs(p3->x - p->x) < FLOAT_ERROR && p3->y < p->y) || p3->x < p->x) p = p3;
-    if((std::fabs(p4->x - p->x) < FLOAT_ERROR && p4->y < p->y) || p4->x < p->x) p = p4;
+    if(p2->x < p->x || (p2->x == p->x && p2->y < p->y)) p = p2;
+    if(p3->x < p->x || (p3->x == p->x && p3->y < p->y)) p = p3;
+    if(p4->x < p->x || (p4->x == p->x && p4->y < p->y)) p = p4;
     return p;
 }
 
@@ -311,46 +311,12 @@ bool Delaunay_Voronoi::is_angle_ambiguous(const Point *pt, const Edge *edge)
 
 bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
 {
-    double sum_angle_value;
-    double angle_value[2];
-
-    angle_value[0] = calculate_angle(pt, edge->head, edge->tail);
-    angle_value[1] = calculate_angle(edge->twin_edge->prev_edge_in_triangle->head, edge->head, edge->tail);
-    sum_angle_value = angle_value[0] + angle_value[1];
-    if(std::fabs(sum_angle_value - PI) < FLOAT_ERROR && std::fabs(angle_value[0] - PI*0.5) < FLOAT_ERROR){
-    //if(std::fabs(angle_value[0] - PI*0.5) < FLOAT_ERROR && std::fabs(angle_value[1] - PI*0.5) < FLOAT_ERROR || sum_angle_value == PI){
-
-        int rank;
-        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-        if(rank == 79 && triangulate_count == 209) {
-        }
-
-        if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
-           edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
-            return false;
-        else {
-            int rank;
-            MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-            if(rank == 79 && Print_Error_info) {
-                printf("not lowest point in rectangle\n");
-            }
-            return true;
-        }
-    }
-
-    if(std::fabs(sum_angle_value - PI) < FLOAT_ERROR || sum_angle_value < PI)
+    if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
+       edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
         return false;
-
-    if(sum_angle_value > PI) {
-        int rank;
-        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-        if(rank == 79 && Print_Error_info) {
-            printf("sum angle too large, %.20lf vs PI:(%.20lf)\n", sum_angle_value, PI);
-        }
+    else {
         return true;
     }
-
-    return false;
 }
 
 int on_circle_count = 0;
@@ -428,11 +394,16 @@ bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
 {
     //Print_Error_info = true;
+    int rank;
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+
     bool is_legal = true;
     for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
         if(result_leaf_triangles[i]->is_leaf)
-            if(!is_triangle_legal(result_leaf_triangles[i]))
+            if(!is_triangle_legal(result_leaf_triangles[i])) {
                 is_legal = false;
+                fprintf(stderr, "[%d] illegal: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y);
+            }
     if(is_legal)
         return true;
     else
@@ -442,8 +413,8 @@ bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
 
 void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle*> *leaf_triangles)
 {
-    int rank;
-    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+    //int rank;
+    //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     //if(triangulate_count == 261 && rank == 79)
     //    printf("(%lf, %lf)->(%lf, %lf)-(%lf, %lf): %d\n", vr->x, vr->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y, is_triangle_legal(vr, edge));
     if (is_triangle_legal(vr, edge))
@@ -845,7 +816,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 
     int rank;
     MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    if(rank == 79) {
+    if(rank == 0) {
         //char filename[64];
         //snprintf(filename, 64, "log/single_step/step_%d.png", triangulate_count++);
         //plot_current_step_into_file(filename);
@@ -970,7 +941,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
-    assert(is_all_leaf_triangle_legal());
+    //assert(is_all_leaf_triangle_legal());
     if(rank == 79) {
         Print_Error_info = true;
         Print_Error_info = false;
