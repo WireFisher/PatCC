@@ -25,7 +25,6 @@ private:
     int component_id;
     vector<Grid*> grids;
     Processing_resource *proc_resource;
-    vector<std::pair<int, bool> > polars_index; 
 
     Grid* search_grid_by_id(int);
     void grid_pretreatment(int);

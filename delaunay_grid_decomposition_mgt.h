@@ -111,6 +111,8 @@ private:
     bool *active_processing_units_flag;
     //int* active_processing_common_id;
     double* workloads;
+    vector<int> npolars_index;
+    vector<int> spolars_index;
     
     void initialze_workload();
     int assign_polars(bool, bool);

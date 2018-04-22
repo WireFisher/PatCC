@@ -1293,12 +1293,9 @@ bool Delaunay_grid_decomposition::have_local_processing_units_id(vector<int> chu
 
 int Delaunay_grid_decomposition::generate_grid_decomposition()
 {
-    int num_south_polar, num_north_polar;
 
     initialze_workload();
     current_tree_node = search_tree_root;
-    num_south_polar = grid_info_mgr->get_polar_points(original_grid, 'S');
-    num_north_polar = grid_info_mgr->get_polar_points(original_grid, 'N');
 
     double min_lon, max_lon, min_lat, max_lat;
     bool is_non_monotonic;
@@ -1306,10 +1303,7 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
     grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
     is_non_monotonic = min_lon > max_lon;
 
-    //printf("min_lat: %lf, max_lat: %lf, num_south_polar: %d, num_north_polar: %d\n", min_lat, max_lat, num_south_polar, num_north_polar);
-    //printf("%.40lf, %.40lf\n", std::abs(min_lat - -90.0), std::abs(max_lat -  90.0));
-    if(assign_polars(std::abs(min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR && num_south_polar < 2,
-                     std::abs(max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR && num_north_polar < 2))
+    if(assign_polars(std::abs(min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR, std::abs(max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR))
         return 1;
 
     if(is_cyclic && current_tree_node->processing_units_id.size() == 1) {
@@ -1319,6 +1313,42 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 
     decompose_common_node_recursively(current_tree_node);
     return 0;
+}
+
+
+#define PDLN_INSERT_VIRTUAL_POINT true
+void Search_tree_node::load_polars_info()
+{
+    /* deal with redundent polar points */
+
+    double **coord = points_coord;
+
+    if(node_type == PDLN_NODE_TYPE_NPOLAR) {
+        double nearest_point_lat = -1e10;
+        for(int i = 0; i < num_kernel_points+num_expanded_points; i++) {
+            if(std::abs(coord[PDLN_LAT][i] - 90.0) < PDLN_FLOAT_EQ_ERROR)
+                npolars_index.push_back(i);
+            else if(nearest_point_lat < coord[PDLN_LAT][i])
+                nearest_point_lat = coord[PDLN_LAT][i];
+        }
+
+        if(npolars_index.size() > 1)
+            for(unsigned i = 0; i < npolars_index.size(); i++)
+                coord[PDLN_LAT][npolars_index[i]] = (90.0 + nearest_point_lat) * 0.5;
+    }
+    else if(node_type == PDLN_NODE_TYPE_SPOLAR) {
+        double nearest_point_lat = 1e10;
+        for(int i = 0; i < num_kernel_points+num_expanded_points; i++) {
+            if(std::abs(coord[PDLN_LAT][i] - -90.0) < PDLN_FLOAT_EQ_ERROR)
+                spolars_index.push_back(i);
+            else if(nearest_point_lat > coord[PDLN_LAT][i])
+                nearest_point_lat = coord[PDLN_LAT][i];
+        }
+
+        if(spolars_index.size() > 1)
+            for(unsigned i = 0; i < spolars_index.size(); i++)
+                coord[PDLN_LAT][spolars_index[i]] = (-90.0 + nearest_point_lat) * 0.5;
+    }
 }
 
 

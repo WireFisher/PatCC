@@ -116,33 +116,6 @@ void Component::grid_pretreatment(int grid_id)
         min_lon -= 360;
         grid_info_mgr->set_grid_boundry(grid_id, min_lon, max_lon, min_lat, max_lat);
     }
-
-    /* deal with redundent polar points */
-    num_npolar = 0;
-    num_spolar = 0;
-    max_lat_without_polar = -1e10;
-    min_lat_without_polar = 1e10;
-    for(int i = 0; i < num_points; i++) {
-        if(std::abs(coord_values[PDLN_LAT][i] - 90.0) < PDLN_FLOAT_EQ_ERROR) {
-            polars_index.push_back(std::pair<int, bool>(i, 0));
-            num_npolar++;
-        }
-        else if(std::abs(coord_values[PDLN_LAT][i] - -90.0) < PDLN_FLOAT_EQ_ERROR) {
-            polars_index.push_back(std::pair<int, bool>(i, 1));
-            num_spolar++;
-        }
-        else {
-            if(max_lat_without_polar < coord_values[PDLN_LAT][i]) max_lat_without_polar = coord_values[PDLN_LAT][i];
-            if(min_lat_without_polar > coord_values[PDLN_LAT][i]) min_lat_without_polar = coord_values[PDLN_LAT][i];
-        }
-    }
-
-    for(unsigned i = 0; i < polars_index.size(); i++) {
-        if(polars_index[i].second == 0)
-            coord_values[PDLN_LAT][polars_index[i].first] = (90.0 + max_lat_without_polar) * 0.5;
-        else
-            coord_values[PDLN_LAT][polars_index[i].first] = (-90.0 + min_lat_without_polar) * 0.5;
-    }
 }
 
 
