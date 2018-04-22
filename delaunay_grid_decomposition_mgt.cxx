@@ -154,6 +154,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     }
 
     this->non_monotonic = kernel_boundry->min_lon > kernel_boundry->max_lon;
+    this->virtual_point_local_index = -1;
 }
 
 
@@ -215,23 +216,15 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
     if(triangulation != NULL)
         delete triangulation;
 
-    //char filename[64];
-    //int rank;
-    //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    //snprintf(filename, 64, "log/local_points_%d.png", rank);
     //plot_points_info_file(filename, points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
 
     if(rotated_expanded_boundry != NULL) {
         triangulation = new Delaunay_Voronoi(num_kernel_points + num_expanded_points,
                                              projected_coord[PDLN_LON], projected_coord[PDLN_LAT], points_global_index, false,
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
-                                             rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL);
+                                             rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL, virtual_point_local_index);
 
         if(node_type != PDLN_NODE_TYPE_COMMON) {
-            //char filename[64];
-            //int rank;
-            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-            //snprintf(filename, 64, "log/origin_points_%d.png", rank);
             //triangulation->plot_original_points_into_file(filename);
 
             double lon, head_lon, head_lat, tail_lon, tail_lat;
@@ -248,14 +241,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                 calculate_stereographic_projection(lon, real_boundry->max_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
             }
 
-            //printf("(%lf, %lf) -- (%lf, %lf)\n", head_lon, head_lat, tail_lon, tail_lat);
             std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
 
-            //printf("cyclic_triangles.size(): %lu\n", cyclic_triangles.size());
-            //char filename[64];
-            //int rank;
-            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-            //snprintf(filename, 64, "log/cyclic_triangles_%d", rank);
             //plot_triangles_info_file(filename, cyclic_triangles);
 
             char filename[64];
@@ -267,6 +254,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
             triangulation->relegalize_all_triangles();
+
+            if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
+                reset_polars();
         }
         else {
             Point circle_center;
@@ -275,10 +265,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 
             calculate_real_boundary();
 
-            //char filename[64];
-            //int rank;
-            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-            //snprintf(filename, 64, "log/projected_triangles_%d_a.png", rank);
             //triangulation->plot_projection_into_file(filename);
 
             if(real_boundry->min_lat < 0) {
@@ -295,7 +281,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                     triangulation->remove_triangles_in_circle(circle_center, radius);
 
                     double lon, head_lon, head_lat, tail_lon, tail_lat;
-
                     lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
                     calculate_stereographic_projection(lon, -center[PDLN_LAT]-20 , center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
                     calculate_stereographic_projection(lon, real_boundry->min_lat, center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
@@ -317,24 +302,16 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                 radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
 
                 if(radius < 100) {
-                    //printf("[%d] + circle_center: (%lf, %lf), point: (%lf, %lf) radius: %lf\n", rank, circle_center.x, circle_center.y, x[2], y[2], radius);
                     triangulation->remove_triangles_in_circle(circle_center, radius);
 
                     double lon, head_lon, head_lat, tail_lon, tail_lat;
-
                     lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
                     calculate_stereographic_projection(lon, real_boundry->max_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
                     calculate_stereographic_projection(lon, -center[PDLN_LAT]+20 , center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
 
-                    //printf("[%d]real: (%lf, %lf, %lf, %lf), (%lf, %lf) -- (%lf, %lf)\n", rank, real_boundry->min_lon, real_boundry->max_lon,
-                    //                                                               real_boundry->min_lat, real_boundry->max_lat,
-                    //                                                             head_lon, head_lat, tail_lon, tail_lat);
                     triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
                 }
             }
-
-            //snprintf(filename, 64, "log/projected_triangles_%d_b.png", rank);
-            //triangulation->plot_projection_into_file(filename);
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
@@ -345,10 +322,22 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
         triangulation = new Delaunay_Voronoi(num_kernel_points + num_expanded_points,
                                              points_coord[PDLN_LON], points_coord[PDLN_LAT], points_global_index, false,
                                              expanded_boundry->min_lon, expanded_boundry->max_lon,
-                                             expanded_boundry->min_lat, expanded_boundry->max_lat, NULL);
+                                             expanded_boundry->min_lat, expanded_boundry->max_lat, NULL, virtual_point_local_index);
 
     }
 }
+
+
+void Search_tree_node::reset_polars()
+{
+#ifdef DEBUG
+    assert(node_type != PDLN_NODE_TYPE_COMMON);
+#endif
+    double reset_lat_value = node_type == PDLN_NODE_TYPE_NPOLAR ? 90 : -90;
+    triangulation->update_points_coord_y(reset_lat_value, polars_local_index);
+    triangulation->remove_triangles_only_containing_virtual_polar();
+}
+
 
 void Search_tree_node::split_local_points(Midline midline, double *child_points_coord[4], int *child_points_idx[2], int child_num_points[2])
 {
@@ -555,6 +544,15 @@ void Search_tree_node::split_processing_units_by_points_number(double *workloads
 
     for(unsigned int i = splitting_index+1; i < parent_proc_units_id.size(); i++)
         child_proc_units_id[1].push_back(parent_proc_units_id[i]);
+}
+
+
+void Search_tree_node::add_expanded_points(double *lon_value, double *lat_value, int *global_idx, int num_points)
+{
+    double *coord_value[2];
+    coord_value[PDLN_LON] = lon_value;
+    coord_value[PDLN_LAT] = lat_value;
+    add_expanded_points(coord_value, global_idx, num_points);
 }
 
 
@@ -1167,6 +1165,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         
         if(have_local_processing_units_id(search_tree_root->children[0]->processing_units_id))
             local_leaf_nodes.push_back(search_tree_root->children[0]);
+
+        search_tree_root->children[0]->load_polars_info();
     }
     
     if(assign_north_polar) {
@@ -1202,6 +1202,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 
         if(have_local_processing_units_id(search_tree_root->children[2]->processing_units_id))
             local_leaf_nodes.push_back(search_tree_root->children[2]);
+
+        search_tree_root->children[2]->load_polars_info();
     }
 
     for(int i = 0; i < 4; i++)
@@ -1319,35 +1321,57 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 #define PDLN_INSERT_VIRTUAL_POINT true
 void Search_tree_node::load_polars_info()
 {
-    /* deal with redundent polar points */
-
-    double **coord = points_coord;
+    polars_local_index = new vector<int>();
 
     if(node_type == PDLN_NODE_TYPE_NPOLAR) {
         double nearest_point_lat = -1e10;
         for(int i = 0; i < num_kernel_points+num_expanded_points; i++) {
-            if(std::abs(coord[PDLN_LAT][i] - 90.0) < PDLN_FLOAT_EQ_ERROR)
-                npolars_index.push_back(i);
-            else if(nearest_point_lat < coord[PDLN_LAT][i])
-                nearest_point_lat = coord[PDLN_LAT][i];
+            if(std::abs(points_coord[PDLN_LAT][i] - 90.0) < PDLN_FLOAT_EQ_ERROR)
+                polars_local_index->push_back(i);
+            else if(nearest_point_lat < points_coord[PDLN_LAT][i])
+                nearest_point_lat = points_coord[PDLN_LAT][i];
         }
 
-        if(npolars_index.size() > 1)
-            for(unsigned i = 0; i < npolars_index.size(); i++)
-                coord[PDLN_LAT][npolars_index[i]] = (90.0 + nearest_point_lat) * 0.5;
+        if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() != 1) {
+            for(unsigned i = 0; i < polars_local_index->size(); i++)
+                points_coord[PDLN_LAT][(*polars_local_index)[i]] = (90.0 + nearest_point_lat) * 0.5;
+
+            double vpoint_lon = 0;
+            double vpoint_lat = 90;
+            int vpoint_idx = -1;
+            virtual_point_local_index = num_kernel_points+num_expanded_points;
+            add_expanded_points(&vpoint_lon, &vpoint_lat, &vpoint_idx, 1);
+#ifdef DEBUG
+            assert(points_coord[PDLN_LON][virtual_point_local_index] == vpoint_lon);
+            assert(points_coord[PDLN_LAT][virtual_point_local_index] == vpoint_lat);
+            assert(points_global_index[virtual_point_local_index] == vpoint_idx);
+#endif
+        }
     }
     else if(node_type == PDLN_NODE_TYPE_SPOLAR) {
         double nearest_point_lat = 1e10;
         for(int i = 0; i < num_kernel_points+num_expanded_points; i++) {
-            if(std::abs(coord[PDLN_LAT][i] - -90.0) < PDLN_FLOAT_EQ_ERROR)
-                spolars_index.push_back(i);
-            else if(nearest_point_lat > coord[PDLN_LAT][i])
-                nearest_point_lat = coord[PDLN_LAT][i];
+            if(std::abs(points_coord[PDLN_LAT][i] - -90.0) < PDLN_FLOAT_EQ_ERROR)
+                polars_local_index->push_back(i);
+            else if(nearest_point_lat > points_coord[PDLN_LAT][i])
+                nearest_point_lat = points_coord[PDLN_LAT][i];
         }
 
-        if(spolars_index.size() > 1)
-            for(unsigned i = 0; i < spolars_index.size(); i++)
-                coord[PDLN_LAT][spolars_index[i]] = (-90.0 + nearest_point_lat) * 0.5;
+        if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() != 1) {
+            for(unsigned i = 0; i < polars_local_index->size(); i++)
+                points_coord[PDLN_LAT][(*polars_local_index)[i]] = (-90.0 + nearest_point_lat) * 0.5;
+
+            double vpoint_lon = 0;
+            double vpoint_lat = -90;
+            int vpoint_idx = -1;
+            virtual_point_local_index = num_kernel_points+num_expanded_points;
+            add_expanded_points(&vpoint_lon, &vpoint_lat, &vpoint_idx, 1);
+#ifdef DEBUG
+            assert(points_coord[PDLN_LON][virtual_point_local_index] == vpoint_lon);
+            assert(points_coord[PDLN_LAT][virtual_point_local_index] == vpoint_lat);
+            assert(points_global_index[virtual_point_local_index] == vpoint_idx);
+#endif
+        }
     }
 }
 

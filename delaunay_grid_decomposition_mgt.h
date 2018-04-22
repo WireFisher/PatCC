@@ -65,6 +65,8 @@ private:
     int num_rotated_points; /* kernel + part of expanded */
     int node_type;
     bool non_monotonic;
+    vector<int> *polars_local_index;
+    int virtual_point_local_index;
     
     vector<int> processing_units_id;
     vector<pair<Search_tree_node*, bool> > neighbors;
@@ -83,6 +85,7 @@ public:
     void update_processing_units_id(vector<int>);
     void generate_local_triangulation(bool);
     void generate_rotated_grid();
+    void add_expanded_points(double *, double *, int*, int);
     void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
     bool check_if_all_outer_edge_out_of_kernel_boundry(Boundry *, bool);
@@ -111,8 +114,6 @@ private:
     bool *active_processing_units_flag;
     //int* active_processing_common_id;
     double* workloads;
-    vector<int> npolars_index;
-    vector<int> spolars_index;
     
     void initialze_workload();
     int assign_polars(bool, bool);

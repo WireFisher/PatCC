@@ -101,6 +101,7 @@ class Triangle
         double circum_center[2];
         double circum_radius;
         int circum_circle_contains(Point*);
+        bool contain_virtual_polar;
 
         void initialize_triangle_with_edges(Edge*, Edge*, Edge*);
 
@@ -140,6 +141,8 @@ class Delaunay_Voronoi
         int num_cells;
         Point *virtual_point[4];
         int *global_index;
+        vector<Triangle*> triangles_containing_vpolar;
+        double lat_nearest_vpolar;
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         Point *generate_boundary_point(double, double, Triangle*, bool);
@@ -165,9 +168,11 @@ class Delaunay_Voronoi
         void relegalize_triangles(Point*, Edge*);
         void remove_leaf_triangle(Triangle*);
         unsigned calculate_triangles_checksum(Triangle_Transport*, int);
+        void update_virtual_polar_info();
+        void remove_triangles_only_containing_virtual_polar();
 
     public:
-        Delaunay_Voronoi(int, double*, double*, int*, bool, double, double, double, double, bool*);
+        Delaunay_Voronoi(int, double*, double*, int*, bool, double, double, double, double, bool*, int virtual_polar_local_index=-1);
         ~Delaunay_Voronoi( );
         void legalize_triangles(Point *pt, Edge *edge, vector<Triangle*>*);
         Edge *allocate_edge(Point *head, Point *tail);

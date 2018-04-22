@@ -908,7 +908,8 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 
 
 Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, int *global_idx, bool is_global_grid,
-                                   double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark)
+                                   double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark,
+                                   int virtual_polar_local_index)
 {
     timeval start, end;
 
@@ -938,6 +939,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 
     clear_triangle_containing_virtual_point();
 
+    update_virtual_polar_info();
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
@@ -1476,6 +1478,32 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
 }
 
 
+void Delaunay_Voronoi::update_virtual_polar_info()
+{
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+        if(!result_leaf_triangles[i]->is_leaf)
+            continue;
+        if(result_leaf_triangles[i]->contain_vertex(cells[virtual_polar_local_index].center))
+            triangles_containing_vpolar.push_back(result_leaf_triangles[i]);
+    }
+}
+
+
+void Delaunay_Voronoi::remove_triangles_only_containing_virtual_polar()
+{
+    double common_lat = cells[virtual_polar_local_index].center->y;
+
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+        if(!result_leaf_triangles[i]->is_leaf)
+            continue;
+        if(result_leaf_triangles[i]->v[0] == common_lat &&
+           result_leaf_triangles[i]->v[1] == common_lat &&
+           result_leaf_triangles[i]->v[2] == common_lat)
+            remove_leaf_triangle(result_leaf_triangles[i]);
+    }
+}
+
+
 void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double max_x, double min_y, double max_y)
 {
     unsigned num_edges;
@@ -1653,6 +1681,14 @@ void Delaunay_Voronoi::update_all_points_coord(double *x_values, double *y_value
     for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
         if(result_leaf_triangles[i]->is_leaf)
             result_leaf_triangles[i]->calulate_circum_circle();
+}
+
+
+void Delaunay_Voronoi::update_points_coord_y(double reset_lat_value, vector<int> *polars_local_index)
+{
+    for(unsigned i = 0; i < polars_local_index->size(); i++)
+        cells[(*polars_local_index)[i]].center->y = reset_lat_value;
+    // WARNING: circum_circle will not been recalculated
 }
 
 
