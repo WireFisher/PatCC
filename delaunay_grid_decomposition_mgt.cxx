@@ -211,6 +211,7 @@ inline void calculate_circle_center(double x[3], double y[3], double *center_x, 
 }
 
 
+#define PDLN_INSERT_VIRTUAL_POINT true
 void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 {
     if(triangulation != NULL)
@@ -1318,7 +1319,6 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 }
 
 
-#define PDLN_INSERT_VIRTUAL_POINT true
 void Search_tree_node::load_polars_info()
 {
     polars_local_index = new vector<int>();

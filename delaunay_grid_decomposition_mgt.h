@@ -73,6 +73,8 @@ private:
     Delaunay_Voronoi *triangulation;
     void calculate_real_boundary();
     void fix_expanded_boundry(int index, int count);
+    void load_polars_info();
+    void reset_polars();
 
 public:    
     Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type);

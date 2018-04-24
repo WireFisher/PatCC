@@ -930,6 +930,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
         memcpy(global_index, global_idx, num_points*sizeof(int));
     }
 
+    this->vpolar_local_index = virtual_polar_local_index;
     vector<Triangle*> initial_triangles = generate_initial_triangles(num_points, x_values, y_values, redundant_cell_mark);
 
     //save_original_points_into_file();
@@ -1483,7 +1484,7 @@ void Delaunay_Voronoi::update_virtual_polar_info()
     for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
-        if(result_leaf_triangles[i]->contain_vertex(cells[virtual_polar_local_index].center))
+        if(result_leaf_triangles[i]->contain_vertex(cells[vpolar_local_index].center))
             triangles_containing_vpolar.push_back(result_leaf_triangles[i]);
     }
 }
@@ -1491,14 +1492,14 @@ void Delaunay_Voronoi::update_virtual_polar_info()
 
 void Delaunay_Voronoi::remove_triangles_only_containing_virtual_polar()
 {
-    double common_lat = cells[virtual_polar_local_index].center->y;
+    double common_lat = cells[vpolar_local_index].center->y;
 
     for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
-        if(result_leaf_triangles[i]->v[0] == common_lat &&
-           result_leaf_triangles[i]->v[1] == common_lat &&
-           result_leaf_triangles[i]->v[2] == common_lat)
+        if(result_leaf_triangles[i]->v[0]->y == common_lat &&
+           result_leaf_triangles[i]->v[1]->y == common_lat &&
+           result_leaf_triangles[i]->v[2]->y == common_lat)
             remove_leaf_triangle(result_leaf_triangles[i]);
     }
 }
@@ -1559,7 +1560,7 @@ void Delaunay_Voronoi::plot_current_step_into_file(const char *filename)
 
     assert(num_edges%3 == 0);
     assert(num_edges <= 3 * triangle_pool.size());
-    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges);
+    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_DEFAULT, PDLN_PLOT_FILEMODE_NEW);
 
     delete head_coord[0];
     delete head_coord[1];
@@ -1589,9 +1590,19 @@ void Delaunay_Voronoi::plot_projection_into_file(const char *filename, double mi
                 tail_coord[1][num_edges++] = result_leaf_triangles[i]->edge[j]->tail->y;
             }
 
-    assert(num_edges%3 == 0);
     assert(num_edges <= 3 * result_leaf_triangles.size());
-    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, min_x, max_x, min_y, max_y);
+    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_DEFAULT, PDLN_PLOT_FILEMODE_NEW);
+
+    num_edges = 0;
+    for(unsigned i = 0; i < triangles_containing_vpolar.size(); i++)
+        for(unsigned j = 0; j < 3; j++) {
+            head_coord[0][num_edges] = triangles_containing_vpolar[i]->edge[j]->head->x;
+            head_coord[1][num_edges] = triangles_containing_vpolar[i]->edge[j]->head->y;
+            tail_coord[0][num_edges] = triangles_containing_vpolar[i]->edge[j]->tail->x;
+            tail_coord[1][num_edges++] = triangles_containing_vpolar[i]->edge[j]->tail->y;
+        }
+    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_RED, PDLN_PLOT_FILEMODE_APPEND);
+
 
     delete head_coord[0];
     delete head_coord[1];

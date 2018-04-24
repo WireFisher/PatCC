@@ -1,12 +1,9 @@
-#ifndef OPENCV_UTILS_H
-#define OPENCV_UTILS_H
-
 #include "opencv_utils.h"
 #include "delaunay_voronoi_2D.h"
 #include <opencv2/opencv.hpp>
 
 void plot_edge_into_file(const char *filename, double *head_coord[2], double *tail_coord[2], int num_edges,
-                         double min_x = 0.0, double max_x = 0.0, double min_y = 0.0, double max_y = 0.0)
+                         double min_x, double max_x, double min_y, double max_y)
 {
     std::vector<Edge*> edges;
 
@@ -54,22 +51,38 @@ void plot_edge_into_file(const char *filename, double *head_coord[2], double *ta
 
 
 void plot_projected_edge_into_file(const char *filename, double *head_coord[2], double *tail_coord[2], int num_edges,
-                                   double min_x = 0.0, double max_x = 0.0, double min_y = 0.0, double max_y = 0.0)
+                                   int color, int filemode)
 {
     std::vector<Edge*> edges;
     int x_shift = 1500;
     int y_shift = 1500;
     int scale = 500;
+    
+    cv::Mat mat;
+    if(filemode == PDLN_PLOT_FILEMODE_NEW)
+        mat = cv::Mat::zeros(300*10, 300*10, CV_8UC3); /* rows, columns*/
+    else if(filemode == PDLN_PLOT_FILEMODE_APPEND)
+        mat = cv::imread(filename, CV_LOAD_IMAGE_COLOR);
 
-    cv::Mat mat = cv::Mat::zeros(300*10, 300*10, CV_8UC3); /* rows, columns*/
+    if(!mat.data) {
+        perror("PLOT in APPEND MODE but file doesn't exist.\n");
+        return;
+    }
 
     cv::line(mat, cv::Point(-150*scale+x_shift,    0*scale+y_shift), cv::Point(150*scale+x_shift,   0*scale+y_shift), cv::Scalar(0, 255, 255), 1, cv::LINE_8);
     cv::line(mat, cv::Point(   0*scale+x_shift, -150*scale+y_shift), cv::Point(  0*scale+x_shift, 150*scale+y_shift), cv::Scalar(0, 255, 255), 1, cv::LINE_8);
 
+    cv::Scalar cv_color;
+    switch(color) {
+        case PDLN_PLOT_COLOR_WHITE: cv_color = cv::Scalar(255, 255, 255); break;
+        case PDLN_PLOT_COLOR_RED  : cv_color = cv::Scalar(0x80, 0x80, 0xF0); break;
+        default : cv_color = cv::Scalar(255, 255, 255);
+    }
+
     for(int i = 0; i < num_edges; i++)
         cv::line(mat, cv::Point(head_coord[0][i] * scale + x_shift, head_coord[1][i] * scale + y_shift),
                       cv::Point(tail_coord[0][i] * scale + x_shift, tail_coord[1][i] * scale + y_shift),
-                 cv::Scalar(255, 255, 255), 1, cv::LINE_8);
+                 cv_color, 1, cv::LINE_8);
 
     std::vector<int> compression_params;
     compression_params.push_back(cv::IMWRITE_PNG_COMPRESSION);
@@ -84,7 +97,7 @@ void plot_projected_edge_into_file(const char *filename, double *head_coord[2], 
 
 
 void plot_points_info_file(const char *filename, double *x, double *y, int num,
-                           double min_x = 0.0, double max_x = 0.0, double min_y = 0.0, double max_y = 0.0)
+                           double min_x, double max_x, double min_y, double max_y)
 {
     std::vector<Edge*> edges;
     /* // for lonlat
@@ -127,5 +140,3 @@ void plot_points_info_file(const char *filename, double *x, double *y, int num,
         fprintf(stderr, "Exception converting image to PNG format: %s\n", ex.what());
     }
 }
-
-#endif

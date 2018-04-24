@@ -143,6 +143,7 @@ class Delaunay_Voronoi
         int *global_index;
         vector<Triangle*> triangles_containing_vpolar;
         double lat_nearest_vpolar;
+        int vpolar_local_index;
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         Point *generate_boundary_point(double, double, Triangle*, bool);
@@ -169,7 +170,6 @@ class Delaunay_Voronoi
         void remove_leaf_triangle(Triangle*);
         unsigned calculate_triangles_checksum(Triangle_Transport*, int);
         void update_virtual_polar_info();
-        void remove_triangles_only_containing_virtual_polar();
 
     public:
         Delaunay_Voronoi(int, double*, double*, int*, bool, double, double, double, double, bool*, int virtual_polar_local_index=-1);
@@ -192,6 +192,9 @@ class Delaunay_Voronoi
         bool is_triangle_in_circle(Triangle*, Point, double);
         void remove_triangles_in_circle(Point, double);
         void remove_triangles_on_segment(Point, Point);
+
+        void update_points_coord_y(double, vector<int> *);
+        void remove_triangles_only_containing_virtual_polar();
 
         /* debug */
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
