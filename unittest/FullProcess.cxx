@@ -168,12 +168,12 @@ void prepare_latlon_grid()
 
     min_lon =   1.0;
     max_lon = 360.0;
-    min_lat = -89.0;
-    max_lat =  89.0;
+    min_lat = -90.0;
+    max_lat =  90.0;
 }
 
 
-void prepare_latlon_90_grid()
+void prepare_latlon_mutipolars()
 {
     int num_dims;
     int *dim_size_ptr;
@@ -205,6 +205,47 @@ void prepare_latlon_90_grid()
     min_lat = -90.0;
     max_lat =  90.0;
 }
+
+
+void prepare_latlon_singlepolar()
+{
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+
+    read_file_field_as_double("gridfile/lonlat_90.nc", "lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field_as_double("gridfile/lonlat_90.nc", "lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+
+    num_points = field_size*field_size2;
+    coord_values[PDLN_LON] = new double [num_points+2];
+    coord_values[PDLN_LAT] = new double [num_points+2];
+
+    int count = 0;
+    for(int j = field_size2-1; j >= 0; j--)
+        for(int i = 0; i < field_size; i ++) {
+            if(fabs(((double*)coord_buf1)[j] - 90) > 1e-8 && fabs(((double*)coord_buf1)[j] - -90) > 1e-8) {
+                coord_values[PDLN_LON][count] = ((double*)coord_buf0)[i];
+                coord_values[PDLN_LAT][count++] = ((double*)coord_buf1)[j];
+            }
+        }
+
+    coord_values[PDLN_LON][count] = 0.0;
+    coord_values[PDLN_LAT][count++] = 90.0;
+    coord_values[PDLN_LON][count] = 0.0;
+    coord_values[PDLN_LAT][count++] = -90.0;
+    num_points = count;
+    assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+
+    min_lon =   0.0;
+    max_lon = 360.0;
+    min_lat = -90.0;
+    max_lat =  90.0;
+}
+
 
 TEST_F(FullProcess, Basic) {
     const int num_thread = 1;
@@ -348,7 +389,7 @@ TEST_F(FullProcess, latlon) {
 };
 
 
-TEST_F(FullProcess, latlon90) {
+TEST_F(FullProcess, latlon_single_polars) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -360,7 +401,78 @@ TEST_F(FullProcess, latlon90) {
     ON_CALL(*mock_process_thread_manager, get_mpi_comm())
         .WillByDefault(Return(comm));
 
-    prepare_latlon_90_grid();
+    prepare_latlon_singlepolar();
+
+    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
+        .WillByDefault(Return(coord_values));
+
+    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
+        .WillByDefault(Return(num_points));
+
+    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
+        .WillByDefault(Invoke(get_boundry));
+
+    ON_CALL(*mock_grid_info_manager, get_polar_points(1, _))
+        .WillByDefault(Return(0));
+
+    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
+        .WillByDefault(Return(true));
+
+    Component* comp;
+    comp = new Component(0);
+    comp->register_grid(new Grid(1));
+    comp->generate_delaunay_trianglulation(1);
+
+    delete comp;
+
+    MPI_Comm split_world;
+    if (mpi_size/3 > 1)
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+
+    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+        comm = split_world;
+        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+            .WillByDefault(Return(comm));
+
+        comp = new Component(1);
+        comp->register_grid(new Grid(1));
+        comp->generate_delaunay_trianglulation(1);
+
+        delete comp;
+
+        int new_mpi_size;
+        MPI_Comm_size(split_world, &new_mpi_size);
+
+        FILE *fp;
+        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
+        char cmd[256];
+        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+
+        char md5[2][64];
+        memset(md5[0], 0, 64);
+        memset(md5[1], 0, 64);
+        fp = popen(cmd, "r");
+        fgets(md5[0], 64, fp);
+        fgets(md5[1], 64, fp);
+        ASSERT_STREQ(md5[0], md5[1]);
+    }
+};
+
+
+
+TEST_F(FullProcess, latlon_mutipolars) {
+    const int num_thread = 1;
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    ON_CALL(*mock_process_thread_manager, get_openmp_size())
+        .WillByDefault(Return(num_thread));
+    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+        .WillByDefault(Return(comm));
+
+    prepare_latlon_mutipolars();
 
     ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
         .WillByDefault(Return(coord_values));
