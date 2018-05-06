@@ -25,6 +25,8 @@
 
 #define PDLN_CHECKSUM_FALSE (0xFFFFFFFF)
 
+#define PI ((double) 3.1415926535897932384626433)
+
 using std::vector;
 
 class Edge;
