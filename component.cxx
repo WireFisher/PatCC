@@ -54,8 +54,10 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         gettimeofday(&end, NULL);
         //printf("[%3d] Trianglulation for local decomp: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
         /* Return Values: 0 - success
-         *                1 - fail, normal decomp's expanded_boundry exceeded -/+90 (expanding fail)
+         *                1 - fail, normal decomp's expanded_boundry exceeded too large (expanding fail)
          *                2 - fail, polar  decomp's expanded_boundry exceeded threshold */
+        if(ret == 1)
+            return -1;
         if(ret == 2) {
             do_sequentially = true;
             break;
@@ -127,7 +129,7 @@ Component::~Component()
 }
 
 
-void Component::generate_delaunay_trianglulation(int grid_id)
+int Component::generate_delaunay_trianglulation(int grid_id)
 {
     Grid *operating_grid;
     operating_grid = this->search_grid_by_id(grid_id);
@@ -139,7 +141,9 @@ void Component::generate_delaunay_trianglulation(int grid_id)
 
     grid_pretreatment(grid_id);
 
-    operating_grid->generate_delaunay_trianglulation(this->proc_resource);
+    if(operating_grid->generate_delaunay_trianglulation(this->proc_resource))
+        return -1;
     operating_grid->plot_triangles_into_file();
     operating_grid->merge_all_triangles();
+    return 0;
 }

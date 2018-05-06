@@ -65,7 +65,8 @@ void read_file_field_as_float(const char *file_name, const char *field_name, voi
     report_nc_error(rcode);
 }
 
-void read_file_field_as_double(const char *file_name, const char *field_name, void **data_array_ptr, int *num_dims, int **dim_size_ptr, int *field_size)
+void read_file_field_as_double(const char *file_name, const char *field_name, void **data_array_ptr, int *num_dims, int **dim_size_ptr, int *field_size,
+                               char *unit)
 {
     int i, ncfile_id, rcode, variable_id, *dim_ids, *dim_size;
     long total_size;
@@ -86,6 +87,10 @@ void read_file_field_as_double(const char *file_name, const char *field_name, vo
         report_nc_error(rcode);
         return;
     }
+
+    if(unit != NULL)
+        nc_get_att_text(ncfile_id, variable_id, "units", unit); // Unsafe
+
     rcode = nc_inq_varndims(ncfile_id, variable_id, num_dims);
     report_nc_error(rcode);
     dim_ids = new int [*num_dims];

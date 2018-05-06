@@ -6,6 +6,7 @@
 #include "../processing_unit_mgt.h"
 #include "../delaunay_grid_decomposition_mgt.h"
 #include "../netcdf_utils.h"
+#include "../ccpl_utils.h"
 
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
@@ -38,6 +39,7 @@ static int mpi_size = 0;
 static double *coord_values[2] = {NULL, NULL};
 static int num_points = 0;
 static double min_lat, max_lat, min_lon, max_lon;
+static bool is_cyclic = false;
 
 
 class FullProcess : public ::testing::Test
@@ -319,7 +321,7 @@ TEST_F(FullProcess, Basic) {
 
 
 
-TEST_F(FullProcess, latlon) {
+TEST_F(FullProcess, LatLonGrid) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -389,7 +391,7 @@ TEST_F(FullProcess, latlon) {
 };
 
 
-TEST_F(FullProcess, latlon_single_polars) {
+TEST_F(FullProcess, LatLonSinglePolar) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -460,7 +462,7 @@ TEST_F(FullProcess, latlon_single_polars) {
 
 
 
-TEST_F(FullProcess, latlon_mutipolars) {
+TEST_F(FullProcess, LatLonMutiPolars) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -530,14 +532,9 @@ TEST_F(FullProcess, latlon_mutipolars) {
 };
 
 
-TEST_F(FullProcess, 3polar) {
+TEST_F(FullProcess, ThreePolar) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
-
-    NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
-    NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
-    process_thread_mgr = mock_process_thread_manager;
-    grid_info_mgr = mock_grid_info_manager;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -602,6 +599,130 @@ TEST_F(FullProcess, 3polar) {
         fgets(md5[1], 64, fp);
         ASSERT_STREQ(md5[0], md5[1]);
     }
-    delete process_thread_mgr;
-    delete grid_info_mgr;
+};
+
+
+const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
+const char dim1_grid_name[][64] = {
+    "ar9v4_100920.nc", // x
+    "Gamil_128x60_Grid.nc", // x ok
+    "fv1.9x2.5_050503.nc", // x ok
+    "Gamil_360x180_Grid.nc", // x ok
+    "licom_eq1x1_degree_Grid.nc", //x ok
+    "licom_gr1x1_degree_Grid.nc", //x ok
+    "ne60np4_pentagons_100408.nc", //assert false
+    "ne30np4-t2.nc",  //assert false
+    "wr50a_090301.nc", //assert length false
+    "gx3v5_Present_DP_x3.nc",
+    "LICOM_P5_Grid.nc",
+    "ll1deg_grid.nc",
+    "ll2.5deg_grid.nc",
+    "R05_Grid.nc",
+    "R42_Gaussian_Grid.nc",
+    "T42_Gaussian_Grid.nc",
+    "T42_grid.nc",
+    "T62_Gaussian_Grid.nc",
+    "T85_Gaussian_Grid.nc",
+    "V3_Greenland_pole_x1_T_grid.nc",
+    "Version_3_of_Greenland_pole_x1_T-grid.nc",
+    "thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc",
+    "tos_Omon_MPI-ESM-LR_historical_r1i1p1_185001-200512.nc",
+    "tos_Omon_inmcm4_historical_r1i1p1_185001-200512.nc",
+};
+
+
+void prepare_dim1_grid(const char grid_name[])
+{
+    char fullname[128];
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+    char lon_unit[32];
+    char lat_unit[32];
+
+
+    snprintf(fullname, 128, dim1_grid_path, grid_name);
+    read_file_field_as_double(fullname, "grid_center_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size, lon_unit);
+    delete dim_size_ptr;
+    read_file_field_as_double(fullname, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
+    delete dim_size_ptr;
+
+    ASSERT_EQ(field_size, field_size2);
+    num_points = field_size;
+    coord_values[PDLN_LON] = (double*)coord_buf0;
+    coord_values[PDLN_LAT] = (double*)coord_buf1;
+
+    min_lon = 1e10;
+    max_lon = -1e10;
+    min_lat = 1e10;
+    max_lat = -1e10;
+
+    bool convert = strncmp(lon_unit, "radians", 32) == 0;
+    for(int i = 0; i < num_points; i ++) {
+        if(convert) {
+            coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
+            coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
+            //printf("lat: %lf\n", coord_values[PDLN_LAT][i]);
+        }
+        if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
+        if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
+        if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
+        if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
+    }
+
+    max_lon += 0.0001;
+    if(max_lon > 360) max_lon = 360;
+    max_lat += 0.0001;
+    if(max_lat > 90) max_lat = 90;
+    assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+    if(fabs((max_lon - min_lon) - 360) < 0.5)
+        is_cyclic = true;
+    else
+        is_cyclic = false;
+};
+
+
+TEST_F(FullProcess, ManyTypesOfGrids) {
+    const int num_thread = 1;
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    ON_CALL(*mock_process_thread_manager, get_openmp_size())
+        .WillByDefault(Return(num_thread));
+    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+        .WillByDefault(Return(comm));
+
+    for(int i = 0; i < sizeof(dim1_grid_name)/64; i++) {
+        printf("processing: %s\n", dim1_grid_name[i]);
+        prepare_dim1_grid(dim1_grid_name[i]);
+
+        ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
+            .WillByDefault(Return(coord_values));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
+            .WillByDefault(Return(num_points));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
+            .WillByDefault(Invoke(get_boundry));
+
+        ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
+            .WillByDefault(Return(is_cyclic));
+
+        Component* comp;
+        comp = new Component(0);
+        comp->register_grid(new Grid(1));
+        int ret = comp->generate_delaunay_trianglulation(1);
+        EXPECT_EQ(ret, 0);
+
+        delete comp;
+
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if(!ret && rank == 0) {
+            char cmd[256];
+            snprintf(cmd, 256, "mv log/global_triangles_15 log/summary_%s_15.txt; mv log/image_global_triangles_15.png log/image_%s_15.png", dim1_grid_name[i], dim1_grid_name[i]);
+            system(cmd);
+        }
+    }
 };

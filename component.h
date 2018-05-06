@@ -32,7 +32,7 @@ public:
     Component(int id);
     ~Component();
     void register_grid(Grid* grid){this->grids.push_back(grid); };
-    void generate_delaunay_trianglulation(int);
+    int generate_delaunay_trianglulation(int);
 };
 
 #endif
