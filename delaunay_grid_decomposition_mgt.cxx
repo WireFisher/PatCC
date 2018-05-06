@@ -40,7 +40,7 @@
 
 #define PDLN_DOUBLE_INVALID_VALUE ((double)0xDEADBEEFDEADBEEF)
 
-#define PDLN_HIGH_BOUNDRY_SHIFTING (1e-8)
+#define PDLN_HIGH_BOUNDRY_SHIFTING (1e-6)
 
 #define PDLN_MAX_NUM_PROCESSING_UNITS 512
 
@@ -592,7 +592,6 @@ void Search_tree_node::add_expanded_points(double *coord_value[2], int *global_i
 
     //int rank;
     //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    //printf("[%d] %lf, %lf, %lf, %lf\n", rank, expanded_boundry->min_lon, expanded_boundry->max_lon, expanded_boundry->min_lat, expanded_boundry->max_lat);
     fix_expanded_boundry(num_kernel_points + num_expanded_points, num_points);
     //printf("[%d] %lf, %lf, %lf, %lf\n", rank, expanded_boundry->min_lon, expanded_boundry->max_lon, expanded_boundry->min_lat, expanded_boundry->max_lat);
 
@@ -665,7 +664,7 @@ void Search_tree_node::add_neighbors(vector<Search_tree_node*> ns)
 }
 
 
-void Search_tree_node::generate_rotated_grid()
+void Search_tree_node::project_grid()
 {
     if(projected_coord[0] == NULL) { /* first time to generate rotated grid */
         projected_coord[0] = new double[num_kernel_points + len_expanded_points_coord_buf];
@@ -1624,17 +1623,21 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     bool all_finished = false;
     double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
     while(iter < 10) {
-        int ret;
+        int ret = 0;
+        int all_ret;
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i]) {
-                ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+                ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
 
-                if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
-                    local_leaf_nodes[i]->generate_rotated_grid();
+                if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2])) // TODO: can be more accurate
+                    local_leaf_nodes[i]->project_grid();
             }
 
-        if(ret)
-            return -1;
+        MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, processing_info->get_mpi_comm());
+        if(all_ret) {
+            all_finished = false;
+            break;
+        }
         /* TODO: allgather ret */
 
         #pragma omp parallel for
@@ -1667,8 +1670,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             }
         }
 
-        int rank;
-        MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
                 for(unsigned j = 0; j < waiting_lists[i].size(); j++) {
@@ -1694,10 +1695,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(!is_local_leaf_node_finished[i])
                 all_finished = false;
 
-        if(all_finished)
-            break;
-
-        expanding_ratio += 0.1;
+        if(!all_finished)
+            expanding_ratio += 0.1;
         iter++;
     }
 

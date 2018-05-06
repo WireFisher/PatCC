@@ -86,7 +86,7 @@ public:
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
     void generate_local_triangulation(bool);
-    void generate_rotated_grid();
+    void project_grid();
     void add_expanded_points(double *, double *, int*, int);
     void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
