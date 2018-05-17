@@ -1117,12 +1117,34 @@ bool Delaunay_Voronoi::check_if_all_outer_edge_out_of_region(double min_x, doubl
 }
 
 
-std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segment(Point head, Point tail)
+static inline double point_distence_to_line(double px, double py, double x1, double y1, double x2, double y2)
+{
+    //TODO: may be slow
+    if(x1 - x2 == 0)
+        return fabs(px - x1);
+    else if(y1 - y2 == 0)
+        return fabs(py - y1);
+    else {
+        double A=(y1-y2)/(x1-x2);
+        double B=y1-A*x1;
+        return fabs((A*px+B-py)/sqrt(A*A+1));
+    }
+}
+
+
+std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segment(Point head, Point tail, double threshold)
 {
     std::vector<Triangle*> triangles_found;
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
+
+        if(threshold != 0) {
+            if(point_distence_to_line(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, head.x, head.y, tail.x, tail.y) > threshold) continue;
+            if(point_distence_to_line(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, head.x, head.y, tail.x, tail.y) > threshold) continue;
+            if(point_distence_to_line(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, head.x, head.y, tail.x, tail.y) > threshold) continue;
+        }
+
         /*
         if(!result_leaf_triangles[i]->edge[0]->twin_edge || !result_leaf_triangles[i]->edge[0]->twin_edge->triangle ||
            !result_leaf_triangles[i]->edge[1]->twin_edge || !result_leaf_triangles[i]->edge[1]->twin_edge->triangle ||
@@ -1132,7 +1154,6 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
         if(result_leaf_triangles[i]->v[0]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) > 0 &&
            result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[2]->position_to_edge(&head, &tail) > 0 )
             continue;
-
         /* two points of segment is in/on triangle */
         if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
             triangles_found.push_back(result_leaf_triangles[i]);
@@ -1188,7 +1209,7 @@ void Delaunay_Voronoi::remove_triangles_on_segment(Point head, Point tail)
 
 std::vector<Triangle*> Delaunay_Voronoi::search_cyclic_triangles_for_rotated_grid(Point cyclic_boundary_head, Point cyclic_bounary_tail)
 {
-    return find_triangles_intersecting_with_segment(cyclic_boundary_head, cyclic_bounary_tail);
+    return find_triangles_intersecting_with_segment(cyclic_boundary_head, cyclic_bounary_tail, 0);
 }
 
 
@@ -1349,11 +1370,11 @@ void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, doub
 }
 
 
-void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len)
+void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len, double threshold)
 {
     int current = 0;
 
-    std::vector<Triangle*> ts = find_triangles_intersecting_with_segment(head, tail);
+    std::vector<Triangle*> ts = find_triangles_intersecting_with_segment(head, tail, threshold);
 
     for(unsigned i = 0; i < ts.size(); i++)
         output_triangles[current++] = Triangle_Transport(Point(ts[i]->v[0]->x, ts[i]->v[0]->y, global_index[ts[i]->v[0]->id]),  // TODO: use global_index as id directly
@@ -1385,7 +1406,7 @@ unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_Transport *tria
 }
 
 
-unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, Point tail)
+unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, Point tail, double threshold)
 {
     /* Let n be the number of points, if there are b vertices on the convex hull,
      * then any triangulation of the points has at most 2n − 2 − b triangles,
@@ -1394,15 +1415,16 @@ unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, 
     int num_triangles;
     unsigned checksum;
 
-    get_triangles_intersecting_with_segment(head, tail, triangles, &num_triangles, 2*num_cells);
+    get_triangles_intersecting_with_segment(head, tail, triangles, &num_triangles, 2*num_cells, threshold);
+
+    checksum = calculate_triangles_checksum(triangles, num_triangles);
 
     //char filename[64];
     //int rank;
     //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    //snprintf(filename, 64, "log/boundary_triangles_%d", rank);
+    //snprintf(filename, 64, "log/boundary_triangles_%d_%u", rank, checksum);
     //plot_triangles_info_file(filename, triangles, num_triangles);
 
-    checksum = calculate_triangles_checksum(triangles, num_triangles);
 
     delete[] triangles;
     return checksum;
@@ -1754,7 +1776,8 @@ void plot_triangles_info_file(const char *prefix, std::vector<Triangle*> t)
 
     assert(num_edges%3 == 0);
     snprintf(filename, 128, "%s.png", prefix);
-    plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
+    //plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
+    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_WHITE, PDLN_PLOT_FILEMODE_NEW);
 
     delete head_coord[0];
     delete head_coord[1];

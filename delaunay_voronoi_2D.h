@@ -162,7 +162,7 @@ class Delaunay_Voronoi
         bool is_angle_ambiguous(const Point *pt, const Edge *edge);
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
         double calculate_angle(const Point *, const Point *, const Point *);
-        std::vector<Triangle*> find_triangles_intersecting_with_segment(Point, Point);
+        std::vector<Triangle*> find_triangles_intersecting_with_segment(Point, Point, double);
         Edge* generate_twins_edge(Edge*);
 
         bool is_triangle_legal(const Point *pt, const Edge *edge);
@@ -189,8 +189,8 @@ class Delaunay_Voronoi
         void correct_cyclic_triangles(std::vector<Triangle*>, bool);
         void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
-        unsigned calculate_triangles_intersected_checksum(Point, Point);   
-        void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int);
+        unsigned calculate_triangles_intersected_checksum(Point, Point, double threshold = 0);   
+        void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int, double threshold = 0);
         bool is_triangle_in_circle(Triangle*, Point, double);
         void remove_triangles_in_circle(Point, double);
         void remove_triangles_on_segment(Point, Point);
