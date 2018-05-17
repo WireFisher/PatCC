@@ -10,3 +10,4 @@ rm log/local_points_*
 rm log/log.*
 rm log/origin_points_*
 rm log/global_triangles_*
+rm log/image_global_triangles_*

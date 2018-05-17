@@ -211,7 +211,7 @@ inline void calculate_circle_center(double x[3], double y[3], double *center_x, 
 
 
 #define PDLN_INSERT_VIRTUAL_POINT true
-void Search_tree_node::generate_local_triangulatioa(bool is_cyclic)
+void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 {
     if(triangulation != NULL)
         delete triangulation;

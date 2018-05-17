@@ -609,7 +609,6 @@ const char dim1_grid_name[][64] = {
     //"wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles
     "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong
     /*
-    */
     "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong
     "gx3v5_Present_DP_x3.nc", //x
     "Version_3_of_Greenland_pole_x1_T-grid.nc", //x
@@ -628,6 +627,7 @@ const char dim1_grid_name[][64] = {
     "T62_Gaussian_Grid.nc",
     "T85_Gaussian_Grid.nc",
     "V3_Greenland_pole_x1_T_grid.nc",
+    */
     //"thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", ncfile float don't match double
     //"tos_Omon_MPI-ESM-LR_historical_r1i1p1_185001-200512.nc",
     //"tos_Omon_inmcm4_historical_r1i1p1_185001-200512.nc",
@@ -690,7 +690,7 @@ void prepare_dim1_grid(const char grid_name[])
     }
 
     //printf("num points: %d\n", num_points);
-    printf("point range: %lf, %.60lf, %lf, %lf\n", min_lon, max_lon, min_lat, max_lat);
+    //printf("point range: %lf, %.60lf, %lf, %lf\n", min_lon, max_lon, min_lat, max_lat);
     max_point_lat = max_lat;
     max_lon += 0.0001;
     if(max_lon > 360) max_lon = 360;
@@ -775,6 +775,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             char cmd[256];
             snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
 
+            MPI_Barrier(split_world);
             char md5[2][64];
             memset(md5[0], 0, 64);
             memset(md5[1], 0, 64);
