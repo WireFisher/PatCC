@@ -44,8 +44,6 @@
 
 #define PDLN_MAX_NUM_PROCESSING_UNITS 512
 
-extern double max_point_lat;
-
 bool operator == (Triangle_ID_Only t1, Triangle_ID_Only t2)
 {
     if(t2.id[0] != t1.id[0] && t2.id[0] != t1.id[1] && t2.id[0] != t1.id[2])
@@ -213,7 +211,7 @@ inline void calculate_circle_center(double x[3], double y[3], double *center_x, 
 
 
 #define PDLN_INSERT_VIRTUAL_POINT true
-void Search_tree_node::generate_local_triangulation(bool is_cyclic)
+void Search_tree_node::generate_local_triangulatioa(bool is_cyclic)
 {
     if(triangulation != NULL)
         delete triangulation;
@@ -347,11 +345,6 @@ void Search_tree_node::split_local_points(Midline midline, double *child_points_
 {
     child_num_points[0] = 0;
     child_num_points[1] = 0;
-
-    if(midline.type == PDLN_LON && midline.value < 0)
-        midline.value += 360.0;
-    if(midline.type == PDLN_LON && midline.value >= 360.0)
-        midline.value -= 360.0;
 
     if(non_monotonic && midline.type == PDLN_LON)
         assert(false);
@@ -746,7 +739,6 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     //    plot_points_info_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points, PDLN_PLOT_GLOBAL);
     //}
 
-    MPI_Barrier(MPI_COMM_WORLD);
     this->workloads = NULL;
     //this->initialze_workload();
     
@@ -1053,7 +1045,9 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
     double threshold = std::min(search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon,
                                 search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) /
                        sqrt(processing_info->get_num_total_processing_units()) / 2.0;
-    threshold = 0;
+    //double threshold = std::min(leaf_node->kernel_boundry->max_lon - leaf_node->kernel_boundry->min_lon,
+    //                            leaf_node->kernel_boundry->max_lat - leaf_node->kernel_boundry->min_lat) / 2.0;
+    //threshold = 0;
 
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
         if(leaf_node->neighbors[i].second)
@@ -1407,7 +1401,8 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
     int rank;
     MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
-    //printf("[%d] boundary: %lf, %lf, %lf, %lf\n", rank, new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
+    //printf("[%d] old boundary: %lf, %lf, %lf, %lf\n", rank, old_boundry.min_lon, old_boundry.max_lon, old_boundry.min_lat, old_boundry.max_lat);
+    //printf("[%d] new boundary: %lf, %lf, %lf, %lf\n", rank, new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
     if(processing_info->get_num_total_processing_units() > 4 &&
        new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
        new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
@@ -1420,6 +1415,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     }
 
     add_halo_points(tree_node, &old_boundry, &new_boundry);
+
     return 0;
 }
 
