@@ -227,6 +227,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
         if(node_type != PDLN_NODE_TYPE_COMMON) {
             //triangulation->plot_original_points_into_file(filename);
 
+            /*
             double lon, head_lon, head_lat, tail_lon, tail_lat;
 
             calculate_real_boundary(); // TODO: delete it
@@ -243,18 +244,19 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 
             std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
 
-
             char filename[64];
             int rank;
             MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
             snprintf(filename, 64, "log/projected_triangles_%d.png", rank);
             triangulation->plot_projection_into_file(filename);
+            */
 
             //snprintf(filename, 64, "log/fake_cyclic_triangles_%d.png", rank);
             //plot_triangles_info_file(filename, cyclic_triangles);
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
-            triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
+            //triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
+            triangulation->recognize_cyclic_triangles();
             triangulation->relegalize_all_triangles();
 
             if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)

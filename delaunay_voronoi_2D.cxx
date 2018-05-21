@@ -522,6 +522,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
     Point *pt1, *pt2, *pt3;
 
     is_leaf = true;
+    is_cyclic = false;
     
     pt1 = edge1->head;
     pt2 = edge2->head;
@@ -1139,6 +1140,9 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
 
+        if(result_leaf_triangles[i]->is_cyclic)
+            continue;
+
         if(threshold != 0) {
             if(point_distence_to_line(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, head.x, head.y, tail.x, tail.y) > threshold) continue;
             if(point_distence_to_line(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, head.x, head.y, tail.x, tail.y) > threshold) continue;
@@ -1315,6 +1319,18 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
         for (unsigned i = 0; i < cyclic_triangles.size(); i++)
             remove_leaf_triangle(cyclic_triangles[i]);
     }
+}
+
+
+void Delaunay_Voronoi::recognize_cyclic_triangles()
+{
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
+        if(result_leaf_triangles[i]->is_leaf) {
+            if (result_leaf_triangles[i]->v[0]->calculate_distance(result_leaf_triangles[i]->v[1]) > 180 ||
+                result_leaf_triangles[i]->v[1]->calculate_distance(result_leaf_triangles[i]->v[2]) > 180 ||
+                result_leaf_triangles[i]->v[2]->calculate_distance(result_leaf_triangles[i]->v[0]) > 180 )
+                result_leaf_triangles[i]->is_cyclic = true;
+        }
 }
 
 
@@ -1512,12 +1528,13 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
     num_edges = 0;
     for(unsigned i = 0; i < result_leaf_triangles.size(); i ++)
         if(result_leaf_triangles[i]->is_leaf)
-            for(unsigned j = 0; j < 3; j++) {
-                head_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->head->x;
-                head_coord[1][num_edges] = result_leaf_triangles[i]->edge[j]->head->y;
-                tail_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->tail->x;
-                tail_coord[1][num_edges++] = result_leaf_triangles[i]->edge[j]->tail->y;
-            }
+            if(!result_leaf_triangles[i]->is_cyclic)
+                for(unsigned j = 0; j < 3; j++) {
+                    head_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->head->x;
+                    head_coord[1][num_edges] = result_leaf_triangles[i]->edge[j]->head->y;
+                    tail_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->tail->x;
+                    tail_coord[1][num_edges++] = result_leaf_triangles[i]->edge[j]->tail->y;
+                }
 
     assert(num_edges%3 == 0);
     assert(num_edges <= 3 * result_leaf_triangles.size());
