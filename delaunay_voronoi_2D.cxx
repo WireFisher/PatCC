@@ -1713,6 +1713,16 @@ void Delaunay_Voronoi::update_points_coord_y(double reset_lat_value, vector<int>
 }
 
 
+void Delaunay_Voronoi::uncyclic_all_points()
+{
+    for(unsigned i = 0; i < num_cells; i++) {
+        while(cells[i].center->x >= 360)
+            cells[i].center->x -= 360;
+        while(cells[i].center->x < 0)
+            cells[i].center->x += 360;
+    }
+}
+
 Triangle_Transport::Triangle_Transport(Point p0, Point p1, Point p2)
 {
     v[0] = p0;

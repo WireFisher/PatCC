@@ -195,9 +195,11 @@ class Delaunay_Voronoi
         bool is_triangle_in_circle(Triangle*, Point, double);
         void remove_triangles_in_circle(Point, double);
         void remove_triangles_on_segment(Point, Point);
+        void recognize_cyclic_triangles();
 
         void update_points_coord_y(double, vector<int> *);
         void remove_triangles_only_containing_virtual_polar();
+        void uncyclic_all_points();
 
         /* debug */
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
