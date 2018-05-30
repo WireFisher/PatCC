@@ -293,18 +293,18 @@ const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const P
 
 bool Delaunay_Voronoi::is_angle_ambiguous(const Point *pt, const Edge *edge)
 {
-    double sum_angle_value;
-
-    sum_angle_value = calculate_angle(pt, edge->head, edge->tail) + calculate_angle(edge->twin_edge->prev_edge_in_triangle->head, edge->head, edge->tail);
-    if(std::fabs(sum_angle_value - PI) < FLOAT_ERROR){
-        if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
-           edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
+    if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
+       edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head)) {
+        if(edge->triangle->is_cyclic)
+            return true;
+        else
+            return false;
+    } else {
+        if(edge->triangle->is_cyclic)
             return false;
         else
             return true;
     }
-    else
-        return false;
 }
 
 
@@ -463,8 +463,9 @@ void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
     Edge *erk = allocate_edge(vr, vk);
     Edge *ekr = generate_twins_edge(erk);
 
-    triangle_origin->initialize_triangle_with_edges(eik,ekr,eri);
-    triangle_twin->initialize_triangle_with_edges(ejr,erk,ekj);
+    bool force = edge->triangle->is_cyclic ? true : false;
+    triangle_origin->initialize_triangle_with_edges(eik, ekr, eri, force);
+    triangle_twin->initialize_triangle_with_edges(ejr, erk, ekj, force);
 
     relegalize_triangles(vr, eik);
     relegalize_triangles(vr, ekj);
@@ -476,6 +477,12 @@ Triangle::Triangle()
     edge[0] = NULL;
     edge[1] = NULL;
     edge[2] = NULL;
+}
+
+
+Triangle::Triangle(Point *p1, Point *p2, Point *p3)
+{
+    initialize_triangle_with_edges(new Edge(p1, p2), new Edge(p2, p3), new Edge(p3, p1));
 }
 
 
@@ -517,61 +524,70 @@ void Triangle::calulate_circum_circle()
 }
 
 
-void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *edge3)
+void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *edge3, bool force)
 {
-    Point *pt1, *pt2, *pt3;
+    if(force) {
+        v[0] = edge1->head;
+        v[1] = edge2->head;
+        v[2] = edge3->head;
+        edge[0] = edge1;
+        edge[1] = edge2;
+        edge[2] = edge3;
+    } else {
+        Point *pt1, *pt2, *pt3;
 
-    is_leaf = true;
-    is_cyclic = false;
-    
-    pt1 = edge1->head;
-    pt2 = edge2->head;
-    pt3 = edge3->head;
+        is_leaf = true;
+        is_cyclic = false;
+        
+        pt1 = edge1->head;
+        pt2 = edge2->head;
+        pt3 = edge3->head;
 
-    //EXECUTION_REPORT(REPORT_ERROR, -1, fabs(det(pt1, pt2, pt3)) > e && fabs(det(pt2, pt3, pt1)) > e && fabs(det(pt3, pt1, pt2)) > e,
-    //                 "points given to construct triangle are on the same line.");
+        //EXECUTION_REPORT(REPORT_ERROR, -1, fabs(det(pt1, pt2, pt3)) > e && fabs(det(pt2, pt3, pt1)) > e && fabs(det(pt3, pt1, pt2)) > e,
+        //                 "points given to construct triangle are on the same line.");
 
 #ifdef DEBUG
-    if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI)) {
-        printf("(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
-        printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
-                                                                                                                           std::fabs(det(pt2, pt3, pt1)),
-                                                                                                                           std::fabs(det(pt3, pt1, pt2)));
-    }
+        if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI)) {
+            printf("(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
+            printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
+                                                                                                                               std::fabs(det(pt2, pt3, pt1)),
+                                                                                                                               std::fabs(det(pt3, pt1, pt2)));
+        }
 #endif
-    /* if there are unmarked redundant points, the assertion may fail */
-    assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI);
-    //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
+        /* if there are unmarked redundant points, the assertion may fail */
+        assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI);
+        //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
 #ifdef DEBUG
-    if(!(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head)) {
-        printf("edge1: %p->%p, edge2: %p->%p, edge3: %p->%p\n", edge1->head, edge1->tail, edge2->head, edge2->tail, edge3->head, edge3->tail);
-        printf("1: (%lf, %lf)->(%lf, %lf) 2: (%lf, %lf)->(%lf, %lf) 3:(%lf, %lf)->(%lf, %lf)\n", edge1->head->x, edge1->head->y, edge1->tail->x, edge1->tail->y,
-                                                                                                 edge2->head->x, edge2->head->y, edge2->tail->x, edge2->tail->y,
-                                                                                                 edge3->head->x, edge3->head->y, edge3->tail->x, edge3->tail->y);
-    }
+        if(!(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head)) {
+            printf("edge1: %p->%p, edge2: %p->%p, edge3: %p->%p\n", edge1->head, edge1->tail, edge2->head, edge2->tail, edge3->head, edge3->tail);
+            printf("1: (%lf, %lf)->(%lf, %lf) 2: (%lf, %lf)->(%lf, %lf) 3:(%lf, %lf)->(%lf, %lf)\n", edge1->head->x, edge1->head->y, edge1->tail->x, edge1->tail->y,
+                                                                                                     edge2->head->x, edge2->head->y, edge2->tail->x, edge2->tail->y,
+                                                                                                     edge3->head->x, edge3->head->y, edge3->tail->x, edge3->tail->y);
+        }
 #endif
-    assert(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
-       
-    v[0] = pt1;
-    if (pt1->position_to_edge(pt2, pt3) == 1) {
-        v[1] = pt2;
-        v[2] = pt3;
-        this->edge[0] = edge1;
-        this->edge[1] = edge2;
-        this->edge[2] = edge3;
-    }
-    else {
-        //int rank;
-        //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-        //printf("[%d] assert false\n", rank);
-        assert(false);
-        v[1] = pt3;
-        v[2] = pt2;
-        this->edge[0] = edge3->twin_edge;
-        this->edge[1] = edge2->twin_edge;
-        this->edge[2] = edge1->twin_edge;
-        //EXECUTION_REPORT(REPORT_ERROR, -1, edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL, "remap software error3 in new Triangle");
-        assert(edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL);
+        assert(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
+           
+        v[0] = pt1;
+        if (pt1->position_to_edge(pt2, pt3) == 1) {
+            v[1] = pt2;
+            v[2] = pt3;
+            this->edge[0] = edge1;
+            this->edge[1] = edge2;
+            this->edge[2] = edge3;
+        }
+        else {
+            //int rank;
+            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+            //printf("[%d] assert false\n", rank);
+            assert(false);
+            v[1] = pt3;
+            v[2] = pt2;
+            this->edge[0] = edge3->twin_edge;
+            this->edge[1] = edge2->twin_edge;
+            this->edge[2] = edge1->twin_edge;
+            //EXECUTION_REPORT(REPORT_ERROR, -1, edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL, "remap software error3 in new Triangle");
+            assert(edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL);
+        }
     }
     
     this->edge[0]->next_edge_in_triangle = this->edge[1];
@@ -1133,48 +1149,77 @@ static inline double point_distence_to_line(double px, double py, double x1, dou
 }
 
 
+#define Point_distence_in_threshold(v, p1, p2, threshold) (point_distence_to_line(v->x, v->y, p1.x, p1.y, p2.x, p2.y) <= threshold)
+#define All_distence_in_threshold(triangle, p1, p2, threshold) (        \
+    Point_distence_in_threshold(triangle->v[0], p1, p2, threshold) &&   \
+    Point_distence_in_threshold(triangle->v[1], p1, p2, threshold) &&   \
+    Point_distence_in_threshold(triangle->v[2], p1, p2, threshold))
+
+#define Vertexs_not_on_same_side(triangle, p1, p2) (                                             \
+    triangle->v[0]->position_to_edge(&p1, &p2) * triangle->v[1]->position_to_edge(&p1, &p2) <= 0 || \
+    triangle->v[1]->position_to_edge(&p1, &p2) * triangle->v[2]->position_to_edge(&p1, &p2) <= 0 )
+
+#define Is_segment_in_triangle(triangle, p1, p2) \
+    (p1.position_to_triangle(triangle) >= 0 && p2.position_to_triangle(triangle) >= 0)
+
+#define Is_segment_intersected_with_edge(p_e1, p_e2, p1, p2) (                      \
+    (p1.position_to_edge(p_e1, p_e2) * p2.position_to_edge(p_e1, p_e2) < 0   ) && \
+    (p1.position_to_edge(p_e1, p_e2)!=0 || p2.position_to_edge(p_e1, p_e2)!=0) && \
+    (p_e1->position_to_edge(&p1, &p2) * p_e2->position_to_edge(&p1, &p2) <= 0      ) )
+
+#define Is_segment_intersected_with_one_of_edges(triangle, p1, p2) (            \
+    Is_segment_intersected_with_edge(triangle->v[0], triangle->v[1], p1, p2) || \
+    Is_segment_intersected_with_edge(triangle->v[1], triangle->v[2], p1, p2) || \
+    Is_segment_intersected_with_edge(triangle->v[2], triangle->v[0], p1, p2) )
+
+#define Is_triangle_intersecting_with_segment(triangle, p1, p2, threshold) (   \
+    (threshold == 0 || All_distence_in_threshold(triangle, p1, p2, threshold)) && \
+    Vertexs_not_on_same_side(triangle, p1, p2) &&       \
+    (Is_segment_intersected_with_one_of_edges(triangle, p1, p2) || \
+     Is_segment_in_triangle(triangle, p1, p2)) )
+
+#define copy_points_value(dst, src) {   \
+    dst->v[0]->x = src->v[0]->x;        \
+    dst->v[0]->y = src->v[0]->y;        \
+    dst->v[1]->x = src->v[1]->x;        \
+    dst->v[1]->y = src->v[1]->y;        \
+    dst->v[2]->x = src->v[2]->x;        \
+    dst->v[2]->y = src->v[2]->y; }
+
 std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segment(Point head, Point tail, double threshold)
 {
     std::vector<Triangle*> triangles_found;
+    Point uncyclic_head = head, uncyclic_tail = tail;
+    Triangle *triangle_l, *triangle_r;
+
+    if(uncyclic_head.x == uncyclic_tail.x) {
+        while(uncyclic_head.x >= 360) uncyclic_head.x -= 360;
+        while(uncyclic_head.x < 0) uncyclic_head.x += 360;
+        while(uncyclic_tail.x >= 360) uncyclic_tail.x -= 360;
+        while(uncyclic_tail.x < 0) uncyclic_tail.x += 360;
+    }
+
+    triangle_l = new Triangle(new Point(0, 0, -1), new Point(1, 0, -1), new Point(0, 1, -1));
+    triangle_r = new Triangle(new Point(0, 0, -1), new Point(1, 0, -1), new Point(0, 1, -1));
+
     for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
 
-        if(result_leaf_triangles[i]->is_cyclic)
-            continue;
+        if(result_leaf_triangles[i]->is_cyclic) {
+            copy_points_value(triangle_l, result_leaf_triangles[i]);
+            copy_points_value(triangle_r, result_leaf_triangles[i]);
 
-        if(threshold != 0) {
-            if(point_distence_to_line(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, head.x, head.y, tail.x, tail.y) > threshold) continue;
-            if(point_distence_to_line(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, head.x, head.y, tail.x, tail.y) > threshold) continue;
-            if(point_distence_to_line(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, head.x, head.y, tail.x, tail.y) > threshold) continue;
-        }
+            for(int j = 0; j < 3; j++) if(triangle_l->v[j]->x >= 180) triangle_l->v[j]->x -= 360;
+            for(int j = 0; j < 3; j++) if(triangle_r->v[j]->x <  180) triangle_r->v[j]->x += 360;
 
-        /*
-        if(!result_leaf_triangles[i]->edge[0]->twin_edge || !result_leaf_triangles[i]->edge[0]->twin_edge->triangle ||
-           !result_leaf_triangles[i]->edge[1]->twin_edge || !result_leaf_triangles[i]->edge[1]->twin_edge->triangle ||
-           !result_leaf_triangles[i]->edge[2]->twin_edge || !result_leaf_triangles[i]->edge[2]->twin_edge->triangle)
-            continue;
-        */
-        if(result_leaf_triangles[i]->v[0]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) > 0 &&
-           result_leaf_triangles[i]->v[1]->position_to_edge(&head, &tail) * result_leaf_triangles[i]->v[2]->position_to_edge(&head, &tail) > 0 )
-            continue;
-        /* two points of segment is in/on triangle */
-        if(head.position_to_triangle(result_leaf_triangles[i]) >= 0 && tail.position_to_triangle(result_leaf_triangles[i]) >= 0) {
-            triangles_found.push_back(result_leaf_triangles[i]);
-            continue;
-        }
-
-        /* segment is intersected with at least one edge of triangle */
-        for(int j = 0; j < 3; j++)
-            if((head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ||
-               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) != 0 ) &&
-               head.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) *
-               tail.position_to_edge(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->v[(j+1)%3]) < 0 &&
-               result_leaf_triangles[i]->v[j]->position_to_edge(&head, &tail) *
-               result_leaf_triangles[i]->v[(j+1)%3]->position_to_edge(&head, &tail) <= 0) {
+            if(Is_triangle_intersecting_with_segment(triangle_l, uncyclic_head, uncyclic_tail, threshold) ||
+               Is_triangle_intersecting_with_segment(triangle_r, uncyclic_head, uncyclic_tail, threshold) )
                 triangles_found.push_back(result_leaf_triangles[i]);
-                break;
-            }
+        } else {
+            if(Is_triangle_intersecting_with_segment(result_leaf_triangles[i], head, tail, threshold))
+                triangles_found.push_back(result_leaf_triangles[i]);
+        }
     }
     return triangles_found;
 }

@@ -106,10 +106,11 @@ class Triangle
         int circum_circle_contains(Point*);
         bool contain_virtual_polar;
 
-        void initialize_triangle_with_edges(Edge*, Edge*, Edge*);
+        void initialize_triangle_with_edges(Edge*, Edge*, Edge*, bool force=false);
 
     public:
         Triangle();
+        Triangle(Point*, Point*, Point*);
         Triangle(Edge*, Edge*, Edge*);
         ~Triangle();
         void get_center_coordinates();
