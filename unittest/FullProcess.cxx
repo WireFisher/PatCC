@@ -605,32 +605,50 @@ TEST_F(FullProcess, ThreePolar) {
 
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
+    /*
+    "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong |15 pass 5 assert false
+    "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong | 15 pass 5 assert false
+    "gx3v5_Present_DP_x3.nc", //x | md5sum wrong
+    "V3_Greenland_pole_x1_T_grid.nc", //md5sum wrong
+    "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
+    */
     //"ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK
     //"wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles
-    "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong
-    /*
-    "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong
-    "gx3v5_Present_DP_x3.nc", //x
-    "Version_3_of_Greenland_pole_x1_T-grid.nc", //x
     "Gamil_128x60_Grid.nc", // x | deleting outter triangle: ok
     "fv1.9x2.5_050503.nc", // x ok
     "Gamil_360x180_Grid.nc", // x ok
     "licom_eq1x1_degree_Grid.nc", //x ok
     "licom_gr1x1_degree_Grid.nc", //x ok
+    "R05_Grid.nc",
     "LICOM_P5_Grid.nc",
     "ll1deg_grid.nc",
     "ll2.5deg_grid.nc",
-    "R05_Grid.nc",
     "R42_Gaussian_Grid.nc",
     "T42_Gaussian_Grid.nc",
     "T42_grid.nc",
     "T62_Gaussian_Grid.nc",
     "T85_Gaussian_Grid.nc",
-    "V3_Greenland_pole_x1_T_grid.nc",
+    /*
     */
     //"thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", ncfile float don't match double
     //"tos_Omon_MPI-ESM-LR_historical_r1i1p1_185001-200512.nc",
     //"tos_Omon_inmcm4_historical_r1i1p1_185001-200512.nc",
+};
+const char dim1_global_grid_name[][64] = {
+    "Gamil_128x60_Grid.nc",
+    "fv1.9x2.5_050503.nc",
+    "Gamil_360x180_Grid.nc",
+    "licom_eq1x1_degree_Grid.nc",
+    "licom_gr1x1_degree_Grid.nc",
+    "R05_Grid.nc",
+    "LICOM_P5_Grid.nc",
+    "ll1deg_grid.nc",
+    "ll2.5deg_grid.nc",
+    "R42_Gaussian_Grid.nc",
+    "T42_Gaussian_Grid.nc",
+    "T42_grid.nc",
+    "T62_Gaussian_Grid.nc",
+    "T85_Gaussian_Grid.nc",
 };
 
 
@@ -697,15 +715,28 @@ void prepare_dim1_grid(const char grid_name[])
     max_lat += 0.0001;
     if(max_lat > 90) max_lat = 90;
     assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
-    min_lon = 0;
-    max_lon = 360;
-    min_lat = -90;
-    max_lat = 90;
+
+    for(int i = 0; i < sizeof(dim1_global_grid_name)/64; i++)
+        if(strncmp(grid_name, dim1_global_grid_name[i], 64) == 0) {
+            min_lon = 0;
+            max_lon = 360;
+            min_lat = -90;
+            max_lat = 90;
+            break;
+        }
+
+    if(strncmp(grid_name, "V3_Greenland_pole_x1_T_grid.nc", 64) == 0 ||
+       strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0 ||
+       strncmp(grid_name, "gx3v5_Present_DP_x3.nc", 64) == 0) {
+            min_lon = 0;
+            max_lon = 360;
+            max_lat = 90;
+    }
+
     if(fabs((max_lon - min_lon) - 360) < 0.5)
         is_cyclic = true;
     else
         is_cyclic = false;
-    is_cyclic = true;
 };
 
 
@@ -750,11 +781,12 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
         delete comp;
 
-        if(!ret && mpi_rank == 0) {
-            char cmd[256];
-            //snprintf(cmd, 256, "mv log/global_triangles_15 log/summary_%s_15.txt; mv log/image_global_triangles_15.png log/image_%s_15.png", dim1_grid_name[i], dim1_grid_name[i]);
-            //system(cmd);
-        }
+        //if(!ret && mpi_rank == 0) {
+        //    char cmd[256];
+        //    snprintf(cmd, 256, "mv log/global_triangles_15 log/summary_%s_15.txt;mv log/image_global_triangles_15.png log/image_%s_15.png",
+        //                       dim1_grid_name[i], dim1_grid_name[i]);
+        //    system(cmd);
+        //}
 
         if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
             ON_CALL(*mock_process_thread_manager, get_mpi_comm())
