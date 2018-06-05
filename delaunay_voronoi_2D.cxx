@@ -1483,7 +1483,7 @@ unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, 
     //char filename[64];
     //int rank;
     //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    //snprintf(filename, 64, "log/boundary_triangles_%d_%u", rank, checksum);
+    //snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
     //plot_triangles_info_file(filename, triangles, num_triangles);
 
 

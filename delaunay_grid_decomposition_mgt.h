@@ -33,7 +33,6 @@ public:
 
     Boundry() {};
     Boundry(double l, double r, double b, double t): min_lon(l), max_lon(r), min_lat(b), max_lat(t) {};
-    Boundry& operator= (Boundry& boundry);
     Boundry& operator* (double);
     bool operator== (Boundry& boundry);
     bool operator!= (Boundry& boundry);
@@ -67,13 +66,15 @@ private:
     bool non_monotonic;
     vector<int> *polars_local_index;
     int virtual_point_local_index;
+    int expanding_scale[4];
+    int num_neighbors_on_boundry[4];
     
     vector<int> processing_units_id;
     vector<pair<Search_tree_node*, bool> > neighbors;
     Delaunay_Voronoi *triangulation;
     void calculate_real_boundary();
     void fix_expanded_boundry(int index, int count);
-    void load_polars_info();
+    double load_polars_info();
     void reset_polars();
 
 public:    
@@ -91,6 +92,10 @@ public:
     void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
     bool check_if_all_outer_edge_out_of_kernel_boundry(Boundry *, bool);
+    void init_num_neighbors_on_boundry(int);
+    bool expanding_success(Boundry *, Boundry *);
+    void reduce_num_neighbors_on_boundry(unsigned);
+    Boundry get_expanded();
 
     void search_points_in_halo(Boundry *inner_boundary, Boundry *outer_boundary, double *coord_values[2], int *global_idx, int *num_points_found);
     bool is_coordinate_in_halo(double x, double y, Boundry *inner, Boundry *outer);
@@ -134,7 +139,7 @@ private:
 
     /* different decompositon consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
-    void compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
+    unsigned compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
     
     /* process thread communication */
     int recv_triangles_from_remote(int, int, Triangle_Transport *, int, int);
