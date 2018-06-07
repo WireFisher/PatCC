@@ -1153,7 +1153,6 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
         if(leaf_node->neighbors[i].second) {
             //printf("[%d] neighbor %d already done\n", leaf_node->processing_units_id[0], leaf_node->neighbors[i].first->processing_units_id[0]);
-            leaf_node->reduce_num_neighbors_on_boundry(get_boundry_type(local_checksums[i])); // Note: using previously left value
             continue;
         }
 
