@@ -144,6 +144,7 @@ class Delaunay_Voronoi
         bool is_global_grid;
         int num_cells;
         Point *virtual_point[4];
+        vector<Point*> extra_virtual_point;
         int *global_index;
         vector<Triangle*> triangles_containing_vpolar;
         double lat_nearest_vpolar;

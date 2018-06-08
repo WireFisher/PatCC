@@ -828,6 +828,8 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 
 /* This function should be call only once for the root virtual triangle,
  * becase it will alloc new memory for all points and cells. */
+#define PDLN_INSERT_EXTRA_VPOINT (true)
+#define PDLN_VPOINT_DENSITY  (50)
 vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, double *x, double *y, bool *redundant_cell_mark)
 {
     double minX, maxX, minY, maxY;
@@ -853,6 +855,12 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
     dy = maxY - minY;
     deltaMax = std::max(dx, dy);
 
+    double v_minx, v_maxx, v_miny, v_maxy;
+    v_minx = minX-deltaMax*0.01;
+    v_maxx = maxX+deltaMax*0.01;
+    v_miny = minY-deltaMax*0.01;
+    v_maxy = maxY+deltaMax*0.01;
+
     virtual_point[0] = new Point(minX-deltaMax*0.01, minY-deltaMax*0.01, -1);
     virtual_point[1] = new Point(minX-deltaMax*0.01, maxY+deltaMax*0.01, -1);
     virtual_point[2] = new Point(maxX+deltaMax*0.01, minY-deltaMax*0.01, -1);
@@ -866,6 +874,35 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
                                                   allocate_edge(virtual_point[2], virtual_point[3])));
     virtual_triangles[0]->edge[1]->twin_edge = virtual_triangles[1]->edge[1];
     virtual_triangles[1]->edge[1]->twin_edge = virtual_triangles[0]->edge[1];
+
+    /* 
+     * x * y = num_points
+     * x : y = dx : dy
+     */
+    unsigned num_x = (unsigned)sqrt(num_points * dx / (double)dy);
+    unsigned num_y = num_x * dy / dx;
+    num_x /= PDLN_VPOINT_DENSITY;
+    num_y /= PDLN_VPOINT_DENSITY;
+
+    if(num_x > 0)
+        for(unsigned i = 1; i < num_x-1; i++) {
+            extra_virtual_point.push_back(new Point(v_minx+(v_maxx-v_minx)/num_x*i, v_miny));
+            extra_virtual_point.push_back(new Point(v_minx+(v_maxx-v_minx)/num_x*i, v_maxy));
+        }
+    if(num_y > 0)
+        for(unsigned i = 1; i < num_y-1; i++) {
+            extra_virtual_point.push_back(new Point(v_minx, v_miny+(v_maxy-v_miny)/num_y*i));
+            extra_virtual_point.push_back(new Point(v_maxx, v_miny+(v_maxy-v_miny)/num_y*i));
+        }
+
+    distribute_points_into_triangles(&extra_virtual_point, &virtual_triangles);
+    for(unsigned i = 0; i < virtual_triangles.size(); i++)
+        triangularization_process(virtual_triangles[i]);
+
+    virtual_triangles.clear();
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
+        if(result_leaf_triangles[i]->is_leaf)
+            virtual_triangles.push_back(result_leaf_triangles[i]);
 
     cells = new Cell[num_points];
 
@@ -884,21 +921,27 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
 
 void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 {
-    for(vector<Triangle*>::iterator t = result_leaf_triangles.begin(); t != result_leaf_triangles.end(); )
-        if((*t)->is_leaf && ((*t)->contain_vertex(virtual_point[0]) ||
-                             (*t)->contain_vertex(virtual_point[1]) ||
-                             (*t)->contain_vertex(virtual_point[2]) ||
-                             (*t)->contain_vertex(virtual_point[3]))) {
-            for(unsigned j = 0; j < 3; j++) {
-                (*t)->edge[j]->triangle = NULL;
-                if((*t)->edge[j]->twin_edge)
-                    (*t)->edge[j]->twin_edge->twin_edge = NULL;
+    extra_virtual_point.push_back(virtual_point[0]);
+    extra_virtual_point.push_back(virtual_point[1]);
+    extra_virtual_point.push_back(virtual_point[2]);
+    extra_virtual_point.push_back(virtual_point[3]);
+    for(vector<Triangle*>::iterator t = result_leaf_triangles.begin(); t != result_leaf_triangles.end(); ) {
+        bool contain = false;
+        for(unsigned i = 0; i < extra_virtual_point.size(); i++)
+            if((*t)->is_leaf && (*t)->contain_vertex(extra_virtual_point[i])) {
+                for(unsigned j = 0; j < 3; j++) {
+                    (*t)->edge[j]->triangle = NULL;
+                    if((*t)->edge[j]->twin_edge)
+                        (*t)->edge[j]->twin_edge->twin_edge = NULL;
+                }
+                
+                result_leaf_triangles.erase(t); //TODO: erase is slow
+                contain = true;
+                break;
             }
-            
-            result_leaf_triangles.erase(t); //TODO: erase is slow
-        }
-        else
+        if(!contain)
             t++;
+    }
 }
 
 
