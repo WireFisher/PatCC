@@ -93,7 +93,7 @@ class Triangle
     private:
         friend class Delaunay_Voronoi;
         friend class Point;
-        friend void plot_triangles_info_file(const char *filename, std::vector<Triangle*>);
+        friend void plot_triangles_into_file(const char *filename, std::vector<Triangle*>);
         Point *v[3];    /* vertexes of triangle */
         //Point center;    /* circumcenter */
         Edge *edge[3];
@@ -220,8 +220,8 @@ class Triangle_Transport
         friend bool operator == (Triangle_Transport, Triangle_Transport);
 };
 
-void plot_triangles_info_file(const char *filename, Triangle_Transport *t, int num);
-void plot_triangles_info_file(const char *filename, std::vector<Triangle*>);
+void plot_triangles_into_file(const char *filename, Triangle_Transport *t, int num, bool plot_cyclic_triangles=true);
+void plot_triangles_into_file(const char *filename, std::vector<Triangle*>);
 void save_triangles_info_file(const char *filename, Triangle_Transport *t, int num);
 
 #endif

@@ -1527,7 +1527,7 @@ unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, 
     //int rank;
     //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     //snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
-    //plot_triangles_info_file(filename, triangles, num_triangles);
+    //plot_triangles_into_file(filename, triangles, num_triangles);
 
 
     delete[] triangles;
@@ -1834,7 +1834,7 @@ bool operator == (Triangle_Transport t1, Triangle_Transport t2)
     return true;
 }
 
-void plot_triangles_info_file(const char *prefix, Triangle_Transport *t, int num)
+void plot_triangles_into_file(const char *prefix, Triangle_Transport *t, int num, bool plot_cyclic_triangles)
 {
     int num_edges;
     double *head_coord[2], *tail_coord[2];
@@ -1848,12 +1848,14 @@ void plot_triangles_info_file(const char *prefix, Triangle_Transport *t, int num
 
     num_edges = 0;
     for(int i = 0; i < num; i ++)
-        for(int j = 0; j < 3; j++) {
-            head_coord[0][num_edges] = t[i].v[j].x;
-            head_coord[1][num_edges] = t[i].v[j].y;
-            tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
-            tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
-        }
+        if (plot_cyclic_triangles || (t[i].v[0].calculate_distance(&t[i].v[1]) < 180 && 
+            t[i].v[1].calculate_distance(&t[i].v[2]) < 180 && t[i].v[2].calculate_distance(&t[i].v[0]) < 180))
+            for(int j = 0; j < 3; j++) {
+                head_coord[0][num_edges] = t[i].v[j].x;
+                head_coord[1][num_edges] = t[i].v[j].y;
+                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
+                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
+            }
 
     assert(num_edges%3 == 0);
     snprintf(filename, 128, "%s.png", prefix);
@@ -1867,7 +1869,7 @@ void plot_triangles_info_file(const char *prefix, Triangle_Transport *t, int num
 }
 
 
-void plot_triangles_info_file(const char *prefix, std::vector<Triangle*> t)
+void plot_triangles_into_file(const char *prefix, std::vector<Triangle*> t)
 {
     unsigned int num = t.size();
     int num_edges;

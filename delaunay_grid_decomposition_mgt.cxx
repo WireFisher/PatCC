@@ -252,7 +252,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             */
 
             //snprintf(filename, 64, "log/fake_cyclic_triangles_%d.png", rank);
-            //plot_triangles_info_file(filename, cyclic_triangles);
+            //plot_triangles_into_file(filename, cyclic_triangles);
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             //triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
@@ -1816,6 +1816,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(!is_local_leaf_node_finished[i]) {
                 is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]) &&
                                                  local_leaf_nodes[i]->check_if_all_outer_edge_out_of_kernel_boundry(search_tree_root->kernel_boundry, is_cyclic);
+                //if(iter>=1)
+                //    is_local_leaf_node_finished[i] = true;
 
             }
         }
@@ -1927,7 +1929,7 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
 
     char file_fmt2[] = "log/image_global_triangles_%d";
     snprintf(filename, 64, file_fmt2, processing_info->get_num_total_processing_units());
-    plot_triangles_info_file(filename, triangles, num_different_triangles);
+    plot_triangles_into_file(filename, triangles, num_different_triangles, false);
 }
 
 
@@ -1978,7 +1980,7 @@ void Delaunay_grid_decomposition::merge_all_triangles()
             
             //char filename[64];
             //snprintf(filename, 64, "log/process_local_triangles%d", i);
-            //plot_triangles_info_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_Transport));
+            //plot_triangles_into_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_Transport));
 
             //for(int j = 0; j < tmp_count/sizeof(Triangle_Transport); j++)
             //    printf("%d, %d, %d\n", (remote_triangles + count)[j].v[0].id, (remote_triangles + count)[j].v[1].id, (remote_triangles + count)[j].v[2].id);
