@@ -608,12 +608,9 @@ const char dim1_grid_name[][64] = {
     /*
     "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong |15 pass 5 assert false
     "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong | 15 pass 5 assert false
-    "gx3v5_Present_DP_x3.nc", //x | md5sum wrong
-    "V3_Greenland_pole_x1_T_grid.nc", //md5sum wrong
-    "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
     */
-    //"ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK
-    //"wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles
+    "ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK | hang
+    /*
     "Gamil_128x60_Grid.nc", // x | deleting outter triangle: ok
     "fv1.9x2.5_050503.nc", // x ok
     "Gamil_360x180_Grid.nc", // x ok
@@ -628,6 +625,11 @@ const char dim1_grid_name[][64] = {
     "T42_grid.nc",
     "T62_Gaussian_Grid.nc",
     "T85_Gaussian_Grid.nc",
+    "gx3v5_Present_DP_x3.nc", //x | md5sum wrong
+    "V3_Greenland_pole_x1_T_grid.nc", //md5sum wrong
+    "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
+    "wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles
+    */
     /*
     */
     //"thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", ncfile float don't match double
@@ -727,6 +729,7 @@ void prepare_dim1_grid(const char grid_name[])
 
     if(strncmp(grid_name, "V3_Greenland_pole_x1_T_grid.nc", 64) == 0 ||
        strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0 ||
+       strncmp(grid_name, "ar9v4_100920.nc", 64) == 0 ||
        strncmp(grid_name, "gx3v5_Present_DP_x3.nc", 64) == 0) {
             min_lon = 0;
             max_lon = 360;
