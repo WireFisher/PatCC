@@ -25,6 +25,7 @@ public:
     MOCK_METHOD1(get_grid_coord_values, double**(int));
     MOCK_METHOD1(get_grid_num_points, int(int));
     MOCK_METHOD5(get_grid_boundry, void(int, double*, double*, double*, double*));
+    MOCK_METHOD5(set_grid_boundry, void(int, double, double, double, double));
     MOCK_METHOD2(get_polar_points, int(int, char));
     MOCK_METHOD1(is_grid_cyclic, bool(int));
 };
@@ -71,6 +72,15 @@ static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_
     *ma_lon = max_lon;
     *mi_lat = min_lat;
     *ma_lat = max_lat;
+}
+
+
+static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat)
+{
+    min_lon = mi_lon;
+    max_lon = ma_lon;
+    min_lat = mi_lat;
+    max_lat = ma_lat;
 }
 
 
@@ -604,13 +614,14 @@ TEST_F(FullProcess, ThreePolar) {
 
 
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
+//"V3_Greenland_pole_x1_T_grid.nc", //md5sum wrong
 const char dim1_grid_name[][64] = {
     /*
-    "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong |15 pass 5 assert false
-    "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong | 15 pass 5 assert false
     */
-    "ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK | hang
-    /*
+    "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong | 15 pass 5 assert false|md5sum wrong: OK by 1e-10
+    "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong |15 pass 5 assert false|md5sum wrong: OK by 1e-10
+    "gx3v5_Present_DP_x3.nc", //x | md5sum wrong: OK
+    "wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles|15 pass 5 max|grid preteatment: OK
     "Gamil_128x60_Grid.nc", // x | deleting outter triangle: ok
     "fv1.9x2.5_050503.nc", // x ok
     "Gamil_360x180_Grid.nc", // x ok
@@ -625,10 +636,9 @@ const char dim1_grid_name[][64] = {
     "T42_grid.nc",
     "T62_Gaussian_Grid.nc",
     "T85_Gaussian_Grid.nc",
-    "gx3v5_Present_DP_x3.nc", //x | md5sum wrong
-    "V3_Greenland_pole_x1_T_grid.nc", //md5sum wrong
+    "ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK | md5sum wrong: virtual p
     "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
-    "wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles
+    /*
     */
     /*
     */
@@ -666,7 +676,8 @@ void prepare_dim1_grid(const char grid_name[])
     char lat_unit[32];
     bool squeez = false;
 
-    if(strncmp(grid_name, "ar9v4_100920.nc", 15) == 0)
+    if(strncmp(grid_name, "ar9v4_100920.nc", 15) == 0 )//||
+       //strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0)
         squeez = true;
 
     snprintf(fullname, 128, dim1_grid_path, grid_name);
@@ -735,6 +746,11 @@ void prepare_dim1_grid(const char grid_name[])
             max_lon = 360;
             max_lat = 90;
     }
+    if(strncmp(grid_name, "wr50a_090301.nc", 64) == 0) {
+        min_lon = -180;
+        max_lon = 180;
+        max_lat = 90;
+    }
 
     if(fabs((max_lon - min_lon) - 360) < 0.5)
         is_cyclic = true;
@@ -772,6 +788,9 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
         ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
             .WillByDefault(Invoke(get_boundry));
+
+        ON_CALL(*mock_grid_info_manager, set_grid_boundry(1, _, _, _, _))
+            .WillByDefault(Invoke(set_boundry));
 
         ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
             .WillByDefault(Return(is_cyclic));
