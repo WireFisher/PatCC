@@ -1615,14 +1615,19 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
 
     num_edges = 0;
     for(unsigned i = 0; i < result_leaf_triangles.size(); i ++)
-        if(result_leaf_triangles[i]->is_leaf)
-            if(!result_leaf_triangles[i]->is_cyclic)
-                for(unsigned j = 0; j < 3; j++) {
-                    head_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->head->x;
-                    head_coord[1][num_edges] = result_leaf_triangles[i]->edge[j]->head->y;
-                    tail_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->tail->x;
-                    tail_coord[1][num_edges++] = result_leaf_triangles[i]->edge[j]->tail->y;
+        if(result_leaf_triangles[i]->is_leaf) {
+            for(unsigned j = 0; j < 3; j++) {
+                head_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->head->x;
+                head_coord[1][num_edges] = result_leaf_triangles[i]->edge[j]->head->y;
+                tail_coord[0][num_edges] = result_leaf_triangles[i]->edge[j]->tail->x;
+                tail_coord[1][num_edges++] = result_leaf_triangles[i]->edge[j]->tail->y;
+            }
+            if(result_leaf_triangles[i]->is_cyclic)
+                for(unsigned j = num_edges-1; j > num_edges-4; j--) {
+                    if(head_coord[0][j] > 180) head_coord[0][j] -= 360;
+                    if(tail_coord[0][j] > 180) tail_coord[0][j] -= 360;
                 }
+        }
 
     assert(num_edges%3 == 0);
     assert(num_edges <= 3 * result_leaf_triangles.size());
@@ -1665,7 +1670,6 @@ void Delaunay_Voronoi::plot_current_step_into_file(const char *filename)
     delete tail_coord[0];
     delete tail_coord[1];
 }
-
 
 void Delaunay_Voronoi::plot_projection_into_file(const char *filename, double min_x, double max_x, double min_y, double max_y)
 {
@@ -1848,14 +1852,23 @@ void plot_triangles_into_file(const char *prefix, Triangle_Transport *t, int num
 
     num_edges = 0;
     for(int i = 0; i < num; i ++)
-        if (plot_cyclic_triangles || (t[i].v[0].calculate_distance(&t[i].v[1]) < 180 && 
-            t[i].v[1].calculate_distance(&t[i].v[2]) < 180 && t[i].v[2].calculate_distance(&t[i].v[0]) < 180))
+        if (t[i].v[0].calculate_distance(&t[i].v[1]) < 180 && t[i].v[1].calculate_distance(&t[i].v[2]) < 180 && t[i].v[2].calculate_distance(&t[i].v[0]) < 180)
             for(int j = 0; j < 3; j++) {
                 head_coord[0][num_edges] = t[i].v[j].x;
                 head_coord[1][num_edges] = t[i].v[j].y;
                 tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
                 tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
             }
+        else if(plot_cyclic_triangles) {
+            for(int j = 0; j < 3; j++)
+                if(t[i].v[j].x > 180) t[i].v[j].x -= 360;
+            for(int j = 0; j < 3; j++) {
+                head_coord[0][num_edges] = t[i].v[j].x;
+                head_coord[1][num_edges] = t[i].v[j].y;
+                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
+                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
+            }
+        }
 
     assert(num_edges%3 == 0);
     snprintf(filename, 128, "%s.png", prefix);

@@ -1973,7 +1973,7 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
 
     char file_fmt2[] = "log/image_global_triangles_%d";
     snprintf(filename, 64, file_fmt2, processing_info->get_num_total_processing_units());
-    plot_triangles_into_file(filename, triangles, num_different_triangles, false);
+    plot_triangles_into_file(filename, triangles, num_different_triangles, true);
 }
 
 
