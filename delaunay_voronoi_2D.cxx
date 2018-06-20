@@ -10,12 +10,6 @@
 #include <list>
 #include "merge_sort.h"
 
-//#define PI ((double) 3.14159265358979323846)
-#define FLOAT_ERROR ((double) 1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
-#define FLOAT_ERROR_HI ((double) 1e-11) // normal grid less than 1e-11
-int triangulate_count = 0;
-
-bool Print_Error_info=false;
 
 /*
  *           o Center
@@ -444,6 +438,8 @@ void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
     if (!is_triangle_ambiguous(vr, edge))
         return;
 
+    if (edge->triangle->is_cyclic != edge->twin_edge->triangle->is_cyclic)
+        return;
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge->triangle->is_leaf, "remap software error1 in legalize_triangles\n");
     assert(edge->triangle->is_leaf);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge->twin_edge->triangle->is_leaf, "remap software error2 in legalize_triangles %lx\n", (long)(edge->twin_edge->triangle));
@@ -466,9 +462,11 @@ void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
     bool force = edge->triangle->is_cyclic ? true : false;
     triangle_origin->initialize_triangle_with_edges(eik, ekr, eri, force);
     triangle_twin->initialize_triangle_with_edges(ejr, erk, ekj, force);
+    if(force)
+        triangle_origin->is_cyclic = triangle_twin->is_cyclic = true;
 
-    relegalize_triangles(vr, eik);
-    relegalize_triangles(vr, ekj);
+    //relegalize_triangles(vr, eik);
+    //relegalize_triangles(vr, ekj);
 }
 
 
@@ -610,11 +608,11 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
  *          0    point is on circum circle
  *         -1    point is out of circum circle
  */
-int Triangle::circum_circle_contains(Point *p)
+int Triangle::circum_circle_contains(Point *p, double tolerance)
 {
     calulate_circum_circle();
     double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
-    if(std::fabs(dist2 - circum_radius*circum_radius) < FLOAT_ERROR)
+    if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance)
         return 0;
     else if(dist2 < circum_radius*circum_radius)
         return 1;
@@ -829,7 +827,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 /* This function should be call only once for the root virtual triangle,
  * becase it will alloc new memory for all points and cells. */
 #define PDLN_INSERT_EXTRA_VPOINT (true)
-#define PDLN_VPOINT_DENSITY  (50)
+#define PDLN_VPOINT_DENSITY  (20)
 vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, double *x, double *y, bool *redundant_cell_mark)
 {
     double minX, maxX, minY, maxY;
