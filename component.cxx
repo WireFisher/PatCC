@@ -92,6 +92,10 @@ Component::Component(int id): component_id(id)
     proc_resource = NULL;
 }
 
+/* Debugging staff */
+double global_p_lon[4];
+double global_p_lat[4];
+#define swap(a, b) {tmp = a; a = b; b = tmp;}
 void Component::grid_pretreatment(int grid_id)
 {
     double min_lon, max_lon, min_lat, max_lat;
@@ -106,6 +110,32 @@ void Component::grid_pretreatment(int grid_id)
     num_points = grid_info_mgr->get_grid_num_points(grid_id);
     is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
 
+    //int count = 0;
+    //for(int i = 0; i < num_points; i++) {//(0.000000, -90.000000), (315.000000, -88.827445), (360.000000, -89.170820)
+    //    //if(coord_values[PDLN_LON][i] < 348.5 && coord_values[PDLN_LON][i] > 344.7 && coord_values[PDLN_LAT][i] > 3.2 && coord_values[PDLN_LAT][i] < 4.1) {
+    //    if(fabs(coord_values[PDLN_LON][i] - 0) < 1e-5 && fabs(coord_values[PDLN_LAT][i] - -90.000000) < 1e-5) {
+    //        global_p_lon[0] = coord_values[PDLN_LON][i];
+    //        global_p_lat[0] = coord_values[PDLN_LAT][i];
+    //        printf("found1\n");
+    //    }
+    //    if(fabs(coord_values[pdln_lon][i] - 315.000000) < 1e-5 && fabs(coord_values[pdln_lat][i] - -88.827445) < 1e-5) {
+    //        global_p_lon[1] = coord_values[pdln_lon][i];
+    //        global_p_lat[1] = coord_values[pdln_lat][i];
+    //        printf("found2\n");
+    //    }
+    //    if(fabs(coord_values[pdln_lon][i] - 360.000000) < 1e-5 && fabs(coord_values[pdln_lat][i] - -89.170820) < 1e-5) {
+    //        global_p_lon[2] = coord_values[pdln_lon][i];
+    //        global_p_lat[2] = coord_values[pdln_lat][i];
+    //        printf("found3\n");
+    //    }
+    //}
+            //printf("coord: %lf, %lf\n", coord_values[pdln_lon][i], coord_values[pdln_lat][i]);
+            //global_p_lon[count] = coord_values[pdln_lon][i];
+            //global_p_lat[count++] = coord_values[pdln_lat][i];
+            //assert(count <= 4);
+    //double tmp;
+    //swap(global_p_lon[2], global_p_lon[3]);
+    //swap(global_p_lat[2], global_p_lat[3]);
     if(is_cyclic)
         if(!(min_lon >= 0 && min_lon <=360 && max_lon >=0 && max_lon <= 360)) {
             for(int i = 0; i < num_points; i++) {

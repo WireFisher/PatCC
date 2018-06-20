@@ -312,9 +312,36 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
     }
 }
 
+/* Debug staff */
+int triangulate_count = 0;
+bool Print_Error_info=false;
 int on_circle_count = 0;
 int not_on_circle_count = 0;
-
+extern double global_p_lon[4];
+extern double global_p_lat[4];
+#define point_is(pt, a, b) (fabs(pt->x - a) < 1e-5 && fabs(pt->y - b) < 1e-5)
+#define edge_is(e, a, b, c, d) ((point_is(e->head, a, b) && point_is(e->tail, c, d)) || (point_is(e->tail, a, b) && point_is(e->head, c, d)))
+#define triangle_is(t, a, b, c, d ,e, f) ((point_is(t->v[0], a, b) || point_is(t->v[0], c, d) || point_is(t->v[0], e, f)) && \
+                                          (point_is(t->v[1], a, b) || point_is(t->v[1], c, d) || point_is(t->v[1], e, f)) && \
+                                          (point_is(t->v[2], a, b) || point_is(t->v[2], c, d) || point_is(t->v[2], e, f)) )
+/*
+    bool is = false;
+    for(int i = 0 ;i < 4; i++) {
+        if(point_is(pt, global_p_lon[i], global_p_lat[i]))
+            is = true;
+    }
+    if(is) {
+        is = false;
+        for(int i = 0 ;i < 4; i++) {
+            if(edge_is(edge, global_p_lon[i], global_p_lat[i], global_p_lon[(i+1)%4], global_p_lat[(i+1)%4]))
+                is = true;
+        }
+        if(edge_is(edge, global_p_lon[0], global_p_lat[0], global_p_lon[2], global_p_lat[2]))
+            is = true;
+        if(edge_is(edge, global_p_lon[1], global_p_lat[1], global_p_lon[3], global_p_lat[3]))
+            is = true;
+    }
+*/
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
     if (!edge->twin_edge) {
@@ -341,7 +368,6 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
     return false;
 }
 
-
 bool Delaunay_Voronoi::is_triangle_ambiguous(const Point *pt, const Edge *edge)
 {
     if (!edge->twin_edge) {
@@ -367,8 +393,6 @@ bool Delaunay_Voronoi::is_triangle_ambiguous(const Point *pt, const Edge *edge)
 
 bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 {
-    //Print_Error_info = true;
-
     for(int i = 0; i < 3; i++)
         if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i])) {
             //printf("[%d] illegal triangle: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, t->v[0]->x, t->v[0]->y, t->v[1]->x, t->v[1]->y, t->v[2]->x, t->v[2]->y);
@@ -1330,7 +1354,6 @@ void Delaunay_Voronoi::remove_triangles_in_circle(Point center, double radius)
 
 void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_triangles, bool is_grid_cyclic)
 {
-    //Print_Error_info = true;
     if (is_grid_cyclic) {
         std::vector<Triangle*> right_triangles;
         std::vector<Point*> vl_pool, vr_pool;
@@ -1703,6 +1726,15 @@ void Delaunay_Voronoi::plot_projection_into_file(const char *filename, double mi
         }
     plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_RED, PDLN_PLOT_FILEMODE_APPEND);
 
+    /* Debug staff */
+    //num_edges = 0;
+    //for(unsigned i = 0; i < 3; i++) {
+    //    head_coord[0][num_edges] = global_p_lon[i];
+    //    head_coord[1][num_edges] = global_p_lat[i];
+    //    tail_coord[0][num_edges] = global_p_lon[(i+1)%3];
+    //    tail_coord[1][num_edges++] = global_p_lat[(i+1)%3];
+    //}
+    //plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_RED, PDLN_PLOT_FILEMODE_APPEND);
 
     delete head_coord[0];
     delete head_coord[1];

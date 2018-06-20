@@ -236,7 +236,8 @@ inline void calculate_circle_center(double x[3], double y[3], double *center_x, 
     *center_y = mid_y[0] + k[0]*(mid_y[1] - mid_y[0] - k[1]*mid_x[1] + k[1]*mid_x[0]) / (k[0] - k[1]);
 }
 
-
+extern double global_p_lon[4];
+extern double global_p_lat[4];
 #define PDLN_INSERT_VIRTUAL_POINT true
 void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 {
@@ -246,6 +247,10 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
     //plot_points_info_file(filename, points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
 
     if(rotated_expanded_boundry != NULL) {
+            //calculate_stereographic_projection(global_p_lon[0], global_p_lat[0], center[PDLN_LON], center[PDLN_LAT], global_p_lon[0], global_p_lat[0]);
+            //calculate_stereographic_projection(global_p_lon[1], global_p_lat[1], center[PDLN_LON], center[PDLN_LAT], global_p_lon[1], global_p_lat[1]);
+            //calculate_stereographic_projection(global_p_lon[2], global_p_lat[2], center[PDLN_LON], center[PDLN_LAT], global_p_lon[2], global_p_lat[2]);
+            //calculate_stereographic_projection(global_p_lon[3], global_p_lat[3], center[PDLN_LON], center[PDLN_LAT], global_p_lon[3], global_p_lat[3]);
         triangulation = new Delaunay_Voronoi(num_kernel_points + num_expanded_points,
                                              projected_coord[PDLN_LON], projected_coord[PDLN_LAT], points_global_index, false,
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
