@@ -18,6 +18,7 @@ int main(int argc, char** argv) {
     snprintf(log_path, 32, "log/log.%d", rank);
     if(rank != 0)
         freopen(log_path, "w", stdout);
+    setvbuf(stdout, 0, 2, 0);
     result = RUN_ALL_TESTS();
     MPI_Finalize();
 
