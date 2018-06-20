@@ -121,19 +121,9 @@ static inline void calculate_unit_vectors(double lon_tan, double lat_tan,
     lonlat2xyz(lon_tan, lat_tan, &t_x, &t_y, &t_z);
     min_dir = std::min(std::abs(t_x),std::min(std::abs(t_y),std::abs(t_z)));
 
-    if(min_dir == std::abs(t_x)){
-        axis_x = 1.0;
-        axis_y = 0.0;
-        axis_z = 0.0;
-    } else if (min_dir == std::abs(t_y)){
-        axis_x = 0.0;
-        axis_y = 1.0;
-        axis_z = 0.0;
-    } else if (min_dir == std::abs(t_z)){
-        axis_x = 0.0;
-        axis_y = 0.0;
-        axis_z = 1.0;
-    }
+    axis_x = 1.0;
+    axis_y = 0.0;
+    axis_z = 0.0;
 
     *v1_x = t_y * axis_z - t_z * axis_y;
     *v1_y = t_z * axis_x - t_x * axis_z;
