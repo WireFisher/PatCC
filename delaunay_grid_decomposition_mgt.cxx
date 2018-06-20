@@ -138,6 +138,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     if(type == PDLN_NODE_TYPE_COMMON) {
         this->center[PDLN_LON] = (boundry.min_lon + boundry.max_lon) * 0.5;
         this->center[PDLN_LAT] = (boundry.min_lat + boundry.max_lat) * 0.5;
+        fix_view_point();
     }
     else if(type == PDLN_NODE_TYPE_SPOLAR) {
         this->center[PDLN_LON] = 0.0;
@@ -173,6 +174,33 @@ Search_tree_node::~Search_tree_node()
 
     if(triangulation != NULL)
         delete triangulation;
+}
+
+
+//const double fixed_view_points[2][8] = {{45, 135, 225, 315, 45, 135, 225, 315},
+//                                       {-45, -45, -45, -45, 45,  45,  45,  45}};
+const double fixed_view_points[2][4] = {{45, 135, 225, 315},
+                                       {0, 0, 0, 0}};
+void Search_tree_node::fix_view_point()
+{
+    unsigned current_index;
+    double current_distence;
+
+    while(center[PDLN_LON] < 0) center[PDLN_LON] += 360;
+    while(center[PDLN_LON] >= 360) center[PDLN_LON] -= 360;
+    current_index = 0;
+    current_distence = (center[PDLN_LON] - fixed_view_points[PDLN_LON][0]) * (center[PDLN_LON] - fixed_view_points[PDLN_LON][0]) +
+                       (center[PDLN_LAT] - fixed_view_points[PDLN_LAT][0]) * (center[PDLN_LAT] - fixed_view_points[PDLN_LAT][0]); //TODO: merge code
+    for(unsigned i = 1; i < sizeof(fixed_view_points)/sizeof(double)/2; i++) {
+        double dist = (center[PDLN_LON] - fixed_view_points[PDLN_LON][i]) * (center[PDLN_LON] - fixed_view_points[PDLN_LON][i]) +
+                      (center[PDLN_LAT] - fixed_view_points[PDLN_LAT][i]) * (center[PDLN_LAT] - fixed_view_points[PDLN_LAT][i]);
+        if (dist < current_distence) {
+            current_distence = dist;
+            current_index = i;
+        }
+    }
+    center[PDLN_LON] = fixed_view_points[PDLN_LON][current_index];
+    center[PDLN_LAT] = fixed_view_points[PDLN_LAT][current_index];
 }
 
 
@@ -316,6 +344,14 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
                     triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
                 }
             }
+
+
+            //char filename[64];
+            //int rank, mpi_size;
+            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+            //MPI_Comm_size(process_thread_mgr->get_mpi_comm(), &mpi_size);
+            //snprintf(filename, 64, "log/projected_triangles_%d-%d.png", mpi_size, rank);
+            //triangulation->plot_projection_into_file(filename);
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
@@ -1478,6 +1514,7 @@ bool Search_tree_node::expanding_success(Boundry *prev_expanded, Boundry *max_ex
 
 int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
 {
+    int fail_count = 0;
     Boundry old_boundry, new_boundry;
     do {
         //printf("num: %d, %d, %d, %d\n", tree_node->num_neighbors_on_boundry[PDLN_UP], tree_node->num_neighbors_on_boundry[PDLN_DOWN], tree_node->num_neighbors_on_boundry[PDLN_LEFT], tree_node->num_neighbors_on_boundry[PDLN_RIGHT]);
@@ -1485,7 +1522,6 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         new_boundry = tree_node->get_expanded();
 
         new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
-        //printf("new boundry : %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
 
         int rank;
         MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
@@ -1505,6 +1541,14 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         add_halo_points(tree_node, &old_boundry, &new_boundry);
         //printf("expanded boundry : %lf, %lf, %lf, %lf\n", tree_node->expanded_boundry->min_lon, tree_node->expanded_boundry->max_lon, tree_node->expanded_boundry->min_lat, tree_node->expanded_boundry->max_lat);
         //printf("root real boundry: %lf, %lf, %lf, %lf\n", search_tree_root->real_boundry->min_lon, search_tree_root->real_boundry->max_lon, search_tree_root->real_boundry->min_lat, search_tree_root->real_boundry->max_lat);
+        if(old_boundry == *tree_node->expanded_boundry)
+            fail_count ++;
+        else
+            fail_count = 0;
+        if(fail_count > 5) {
+            printf("expanding failed, max3\n");
+            return -1;
+        }
     }while(!tree_node->expanding_success(&old_boundry, search_tree_root->real_boundry));
 
     return 0;

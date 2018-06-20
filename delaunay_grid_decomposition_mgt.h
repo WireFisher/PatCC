@@ -69,6 +69,7 @@ private:
     int expanding_scale[4];
     int num_neighbors_on_boundry[4];
     
+    void fix_view_point();
     vector<int> processing_units_id;
     vector<pair<Search_tree_node*, bool> > neighbors;
     Delaunay_Voronoi *triangulation;
