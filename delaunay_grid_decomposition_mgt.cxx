@@ -138,7 +138,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *parent, double *coord_value
     if(type == PDLN_NODE_TYPE_COMMON) {
         this->center[PDLN_LON] = (boundry.min_lon + boundry.max_lon) * 0.5;
         this->center[PDLN_LAT] = (boundry.min_lat + boundry.max_lat) * 0.5;
-        fix_view_point();
+        //fix_view_point();
     }
     else if(type == PDLN_NODE_TYPE_SPOLAR) {
         this->center[PDLN_LON] = 0.0;
