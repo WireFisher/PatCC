@@ -43,15 +43,6 @@ void sort_triangles(Triangle_Transport*, int);
 class Point
 {
     public:
-#ifdef UNITTEST
-        //friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
-#endif
-        //friend class Delaunay_Voronoi;
-        //friend class Triangle;
-        //friend class Delaunay_grid_decomposition;
-        //friend double det(const Point *, const Point *, const Point *);
-        //friend Point operator-(Point, Point);
-        //friend bool operator == (Point, Point);
         double x;    
         double y;
         int id;
@@ -153,6 +144,8 @@ class Delaunay_Voronoi
         vector<Triangle*> triangles_containing_vpolar;
         double lat_nearest_vpolar;
         int vpolar_local_index;
+        const double *x_ref;
+        const double *y_ref;
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         Point *generate_boundary_point(double, double, Triangle*, bool);
@@ -181,7 +174,7 @@ class Delaunay_Voronoi
         void update_virtual_polar_info();
 
     public:
-        Delaunay_Voronoi(int, double*, double*, int*, bool, double, double, double, double, bool*, int virtual_polar_local_index=-1);
+        Delaunay_Voronoi(int, double*, double*, const double*, const double*, int*, bool, double, double, double, double, bool*, int virtual_polar_local_index=-1);
         ~Delaunay_Voronoi( );
         void legalize_triangles(Point *pt, Edge *edge, vector<Triangle*>*);
         Edge *allocate_edge(Point *head, Point *tail);

@@ -252,7 +252,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             //calculate_stereographic_projection(global_p_lon[2], global_p_lat[2], center[PDLN_LON], center[PDLN_LAT], global_p_lon[2], global_p_lat[2]);
             //calculate_stereographic_projection(global_p_lon[3], global_p_lat[3], center[PDLN_LON], center[PDLN_LAT], global_p_lon[3], global_p_lat[3]);
         triangulation = new Delaunay_Voronoi(num_kernel_points + num_expanded_points,
-                                             projected_coord[PDLN_LON], projected_coord[PDLN_LAT], points_global_index, false,
+                                             projected_coord[PDLN_LON], projected_coord[PDLN_LAT], points_coord[PDLN_LON], points_coord[PDLN_LAT],
+                                             points_global_index, false,
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
                                              rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL, virtual_point_local_index);
 
@@ -260,22 +261,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             //triangulation->plot_original_points_into_file(filename);
 
             /*
-            double lon, head_lon, head_lat, tail_lon, tail_lat;
-
-            calculate_real_boundary(); // TODO: delete it
-            if (node_type == PDLN_NODE_TYPE_NPOLAR) {
-                lon = 360 - 1e-8;
-                calculate_stereographic_projection(lon, real_boundry->max_lat-0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
-                calculate_stereographic_projection(lon, real_boundry->min_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
-            }
-            else {
-                lon = 360 - 1e-8; // TODO: is this OK?
-                calculate_stereographic_projection(lon, real_boundry->min_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
-                calculate_stereographic_projection(lon, real_boundry->max_lat,     center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
-            }
-
-            std::vector<Triangle*> cyclic_triangles = triangulation->search_cyclic_triangles_for_rotated_grid(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
-
             char filename[64];
             int rank, mpi_size;
             MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
@@ -283,9 +268,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             snprintf(filename, 64, "log/projected_triangles_%d-%d.png", mpi_size, rank);
             triangulation->plot_projection_into_file(filename);
             */
-
-            //snprintf(filename, 64, "log/fake_cyclic_triangles_%d.png", rank);
-            //plot_triangles_into_file(filename, cyclic_triangles);
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             //triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
@@ -360,14 +342,14 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
-            triangulation->relegalize_all_triangles();
+            //triangulation->relegalize_all_triangles();
             triangulation->uncyclic_all_points();
             triangulation->recognize_cyclic_triangles();
         }
     }
     else {
         triangulation = new Delaunay_Voronoi(num_kernel_points + num_expanded_points,
-                                             points_coord[PDLN_LON], points_coord[PDLN_LAT], points_global_index, false,
+                                             points_coord[PDLN_LON], points_coord[PDLN_LAT], NULL, NULL, points_global_index, false,
                                              expanded_boundry->min_lon, expanded_boundry->max_lon,
                                              expanded_boundry->min_lat, expanded_boundry->max_lat, NULL, virtual_point_local_index);
 

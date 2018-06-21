@@ -278,9 +278,15 @@ double Delaunay_Voronoi::calculate_angle(const Point *center, const Point *p1, c
 const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const Point *p2, const Point *p3, const Point *p4)
 {
     const Point *p = p1;
-    if(p2->x < p->x || (p2->x == p->x && p2->y < p->y)) p = p2;
-    if(p3->x < p->x || (p3->x == p->x && p3->y < p->y)) p = p3;
-    if(p4->x < p->x || (p4->x == p->x && p4->y < p->y)) p = p4;
+    if(!x_ref) {
+        if(p2->x < p->x || (p2->x == p->x && p2->y < p->y)) p = p2;
+        if(p3->x < p->x || (p3->x == p->x && p3->y < p->y)) p = p3;
+        if(p4->x < p->x || (p4->x == p->x && p4->y < p->y)) p = p4;
+    } else {
+        if(x_ref[p2->id] < x_ref[p->id] || (x_ref[p2->id] == x_ref[p->id] && y_ref[p2->id] < y_ref[p->id])) p = p2;
+        if(x_ref[p3->id] < x_ref[p->id] || (x_ref[p3->id] == x_ref[p->id] && y_ref[p3->id] < y_ref[p->id])) p = p3;
+        if(x_ref[p4->id] < x_ref[p->id] || (x_ref[p4->id] == x_ref[p->id] && y_ref[p4->id] < y_ref[p->id])) p = p4;
+    }
     return p;
 }
 
@@ -967,12 +973,15 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 }
 
 
-Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, int *global_idx, bool is_global_grid,
-                                   double min_lon, double max_lon, double min_lat, double max_lat, bool *redundant_cell_mark,
-                                   int virtual_polar_local_index)
+Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, const double *x_origin, const double *y_origin,
+                                   int *global_idx, bool is_global_grid, double min_lon, double max_lon, 
+                                   double min_lat, double max_lat, bool *redundant_cell_mark, int virtual_polar_local_index)
+    : x_ref(x_origin)
+    , y_ref(y_origin)
 {
     timeval start, end;
 
+    assert((x_ref && y_ref) || (!x_ref && !x_ref));
 #ifdef DEBUG
     assert(have_redundent_points(x_values, y_values, num_points) == false);
 #endif

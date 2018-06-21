@@ -61,7 +61,7 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
     for(int i = 0; i < num_points; i++)
         index[i] = i;
 
-    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, index, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
+    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, NULL, NULL, index, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
 
     delete index;
     edges = delau->get_all_delaunay_edge();
@@ -96,7 +96,7 @@ static inline void do_triangulation_plot_small_part(int num_points, double *lat_
     int *index = new int[num_points];
     for(int i = 0; i < num_points; i++)
         index[i] = i;
-    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, index, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
+    delau = new Delaunay_Voronoi(num_points, lon_values, lat_values, NULL, NULL, index, false, min_lon, max_lon, min_lat, max_lat, redundant_cell_mark);
 
     delete index;
     edges = delau->get_all_delaunay_edge();
