@@ -641,10 +641,10 @@ const char dim1_grid_name[][64] = {
     /*
     */
     /*
+    "thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", ncfile float don't match double
+    "tos_Omon_MPI-ESM-LR_historical_r1i1p1_185001-200512.nc",
+    "tos_Omon_inmcm4_historical_r1i1p1_185001-200512.nc",
     */
-    //"thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", ncfile float don't match double
-    //"tos_Omon_MPI-ESM-LR_historical_r1i1p1_185001-200512.nc",
-    //"tos_Omon_inmcm4_historical_r1i1p1_185001-200512.nc",
 };
 const char dim1_global_grid_name[][64] = {
     "Gamil_128x60_Grid.nc",
@@ -674,11 +674,12 @@ void prepare_dim1_grid(const char grid_name[])
     void *coord_buf0, *coord_buf1;
     char lon_unit[32];
     char lat_unit[32];
-    bool squeez = false;
+    int squeeze_ratio = 0;
 
-    if(strncmp(grid_name, "ar9v4_100920.nc", 15) == 0 )//||
-       //strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0)
-        squeez = true;
+    if(strncmp(grid_name, "ar9v4_100920.nc", 15) == 0)
+        squeeze_ratio = 100;
+    if(strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0)
+        squeeze_ratio = 10;
 
     snprintf(fullname, 128, dim1_grid_path, grid_name);
     read_file_field_as_double(fullname, "grid_center_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size, lon_unit);
@@ -712,12 +713,12 @@ void prepare_dim1_grid(const char grid_name[])
         //printf("point: %.40lf, %.40lf\n", coord_values[PDLN_LON][i], coord_values[PDLN_LAT][i]);
     }
  
-    if(squeez) {
-        for(int i = 0; i < num_points/100; i++) {
-            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
-            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+    if(squeeze_ratio > 0) {
+        for(int i = 0; i < num_points/squeeze_ratio; i++) {
+            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*squeeze_ratio];
+            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*squeeze_ratio];
         }
-        num_points = num_points/100;
+        num_points = num_points/squeeze_ratio;
     }
 
     //printf("num points: %d\n", num_points);
@@ -796,12 +797,14 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             .WillByDefault(Return(is_cyclic));
 
         Component* comp;
+        if(true) {
         comp = new Component(0);
         comp->register_grid(new Grid(1));
         int ret = comp->generate_delaunay_trianglulation(1);
         EXPECT_EQ(ret, 0);
 
         delete comp;
+        }
 
         //if(!ret && mpi_rank == 0) {
         //    char cmd[256];
