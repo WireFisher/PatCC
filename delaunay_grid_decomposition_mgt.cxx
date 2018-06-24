@@ -241,8 +241,7 @@ extern double global_p_lat[4];
 #define PDLN_INSERT_VIRTUAL_POINT (true)
 void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inserted)
 {
-    if(triangulation != NULL)
-        delete triangulation;
+    delete triangulation;
 
     //plot_points_info_file(filename, points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
 
@@ -332,13 +331,14 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
                 }
             }
 
-
-            //char filename[64];
-            //int rank, mpi_size;
-            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-            //MPI_Comm_size(process_thread_mgr->get_mpi_comm(), &mpi_size);
-            //snprintf(filename, 64, "log/projected_triangles_%d-%d.png", mpi_size, rank);
-            //triangulation->plot_projection_into_file(filename);
+            /*
+            char filename[64];
+            int rank, mpi_size;
+            MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+            MPI_Comm_size(process_thread_mgr->get_mpi_comm(), &mpi_size);
+            snprintf(filename, 64, "log/projected_triangles_%d-%d.png", mpi_size, rank);
+            triangulation->plot_projection_into_file(filename);
+            */
 
             triangulation->update_all_points_coord(points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
             triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
@@ -354,6 +354,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
                                              points_coord[PDLN_LON], points_coord[PDLN_LAT], NULL, NULL, points_global_index, false,
                                              expanded_boundry->min_lon, expanded_boundry->max_lon,
                                              expanded_boundry->min_lat, expanded_boundry->max_lat, NULL, virtual_point_local_index);
+        triangulation->uncyclic_all_points();
+        triangulation->recognize_cyclic_triangles();
         if(num_inserted > 0)
             triangulation->remove_triangles_till(num_inserted);
     }
@@ -768,11 +770,13 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     search_tree_root = new Search_tree_node(NULL, coord_values, global_index, num_points, boundry, PDLN_NODE_TYPE_COMMON);
     search_tree_root->calculate_real_boundary();
 
-    //if(processing_info->get_local_process_id() == 0) {
-    //    char filename[64];
-    //    snprintf(filename, 64, "log/original_input_points.png");
-    //    plot_points_info_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points, PDLN_PLOT_GLOBAL);
-    //}
+    /*
+    if(processing_info->get_local_process_id() == 0) {
+        char filename[64];
+        snprintf(filename, 64, "log/original_input_points.png");
+        plot_points_info_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points, PDLN_PLOT_GLOBAL);
+    }
+    */
     
     if(num_inserted > 0) {
         delete coord_values[0];
@@ -1892,7 +1896,9 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(!is_local_leaf_node_finished[i]) {
                 ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
 
-                if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2])) // TODO: can be more accurate
+                //if (((local_leaf_nodes[i]->kernel_boundry->min_lat+local_leaf_nodes[i]->kernel_boundry->max_lat)*0.5 < -20 && is_polar_node(search_tree_root->children[0])) ||
+                //    ((local_leaf_nodes[i]->kernel_boundry->min_lat+local_leaf_nodes[i]->kernel_boundry->max_lat)*0.5 >  20 && is_polar_node(search_tree_root->children[2])))
+                if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
                     local_leaf_nodes[i]->project_grid();
             }
 
@@ -2112,13 +2118,15 @@ void Delaunay_grid_decomposition::merge_all_triangles()
             int tmp_count;
             MPI_Get_count(&status, MPI_CHAR, &tmp_count);
             
-            //char filename[64];
-            //snprintf(filename, 64, "log/process_local_triangles%d", i);
-            //plot_triangles_into_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_Transport));
+            /*
+            char filename[64];
+            snprintf(filename, 64, "log/process_local_triangles%d", i);
+            plot_triangles_into_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_Transport));
 
-            //for(int j = 0; j < tmp_count/sizeof(Triangle_Transport); j++)
-            //    printf("%d, %d, %d\n", (remote_triangles + count)[j].v[0].id, (remote_triangles + count)[j].v[1].id, (remote_triangles + count)[j].v[2].id);
-            //printf("==============\n");
+            for(int j = 0; j < tmp_count/sizeof(Triangle_Transport); j++)
+                printf("%d, %d, %d\n", (remote_triangles + count)[j].v[0].id, (remote_triangles + count)[j].v[1].id, (remote_triangles + count)[j].v[2].id);
+            printf("==============\n");
+            */
 #ifdef DEBUG
             assert(tmp_count % sizeof(Triangle_Transport) == 0);
 #endif
