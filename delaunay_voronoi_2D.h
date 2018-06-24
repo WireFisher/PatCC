@@ -99,6 +99,7 @@ class Triangle
         double circum_center[2];
         double circum_radius;
         int circum_circle_contains(Point*, double tolerance=FLOAT_ERROR);
+        bool really_on_circum_circle(Point *, double);
         bool contain_virtual_polar;
 
         void initialize_triangle_with_edges(Edge*, Edge*, Edge*, bool force=false);

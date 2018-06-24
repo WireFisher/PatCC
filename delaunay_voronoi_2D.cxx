@@ -642,12 +642,44 @@ int Triangle::circum_circle_contains(Point *p, double tolerance)
 {
     calulate_circum_circle();
     double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
-    if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance)
+    if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance &&
+       really_on_circum_circle(p, tolerance))
         return 0;
     else if(dist2 < circum_radius*circum_radius)
         return 1;
     else // (dist > circum_radius)
         return -1;
+}
+
+
+bool Triangle::really_on_circum_circle(Point *p, double tolerance)
+{
+    Point *pt[4];
+
+    for(int i = 0; i < 3; i++)
+        pt[i] = v[i];
+    pt[3] = p;
+
+    for(int j = 3; j > 0; j--)
+        for(int i = 0; i < j; i++)
+            if(pt[i]->id > pt[i+1]->id) {
+                Point *tmp = pt[i];
+                pt[i] = pt[i+1];
+                pt[i+1] = tmp;
+            }
+
+    double ab = (pt[0]->x * pt[0]->x) + (pt[0]->y * pt[0]->y);
+    double cd = (pt[1]->x * pt[1]->x) + (pt[1]->y * pt[1]->y);
+    double ef = (pt[2]->x * pt[2]->x) + (pt[2]->y * pt[2]->y);
+
+    double center[2];
+    center[0] = (ab * (pt[2]->y - pt[1]->y) + cd * (pt[0]->y - pt[2]->y) + ef * (pt[1]->y - pt[0]->y)) /
+                       (pt[0]->x * (pt[2]->y - pt[1]->y) + pt[1]->x * (pt[0]->y - pt[2]->y) + pt[2]->x * (pt[1]->y - pt[0]->y)) / 2.f;
+    center[1] = (ab * (pt[2]->x - pt[1]->x) + cd * (pt[0]->x - pt[2]->x) + ef * (pt[1]->x - pt[0]->x)) /
+                       (pt[0]->y * (pt[2]->x - pt[1]->x) + pt[1]->y * (pt[0]->x - pt[2]->x) + pt[2]->y * (pt[1]->x - pt[0]->x)) / 2.f;
+    double radius2 = ((pt[0]->x - center[0]) * (pt[0]->x - center[0])) + ((pt[0]->y - center[1]) * (pt[0]->y - center[1]));
+    double dist2 = ((pt[3]->x - center[0]) * (pt[3]->x - center[0])) + ((pt[3]->y - center[1]) * (pt[3]->y - center[1]));
+    return std::fabs(dist2 - radius2) < tolerance;
 }
 
 
@@ -884,10 +916,10 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
     deltaMax = std::max(dx, dy);
 
     double v_minx, v_maxx, v_miny, v_maxy;
-    v_minx = minX-deltaMax*0.01;
-    v_maxx = maxX+deltaMax*0.01;
-    v_miny = minY-deltaMax*0.01;
-    v_maxy = maxY+deltaMax*0.01;
+    v_minx = minX-deltaMax*0.1;
+    v_maxx = maxX+deltaMax*0.1;
+    v_miny = minY-deltaMax*0.1;
+    v_maxy = maxY+deltaMax*0.1;
 
     virtual_point[0] = new Point(minX-deltaMax*0.01, minY-deltaMax*0.01, -1);
     virtual_point[1] = new Point(minX-deltaMax*0.01, maxY+deltaMax*0.01, -1);
