@@ -856,7 +856,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 
 /* This function should be call only once for the root virtual triangle,
  * becase it will alloc new memory for all points and cells. */
-#define PDLN_INSERT_EXTRA_VPOINT (true)
+#define PDLN_INSERT_EXTRA_VPOINT (false)
 #define PDLN_VPOINT_DENSITY  (20)
 vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, double *x, double *y, bool *redundant_cell_mark)
 {
@@ -912,25 +912,27 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
     num_x /= PDLN_VPOINT_DENSITY;
     num_y /= PDLN_VPOINT_DENSITY;
 
-    if(num_x > 0)
+    if(PDLN_INSERT_EXTRA_VPOINT && num_x > 0)
         for(unsigned i = 1; i < num_x-1; i++) {
             extra_virtual_point.push_back(new Point(v_minx+(v_maxx-v_minx)/num_x*i, v_miny));
             extra_virtual_point.push_back(new Point(v_minx+(v_maxx-v_minx)/num_x*i, v_maxy));
         }
-    if(num_y > 0)
+    if(PDLN_INSERT_EXTRA_VPOINT && num_y > 0)
         for(unsigned i = 1; i < num_y-1; i++) {
             extra_virtual_point.push_back(new Point(v_minx, v_miny+(v_maxy-v_miny)/num_y*i));
             extra_virtual_point.push_back(new Point(v_maxx, v_miny+(v_maxy-v_miny)/num_y*i));
         }
 
-    distribute_points_into_triangles(&extra_virtual_point, &virtual_triangles);
-    for(unsigned i = 0; i < virtual_triangles.size(); i++)
-        triangularization_process(virtual_triangles[i]);
+    if(extra_virtual_point.size() > 0) {
+        distribute_points_into_triangles(&extra_virtual_point, &virtual_triangles);
+        for(unsigned i = 0; i < virtual_triangles.size(); i++)
+            triangularization_process(virtual_triangles[i]);
 
-    virtual_triangles.clear();
-    for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
-        if(result_leaf_triangles[i]->is_leaf)
-            virtual_triangles.push_back(result_leaf_triangles[i]);
+        virtual_triangles.clear();
+        for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
+            if(result_leaf_triangles[i]->is_leaf)
+                virtual_triangles.push_back(result_leaf_triangles[i]);
+    }
 
     cells = new Cell[num_points];
 
@@ -1627,6 +1629,19 @@ void Delaunay_Voronoi::remove_triangles_only_containing_virtual_polar()
         if(result_leaf_triangles[i]->v[0]->y == common_lat &&
            result_leaf_triangles[i]->v[1]->y == common_lat &&
            result_leaf_triangles[i]->v[2]->y == common_lat)
+            remove_leaf_triangle(result_leaf_triangles[i]);
+    }
+}
+
+
+void Delaunay_Voronoi::remove_triangles_till(int max_global_index)
+{
+    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+        if(!result_leaf_triangles[i]->is_leaf)
+            continue;
+        if((global_index[result_leaf_triangles[i]->v[0]->id] < max_global_index && global_index[result_leaf_triangles[i]->v[0]->id] >= 0) ||
+           (global_index[result_leaf_triangles[i]->v[1]->id] < max_global_index && global_index[result_leaf_triangles[i]->v[1]->id] >= 0) ||
+           (global_index[result_leaf_triangles[i]->v[2]->id] < max_global_index && global_index[result_leaf_triangles[i]->v[2]->id] >= 0))
             remove_leaf_triangle(result_leaf_triangles[i]);
     }
 }

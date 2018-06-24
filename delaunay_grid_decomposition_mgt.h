@@ -87,7 +87,7 @@ public:
     void split_processing_units_by_points_number(double*, int, int, vector<int>, vector<int>*);
     void update_processing_units_id(int);
     void update_processing_units_id(vector<int>);
-    void generate_local_triangulation(bool);
+    void generate_local_triangulation(bool, int);
     void project_grid();
     void add_expanded_points(double *, double *, int*, int);
     void add_expanded_points(double **, int*, int);
@@ -122,6 +122,8 @@ private:
     bool *active_processing_units_flag;
     //int* active_processing_common_id;
     double* workloads;
+    int num_inserted;
+    int num_points;
     
     void initialze_workload();
     int assign_polars(bool, bool);
@@ -133,6 +135,7 @@ private:
     int expand_tree_node_boundry(Search_tree_node*, double);
     bool do_two_regions_overlap(Boundry, Boundry);
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, vector<int> &, int);
+    int insert_virtual_points(double *coord_values[2], Boundry *boundry, int num_points);
 
     void add_halo_points(Search_tree_node*, Boundry*, Boundry*);
     vector<Search_tree_node*> search_points_in_halo(Boundry*, Boundry*, double**, int*, int*);

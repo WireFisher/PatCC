@@ -199,6 +199,7 @@ class Delaunay_Voronoi
         void update_points_coord_y(double, vector<int> *);
         void remove_triangles_only_containing_virtual_polar();
         void uncyclic_all_points();
+        void remove_triangles_till(int);
 
         /* debug */
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);

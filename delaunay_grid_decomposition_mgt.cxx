@@ -238,8 +238,8 @@ inline void calculate_circle_center(double x[3], double y[3], double *center_x, 
 
 extern double global_p_lon[4];
 extern double global_p_lat[4];
-#define PDLN_INSERT_VIRTUAL_POINT true
-void Search_tree_node::generate_local_triangulation(bool is_cyclic)
+#define PDLN_INSERT_VIRTUAL_POINT (true)
+void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inserted)
 {
     if(triangulation != NULL)
         delete triangulation;
@@ -346,13 +346,16 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic)
             triangulation->uncyclic_all_points();
             triangulation->recognize_cyclic_triangles();
         }
+        if(num_inserted > 0)
+            triangulation->remove_triangles_till(num_inserted);
     }
     else {
         triangulation = new Delaunay_Voronoi(num_kernel_points + num_expanded_points,
                                              points_coord[PDLN_LON], points_coord[PDLN_LAT], NULL, NULL, points_global_index, false,
                                              expanded_boundry->min_lon, expanded_boundry->max_lon,
                                              expanded_boundry->min_lat, expanded_boundry->max_lat, NULL, virtual_point_local_index);
-
+        if(num_inserted > 0)
+            triangulation->remove_triangles_till(num_inserted);
     }
 }
 
@@ -726,28 +729,32 @@ void Search_tree_node::project_grid()
 }
 
 
-Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_num_points_per_chunk)
+Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_points_per_chunk)
+    : original_grid(grid_id)
+    , is_cyclic(grid_info_mgr->is_grid_cyclic(grid_id))
+    , processing_info(proc_info)
+    , min_num_points_per_chunk(min_points_per_chunk)
+    , workloads(NULL)
+    , num_points(0)
 {
-    double **coord_values;
+    double **coords;
+    double *coord_values[2];
     int *global_index;
-    int num_points;
     Boundry boundry;
 
-    this->original_grid = grid_id;
-    this->processing_info = proc_info;
-    assert(this->processing_info != NULL);
+    assert(processing_info != NULL);
 
-    this->min_num_points_per_chunk = min_num_points_per_chunk;
-    
-    coord_values = grid_info_mgr->get_grid_coord_values(grid_id);
+    coords = grid_info_mgr->get_grid_coord_values(grid_id);
+    coord_values[0] = coords[0];
+    coord_values[1] = coords[1];
     num_points = grid_info_mgr->get_grid_num_points(grid_id);
 
-
-    this->is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
     grid_info_mgr->get_grid_boundry(grid_id, &boundry.min_lon, &boundry.max_lon, &boundry.min_lat, &boundry.max_lat);
-    this->processing_info->get_num_total_processing_units();
 
     this->active_processing_units_flag = new bool[processing_info->get_num_total_processing_units()];
+    /* coord_values[0] coord_values[1] will be changed */
+    num_inserted = insert_virtual_points(coord_values, &boundry, num_points);
+    num_points += num_inserted;
 
     global_index = new int[num_points];
     for(int i = 0; i < num_points; i++)
@@ -766,10 +773,11 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     //    snprintf(filename, 64, "log/original_input_points.png");
     //    plot_points_info_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points, PDLN_PLOT_GLOBAL);
     //}
-
-    this->workloads = NULL;
-    //this->initialze_workload();
     
+    if(num_inserted > 0) {
+        delete coord_values[0];
+        delete coord_values[1];
+    }
     delete global_index;
 }
 
@@ -783,6 +791,99 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 }
 
 
+#define PDLN_GVPOINT_DENSITY  (20)
+#define PDLN_INSERT_EXPAND_RATIO (0.01)
+int Delaunay_grid_decomposition::insert_virtual_points(double *coord_values[2], Boundry *boundry, int num_points)
+{
+    if(is_cyclic && fabs(boundry->max_lat - 90) < PDLN_FLOAT_EQ_ERROR && fabs(boundry->min_lat - -90) < PDLN_FLOAT_EQ_ERROR)
+        return 0;
+    double minX, maxX, minY, maxY;
+    double dx, dy, deltaMax;
+
+    maxX = minX = coord_values[PDLN_LON][0];
+    maxY = minY = coord_values[PDLN_LAT][0];
+    for(int i = 0; i < num_points; i++)
+    {
+        if (coord_values[PDLN_LON][i] < minX) minX = coord_values[PDLN_LON][i];
+        if (coord_values[PDLN_LON][i] > maxX) maxX = coord_values[PDLN_LON][i];
+        if (coord_values[PDLN_LAT][i] < minY) minY = coord_values[PDLN_LAT][i];
+        if (coord_values[PDLN_LAT][i] > maxY) maxY = coord_values[PDLN_LAT][i];
+    }
+
+    dx = maxX - minX;
+    dy = maxY - minY;
+    deltaMax = std::max(dx, dy);
+
+    double v_minx, v_maxx, v_miny, v_maxy;
+    double r_minx, r_maxx, r_miny, r_maxy;
+    v_minx = minX-deltaMax*PDLN_INSERT_EXPAND_RATIO;
+    v_maxx = maxX+deltaMax*PDLN_INSERT_EXPAND_RATIO;
+    v_miny = minY-deltaMax*PDLN_INSERT_EXPAND_RATIO;
+    v_maxy = maxY+deltaMax*PDLN_INSERT_EXPAND_RATIO;
+
+    r_minx = is_cyclic && v_minx < 0   ?   1 : v_minx;
+    r_maxx = is_cyclic && v_maxx > 360 ? 359 : v_maxx;
+    r_miny = v_miny < -90 ? -89 : v_miny;
+    r_maxy = v_maxy > 90  ?  89 : v_maxy;
+    
+    /*
+     * x * y = num_points
+     * x : y = dx : dy
+     */
+    unsigned num_x = (unsigned)sqrt(num_points * dx / (double)dy);
+    unsigned num_y = num_x * dy / dx;
+    num_x /= PDLN_GVPOINT_DENSITY;
+    num_y /= PDLN_GVPOINT_DENSITY;
+
+    double *inserted_coord[2];
+
+    inserted_coord[0] = new double[num_points + 2*num_x + 2*num_y];
+    inserted_coord[1] = new double[num_points + 2*num_x + 2*num_y];
+    int num_inserted = 0;
+    if(fabs(boundry->max_lat - 90) >= PDLN_FLOAT_EQ_ERROR && v_maxy < 90) {
+        for(unsigned i = 1; i < num_x-1; i++) {
+            inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/num_x*i;
+            inserted_coord[PDLN_LAT][num_inserted++] = r_maxy;
+        }
+        if(boundry->max_lat < r_maxy) boundry->max_lat = r_maxy;
+    }
+    if(fabs(boundry->min_lat - -90) >= PDLN_FLOAT_EQ_ERROR && v_miny > -90) {
+        for(unsigned i = 1; i < num_x-1; i++) {
+            inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/num_x*i;
+            inserted_coord[PDLN_LAT][num_inserted++] = r_miny;
+        }
+        if(boundry->min_lat > r_miny) boundry->min_lat = r_miny;
+    }
+    if(!is_cyclic) {
+        for(unsigned i = 1; i < num_y-1; i++) {
+            inserted_coord[PDLN_LON][num_inserted] = v_minx;
+            inserted_coord[PDLN_LAT][num_inserted++] = v_miny+(v_maxy-v_miny)/num_y*i;
+        }
+        for(unsigned i = 1; i < num_y-1; i++) {
+            inserted_coord[PDLN_LON][num_inserted] = v_maxx;
+            inserted_coord[PDLN_LAT][num_inserted++] = v_miny+(v_maxy-v_miny)/num_y*i;
+        }
+        if(boundry->min_lon > r_minx) boundry->min_lon = r_minx;
+        if(boundry->max_lon < r_maxx) boundry->max_lon = r_maxx;
+    }
+    assert(num_inserted <= 2*num_x + 2*num_y);
+
+    if(num_inserted > 0) {
+        /* store inserted points first. Then original points follow */
+        memcpy(inserted_coord[PDLN_LON]+num_inserted, coord_values[PDLN_LON], num_points*sizeof(double));
+        memcpy(inserted_coord[PDLN_LAT]+num_inserted, coord_values[PDLN_LAT], num_points*sizeof(double));
+
+        coord_values[PDLN_LON] = inserted_coord[PDLN_LON];
+        coord_values[PDLN_LAT] = inserted_coord[PDLN_LAT];
+    }
+    else {
+        delete inserted_coord[0];
+        delete inserted_coord[1];
+    }
+    return num_inserted;
+}
+
+
 void Delaunay_grid_decomposition::initialze_workload()
 {
     int max_num_processing_units, num_active_processing_units;
@@ -790,11 +891,11 @@ void Delaunay_grid_decomposition::initialze_workload()
     std::vector<int> active_processing_common_id;
 
     assert(min_num_points_per_chunk > 0);
-    max_num_processing_units = (grid_info_mgr->get_grid_num_points(original_grid) + min_num_points_per_chunk - 1) / min_num_points_per_chunk;
+    max_num_processing_units = (num_points + min_num_points_per_chunk - 1) / min_num_points_per_chunk;
 
     num_active_processing_units = std::min(processing_info->get_num_total_processing_units(), max_num_processing_units);
 
-    average_workload = (double)grid_info_mgr->get_grid_num_points(original_grid) / num_active_processing_units;
+    average_workload = (double)num_points / num_active_processing_units;
 
     if(workloads != NULL)
         delete[] workloads;
@@ -1243,6 +1344,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         if(have_local_processing_units_id(search_tree_root->children[0]->processing_units_id))
             local_leaf_nodes.push_back(search_tree_root->children[0]);
 
+        /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
         double shifted_polar_lat = search_tree_root->children[0]->load_polars_info();
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->min_lat = shifted_polar_lat;
@@ -1282,6 +1384,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         if(have_local_processing_units_id(search_tree_root->children[2]->processing_units_id))
             local_leaf_nodes.push_back(search_tree_root->children[2]);
 
+        /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
         double shifted_polar_lat = search_tree_root->children[2]->load_polars_info();
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->max_lat = shifted_polar_lat;
@@ -1807,7 +1910,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 timeval start, end;
                 gettimeofday(&start, NULL);
 
-                local_leaf_nodes[i]->generate_local_triangulation(is_cyclic);
+                local_leaf_nodes[i]->generate_local_triangulation(is_cyclic, num_inserted);
 
                 gettimeofday(&end, NULL);
                 int rank;
