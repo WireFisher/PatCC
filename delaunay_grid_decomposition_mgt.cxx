@@ -243,7 +243,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 {
     delete triangulation;
 
-    //plot_points_info_file(filename, points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
+    //plot_points_into_file(filename, points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
 
     if(rotated_expanded_boundry != NULL) {
             //calculate_stereographic_projection(global_p_lon[0], global_p_lat[0], center[PDLN_LON], center[PDLN_LAT], global_p_lon[0], global_p_lat[0]);
@@ -770,13 +770,11 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     search_tree_root = new Search_tree_node(NULL, coord_values, global_index, num_points, boundry, PDLN_NODE_TYPE_COMMON);
     search_tree_root->calculate_real_boundary();
 
-    /*
-    if(processing_info->get_local_process_id() == 0) {
-        char filename[64];
-        snprintf(filename, 64, "log/original_input_points.png");
-        plot_points_info_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points, PDLN_PLOT_GLOBAL);
-    }
-    */
+    //if(processing_info->get_local_process_id() == 0) {
+    //    char filename[64];
+    //    snprintf(filename, 64, "log/original_input_points.png");
+    //    plot_points_into_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points, PDLN_PLOT_GLOBAL);
+    //}
     
     if(num_inserted > 0) {
         delete coord_values[0];

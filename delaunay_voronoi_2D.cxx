@@ -1813,7 +1813,7 @@ void Delaunay_Voronoi::plot_original_points_into_file(const char *filename, doub
     }
 
     assert(num == num_cells);
-    plot_points_info_file(filename, coord[0], coord[1], num_cells, min_x, max_x, min_y, max_y);
+    plot_points_into_file(filename, coord[0], coord[1], num_cells, min_x, max_x, min_y, max_y);
 
     delete coord[0];
     delete coord[1];
