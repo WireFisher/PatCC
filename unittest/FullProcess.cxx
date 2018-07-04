@@ -761,6 +761,9 @@ void prepare_dim1_grid(const char grid_name[])
         is_cyclic = true;
     else
         is_cyclic = false;
+#ifdef TIME_PERF
+    printf("[ - ] Total points: %d\n", num_points);
+#endif
 };
 
 
@@ -801,14 +804,11 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             .WillByDefault(Return(is_cyclic));
 
         Component* comp;
-        if(true) {
         comp = new Component(0);
         comp->register_grid(new Grid(1));
         int ret = comp->generate_delaunay_trianglulation(1);
         EXPECT_EQ(ret, 0);
-
         delete comp;
-        }
 
         if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
             ON_CALL(*mock_process_thread_manager, get_mpi_comm())

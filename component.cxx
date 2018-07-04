@@ -181,8 +181,16 @@ int Component::generate_delaunay_trianglulation(int grid_id)
 
     grid_pretreatment(grid_id);
 
+    timeval start, end;
+    gettimeofday(&start, NULL);
     if(operating_grid->generate_delaunay_trianglulation(this->proc_resource))
         return -1;
+    gettimeofday(&end, NULL);
+    int rank;
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+#ifdef TIME_PERF
+    printf("[%3d] Full process: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
     operating_grid->plot_triangles_into_file();
     operating_grid->merge_all_triangles();
     return 0;
