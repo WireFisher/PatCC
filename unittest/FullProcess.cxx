@@ -627,8 +627,8 @@ const char dim1_grid_name[][64] = {
     "Gamil_360x180_Grid.nc", // x ok
     "licom_eq1x1_degree_Grid.nc", //x ok
     "licom_gr1x1_degree_Grid.nc", //x ok
-    "R05_Grid.nc",
     "LICOM_P5_Grid.nc",
+    "R05_Grid.nc",
     "ll1deg_grid.nc",
     "ll2.5deg_grid.nc",
     "R42_Gaussian_Grid.nc",
@@ -650,10 +650,7 @@ const char dim1_global_grid_name[][64] = {
     "Gamil_128x60_Grid.nc",
     "fv1.9x2.5_050503.nc",
     "Gamil_360x180_Grid.nc",
-    "licom_eq1x1_degree_Grid.nc",
-    "licom_gr1x1_degree_Grid.nc",
     "R05_Grid.nc",
-    "LICOM_P5_Grid.nc",
     "ll1deg_grid.nc",
     "ll2.5deg_grid.nc",
     "R42_Gaussian_Grid.nc",
@@ -747,6 +744,13 @@ void prepare_dim1_grid(const char grid_name[])
             max_lon = 360;
             max_lat = 90;
     }
+    if(strncmp(grid_name, "licom_eq1x1_degree_Grid.nc", 64) == 0 ||
+       strncmp(grid_name, "licom_gr1x1_degree_Grid.nc", 64) == 0 ||
+       strncmp(grid_name, "LICOM_P5_Grid.nc", 64) == 0) {
+            min_lon = 0;
+            max_lon = 360;
+            max_lat = 90;
+    }
     if(strncmp(grid_name, "wr50a_090301.nc", 64) == 0) {
         min_lon = -180;
         max_lon = 180;
@@ -806,13 +810,6 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
         delete comp;
         }
 
-        //if(!ret && mpi_rank == 0) {
-        //    char cmd[256];
-        //    snprintf(cmd, 256, "mv log/global_triangles_15 log/summary_%s_15.txt;mv log/image_global_triangles_15.png log/image_%s_15.png",
-        //                       dim1_grid_name[i], dim1_grid_name[i]);
-        //    system(cmd);
-        //}
-
         if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
             ON_CALL(*mock_process_thread_manager, get_mpi_comm())
                 .WillByDefault(Return(split_world));
@@ -840,6 +837,15 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             fgets(md5[0], 64, fp);
             fgets(md5[1], 64, fp);
             EXPECT_STREQ(md5[0], md5[1]);
+
+            if(mpi_rank == 0 && strncmp(md5[0], md5[1], 64) == 0) {
+                char cmd[256];
+                snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", dim1_grid_name[i], dim1_grid_name[i]);
+                system(cmd);
+                snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", dim1_grid_name[i], dim1_grid_name[i]);
+                system(cmd);
+            }
         }
+
     }
 };
