@@ -2291,7 +2291,8 @@ void Grid_info_manager::gen_latlon_90_grid()
 
 Grid_info_manager::Grid_info_manager()
 {
-    gen_three_polar_grid();
+    coord_values[0] = coord_values[1] = NULL;
+    //gen_three_polar_grid();
     //gen_latlon_grid();
     //gen_latlon_90_grid();
 }
