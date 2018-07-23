@@ -68,9 +68,10 @@ private:
     int virtual_point_local_index;
     int expanding_scale[4];
     int num_neighbors_on_boundry[4];
+    int region_id;
     
     void fix_view_point();
-    vector<int> processing_units_id;
+    vector<int> region_ids;
     vector<pair<Search_tree_node*, bool> > neighbors;
     Delaunay_Voronoi *triangulation;
     void calculate_real_boundary();
@@ -85,8 +86,8 @@ public:
     void decompose_by_fixed_longitude(double, double*, double**, int**, int*, Boundry*, vector<int>*);
     void split_local_points(Midline, double**, int**, int*);
     void split_processing_units_by_points_number(double*, int, int, vector<int>, vector<int>*);
-    void update_processing_units_id(int);
-    void update_processing_units_id(vector<int>);
+    void update_region_ids(int);
+    void update_region_ids(vector<int>);
     void generate_local_triangulation(bool, int);
     void project_grid();
     void add_expanded_points(double *, double *, int*, int);
@@ -108,7 +109,6 @@ public:
 class Delaunay_grid_decomposition {
 private:
     Processing_resource *processing_info;
-    //Remap_grid_class *original_grid;
     int original_grid;
     Search_tree_node *search_tree_root;
     Search_tree_node *current_tree_node;
@@ -124,13 +124,14 @@ private:
     double* workloads;
     int num_inserted;
     int num_points;
+    int *regionID_to_unitID;
     
     void initialze_workload();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*);
     void decompose_with_fixed_longitude(double);
     void assign_cyclic_grid_for_single_processing_unit();
-    bool have_local_processing_units_id(vector<int>);
+    bool have_local_region_ids(vector<int>);
     void update_workloads(int, vector<int>&);
     int expand_tree_node_boundry(Search_tree_node*, double);
     bool do_two_regions_overlap(Boundry, Boundry);

@@ -124,9 +124,7 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
     int *num_active_units_per_node;
     MAP_UINT_VECTOR_T::iterator it;
 
-    assert(num_total_active_units <= num_total_processing_units);
-
-    if(num_total_active_units == num_total_processing_units) {
+    if(num_total_active_units >= num_total_processing_units) {
         for(i = 0; i < num_total_processing_units; i++)
             is_active[i] = true;
         return;
