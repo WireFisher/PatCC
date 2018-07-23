@@ -22,7 +22,7 @@ void draw_point(cv::Mat img, double x, double y, cv::Scalar scalar)
 
 void draw_line(cv::Mat img, Edge *e, double min_x, double max_x, double min_y, double max_y, cv::Scalar scalar)
 {
-    int thickness = 1;
+    int thickness = 2;
     int line_type = cv::LINE_8;
 
     /*
@@ -66,13 +66,17 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
     delete index;
     edges = delau->get_all_delaunay_edge();
 
-    cv::Mat mat = cv::Mat::zeros(max_lat*10, max_lon*10, CV_8UC3);
-
-    for(unsigned int i = 0; i < edges.size(); i++)
-        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(255, 255, 255));
+    cv::Mat mat = cv::Mat(max_lat*10, max_lon*10, CV_8UC3, cv::Scalar(255, 255, 255));
 
     for(int i = 0; i < num_points; i++)
-        draw_point(mat, lon_values[i], lat_values[i], cv::Scalar(0x44, 0xBB, 0xBB));
+        //draw_point(mat, lon_values[i], lat_values[i], cv::Scalar(0x44, 0xBB, 0xBB));
+        draw_point(mat, lon_values[i], lat_values[i], cv::Scalar(0, 0, 0));
+
+    write_to_file(mat, "log/input_pp.png");
+
+    for(unsigned int i = 0; i < edges.size(); i++)
+        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(0, 0, 0));
+
     /*
     edges = delau->get_all_legal_delaunay_edge();
     for(unsigned int i = 0; i < edges.size(); i++) {
@@ -183,12 +187,12 @@ TEST(DelaunayTriangulationTest, ObliqueRectangle) {
 
 
 TEST(DelaunayTriangulationTest, RandomSmallSize) {
-    int num_points = 100;
+    int num_points = 25;
     int num_part;
     double min_lat = 0.0;
-    double max_lat = 350.0;
+    double max_lat = 160.0;
     double min_lon = 0.0;
-    double max_lon = 350.0;
+    double max_lon = 160.0;
     double *lat, *lon, *lat_part, *lon_part;
     bool *redundant_cell_mark;
 
