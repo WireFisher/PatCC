@@ -133,3 +133,45 @@ void plot_points_into_file(const char *filename, double *x, double *y, int num, 
         fprintf(stderr, "Exception converting image to PNG format: %s\n", ex.what());
     }
 }
+
+
+void plot_rectangle_into_file(const char *filename, double x_min, double x_max, double y_min, double y_max, int color, int filemode)
+{
+    std::vector<Edge*> edges;
+    int x_shift = 1500;
+    int y_shift = 1500;
+    int scale = 10;
+    
+    cv::Mat mat;
+    if(filemode == PDLN_PLOT_FILEMODE_NEW)
+        mat = cv::Mat::zeros(300*10, 300*10, CV_8UC3); /* rows, columns*/
+    else if(filemode == PDLN_PLOT_FILEMODE_APPEND)
+        mat = cv::imread(filename, CV_LOAD_IMAGE_COLOR);
+
+    if(!mat.data) {
+        perror("PLOT in APPEND MODE but file doesn't exist.\n");
+        return;
+    }
+
+    cv::Scalar cv_color;
+    switch(color) {
+        case PDLN_PLOT_COLOR_WHITE: cv_color = cv::Scalar(255, 255, 255); break;
+        case PDLN_PLOT_COLOR_RED  : cv_color = cv::Scalar(0x80, 0x80, 0xF0); break;
+        default : cv_color = cv::Scalar(255, 255, 255);
+    }
+
+    cv::line(mat, cv::Point(x_min*scale+x_shift, y_min*scale+y_shift), cv::Point(x_min*scale+x_shift, y_max*scale+y_shift), cv_color, 1, cv::LINE_8);
+    cv::line(mat, cv::Point(x_min*scale+x_shift, y_max*scale+y_shift), cv::Point(x_max*scale+x_shift, y_max*scale+y_shift), cv_color, 1, cv::LINE_8);
+    cv::line(mat, cv::Point(x_max*scale+x_shift, y_max*scale+y_shift), cv::Point(x_max*scale+x_shift, y_min*scale+y_shift), cv_color, 1, cv::LINE_8);
+    cv::line(mat, cv::Point(x_max*scale+x_shift, y_min*scale+y_shift), cv::Point(x_min*scale+x_shift, y_min*scale+y_shift), cv_color, 1, cv::LINE_8);
+
+    std::vector<int> compression_params;
+    compression_params.push_back(cv::IMWRITE_PNG_COMPRESSION);
+    compression_params.push_back(9);
+    try {
+        cv::imwrite(filename, mat, compression_params);
+    }
+    catch (cv::Exception& ex) {
+        fprintf(stderr, "Exception converting image to PNG format: %s\n", ex.what());
+    }
+}

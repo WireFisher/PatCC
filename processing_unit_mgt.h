@@ -50,7 +50,7 @@ class Processing_resource {
 private:
     int component_id;
     std::map <unsigned int, vector <Processing_unit*> > computing_nodes;
-    Processing_unit **processing_units; //(All threads_info sorted by common_id)
+    Processing_unit **processing_units; //(All sorted by common_id)
     int num_total_processing_units;
     int *local_proc_common_id;
     int num_local_proc_processing_units;
@@ -77,6 +77,7 @@ public:
     int get_num_total_processes() { return num_total_processes; };
     int get_num_local_threads() { return num_local_threads; };
     MPI_Comm get_mpi_comm() { return mpi_comm; };
+    int get_num_computing_nodes() { return (int)computing_nodes.size(); };
     void print_all_nodes_info();
 
     /* communication */
