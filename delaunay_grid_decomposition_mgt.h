@@ -160,7 +160,7 @@ private:
 public:
     Delaunay_grid_decomposition(int, Processing_resource*, int);
     ~Delaunay_grid_decomposition();
-    int generate_grid_decomposition();
+    int generate_grid_decomposition(bool =true);
     int grid_full_decomposition();
     int generate_delaunay_triangulizition();
     vector<Search_tree_node*> get_local_leaf_nodes() {return local_leaf_nodes; };
@@ -206,7 +206,6 @@ public:
     virtual int get_grid_num_points(int);
     virtual void get_grid_boundry(int, double*, double*, double*, double*);
     virtual void set_grid_boundry(int, double, double, double, double);
-    virtual int get_polar_points(int, char);
     virtual bool is_grid_cyclic(int);
 };
 

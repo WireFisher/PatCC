@@ -21,7 +21,7 @@ class Processing_unit {
 public:
     //friend class Processing_resource;
     //char *hostname;
-    unsigned int hostname_checksum;
+    unsigned hostname_checksum;
     int process_id;
     int thread_id;
     int common_id;

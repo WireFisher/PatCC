@@ -21,7 +21,6 @@ public:
     MOCK_METHOD1(get_grid_coord_values, double**(int));
     MOCK_METHOD1(get_grid_num_points, int(int));
     MOCK_METHOD5(get_grid_boundry, void(int, double*, double*, double*, double*));
-    MOCK_METHOD2(get_polar_points, int(int, char));
     MOCK_METHOD1(is_grid_cyclic, bool(int));
 };
 
@@ -101,9 +100,6 @@ TEST(GridDecompositionTest, GlobalMiddle) {
 
     ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
         .WillByDefault(Invoke(get_boundry));
-
-    ON_CALL(*mock_grid_info_manager, get_polar_points(1, _))
-        .WillByDefault(Return(3));
 
     ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
         .WillByDefault(Return(true));

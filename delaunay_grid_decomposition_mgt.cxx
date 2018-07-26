@@ -1043,9 +1043,9 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     //printf("[Rank%d]x[ST-INFO-PRE] p: %p, first: %p, third: %p\n", rank, node, node->children[0], node->children[2]);
 
     if(!lazy_mode || have_local_region_ids(node->children[0]->region_ids))
-        decompose_common_node_recursively(node->children[0]);
+        decompose_common_node_recursively(node->children[0], lazy_mode);
     if(!lazy_mode || have_local_region_ids(node->children[2]->region_ids))
-        decompose_common_node_recursively(node->children[2]);
+        decompose_common_node_recursively(node->children[2], lazy_mode);
 }
 
 
@@ -1400,6 +1400,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         
         if(have_local_region_ids(search_tree_root->children[0]->region_ids))
             local_leaf_nodes.push_back(search_tree_root->children[0]);
+        all_leaf_nodes.push_back(search_tree_root->children[0]);
 
         /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
         double shifted_polar_lat = search_tree_root->children[0]->load_polars_info();
@@ -1447,7 +1448,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 
         if(have_local_region_ids(search_tree_root->children[2]->region_ids))
             local_leaf_nodes.push_back(search_tree_root->children[2]);
-
+        all_leaf_nodes.push_back(search_tree_root->children[2]);
         /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
         double shifted_polar_lat = search_tree_root->children[2]->load_polars_info();
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
@@ -1542,7 +1543,7 @@ bool Delaunay_grid_decomposition::have_local_region_ids(vector<int> chunk_id)
 }
 
 
-int Delaunay_grid_decomposition::generate_grid_decomposition()
+int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
 {
 
     initialze_workload();
@@ -1556,12 +1557,6 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
 
     if(assign_polars(std::abs(min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR, std::abs(max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR))
         return 1;
-
-    if(is_cyclic && current_tree_node->region_ids.size() == 1) {
-        assert(false);
-        assign_cyclic_grid_for_single_processing_unit();
-        return 0;
-    }
 
     int num_computing_nodes = processing_info->get_num_computing_nodes();
     Processing_unit** units = processing_info->get_processing_units();
@@ -1574,37 +1569,14 @@ int Delaunay_grid_decomposition::generate_grid_decomposition()
     for(int i = 1; i < current_tree_node->region_ids.size(); i++)
         if (old_checksum == units[regionID_to_unitID[current_tree_node->region_ids[i]]]->hostname_checksum)
             all_group_intervals[cur_group]++;
-        else
+        else {
             all_group_intervals[++cur_group]++;
+            old_checksum = units[regionID_to_unitID[current_tree_node->region_ids[i]]]->hostname_checksum;
+        }
     assert(cur_group+1 <= num_computing_nodes);
 
     current_tree_node->set_groups(all_group_intervals, cur_group+1);
-    decompose_common_node_recursively(current_tree_node);
-    return 0;
-}
-
-
-int Delaunay_grid_decomposition::grid_full_decomposition()
-{
-
-    initialze_workload();
-    current_tree_node = search_tree_root;
-
-    double min_lon, max_lon, min_lat, max_lat;
-    bool is_non_monotonic;
-
-    grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
-    is_non_monotonic = min_lon > max_lon;
-
-    if(assign_polars(std::abs(min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR, std::abs(max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR))
-        return 1;
-
-    if(is_cyclic && current_tree_node->region_ids.size() == 1) {
-        assign_cyclic_grid_for_single_processing_unit();
-        return 0;
-    }
-
-    decompose_common_node_recursively(current_tree_node, false);
+    decompose_common_node_recursively(current_tree_node, lazy_mode);
     return 0;
 }
 
@@ -2162,11 +2134,13 @@ void Delaunay_grid_decomposition::print_whole_search_tree_info()
 void Delaunay_grid_decomposition::plot_grid_decomposition(const char *filename)
 {
     if (processing_info->get_local_process_id() == 0) {
-        plot_points_into_file(filename, search_tree_root->points_coord[PDLN_LON], search_tree_root->points_coord[PDLN_LAT], search_tree_root->num_kernel_points);
-        Boundry b;
+        plot_points_into_file(filename, search_tree_root->points_coord[PDLN_LON], search_tree_root->points_coord[PDLN_LAT], search_tree_root->num_kernel_points, PDLN_PLOT_GLOBAL);
         for(unsigned i = 0; i < all_leaf_nodes.size(); i++) {
-            b = *all_leaf_nodes[i]->kernel_boundry;
+            Boundry b = *all_leaf_nodes[i]->kernel_boundry;
             plot_rectangle_into_file(filename, b.min_lon, b.max_lon, b.min_lat, b.max_lat, PDLN_PLOT_COLOR_RED, PDLN_PLOT_FILEMODE_APPEND);
+            char number[8];
+            snprintf(number, 8, "%d", all_leaf_nodes[i]->region_id);
+            plot_text_into_file(filename, number, b.min_lon, b.max_lon, b.min_lat, b.max_lat, PDLN_PLOT_COLOR_RED);
         }
     }
 }
@@ -2472,12 +2446,4 @@ void Grid_info_manager::set_grid_boundry(int grid_id, double mi_lon, double ma_l
 bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {
     return true;
-}
-int Grid_info_manager::get_polar_points(int grid_id, char polar)
-{
-    if(polar == 'S')
-        return 0;
-    if(polar == 'N')
-        return 0;
-    return 0;
 }
