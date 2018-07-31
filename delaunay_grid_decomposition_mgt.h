@@ -95,7 +95,6 @@ public:
     void add_expanded_points(double *, double *, int*, int);
     void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
-    bool check_if_all_outer_edge_out_of_kernel_boundry(Boundry *, bool);
     void init_num_neighbors_on_boundry(int);
     bool expanding_success(Boundry *, Boundry *);
     void reduce_num_neighbors_on_boundry(unsigned);
