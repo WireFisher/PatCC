@@ -102,8 +102,6 @@ void Component::grid_pretreatment(int grid_id)
     double **coord_values;
     int num_points;
     bool is_cyclic;
-    int num_npolar, num_spolar;
-    double max_lat_without_polar, min_lat_without_polar;
 
     grid_info_mgr->get_grid_boundry(grid_id, &min_lon, &max_lon, &min_lat, &max_lat);
     coord_values = grid_info_mgr->get_grid_coord_values(grid_id);
@@ -136,7 +134,7 @@ void Component::grid_pretreatment(int grid_id)
     //double tmp;
     //swap(global_p_lon[2], global_p_lon[3]);
     //swap(global_p_lat[2], global_p_lat[3]);
-    if(is_cyclic)
+    if(is_cyclic) {
         if(!(min_lon >= 0 && min_lon <=360 && max_lon >=0 && max_lon <= 360)) {
             for(int i = 0; i < num_points; i++) {
                 while(coord_values[PDLN_LON][i] >= 360) coord_values[PDLN_LON][i] -= 360;
@@ -146,6 +144,7 @@ void Component::grid_pretreatment(int grid_id)
             max_lon = 360;
             grid_info_mgr->set_grid_boundry(grid_id, min_lon, max_lon, min_lat, max_lat);
         }
+    }
     /* deal with non-monotonic grid */
     else if(min_lon > max_lon) {
         assert(min_lon >= 0 && min_lon <= 360);

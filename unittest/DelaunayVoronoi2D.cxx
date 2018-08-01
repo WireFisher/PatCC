@@ -128,12 +128,11 @@ static inline void do_triangulation_plot_small_part(int num_points, double *lat_
 TEST(DelaunayTriangulationTest, Rectangle) {
     int len_points = 10;
     int num_points = len_points * len_points;
-    int num_part;
     double min_lat = 0.0;
     double max_lat = 150.0;
     double min_lon = 0.0;
     double max_lon = 150.0;
-    double *lat, *lon, *lat_part, *lon_part;
+    double *lat, *lon;
     bool *redundant_cell_mark;
 
     lat = new double[num_points];
@@ -156,12 +155,11 @@ TEST(DelaunayTriangulationTest, Rectangle) {
 TEST(DelaunayTriangulationTest, ObliqueRectangle) {
     int len_points = 10;
     int num_points = len_points * len_points;
-    int num_part;
     double min_lat = 0.0;
     double max_lat = 150.0;
     double min_lon = 0.0;
     double max_lon = 315.0;
-    double *lat, *lon, *lat_part, *lon_part;
+    double *lat, *lon;
     bool *redundant_cell_mark;
 
     lat = new double[num_points];
@@ -188,12 +186,11 @@ TEST(DelaunayTriangulationTest, ObliqueRectangle) {
 
 TEST(DelaunayTriangulationTest, RandomSmallSize) {
     int num_points = 25;
-    int num_part;
     double min_lat = 0.0;
     double max_lat = 160.0;
     double min_lon = 0.0;
     double max_lon = 160.0;
-    double *lat, *lon, *lat_part, *lon_part;
+    double *lat, *lon;
     bool *redundant_cell_mark;
 
     lat = new double[num_points];
@@ -279,12 +276,11 @@ TEST(DelaunayTriangulationTest, RandomMiddleSize) {
 TEST(DelaunayTriangulationTest, RandomLargeSize) {
     //int num_points = 1000000;
     int num_points = 1600000;
-    int num_part;
     double min_lat = 0.0;
     double max_lat = 350.0;
     double min_lon = 0.0;
     double max_lon = 350.0;
-    double *lat, *lon, *lat_part, *lon_part;
+    double *lat, *lon;
     bool *redundant_cell_mark;
 
     lat = new double[num_points];

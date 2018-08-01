@@ -149,14 +149,8 @@ class Delaunay_Voronoi
         const double *y_ref;
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
-        Point *generate_boundary_point(double, double, Triangle*, bool);
-        void generate_initial_triangles(Triangle*, vector<Point*>*, vector<Point*>*, bool);
         void triangularization_process(Triangle*);
         void distribute_points_into_triangles(vector<Point*>*, vector<Triangle*>*);
-        Triangle *search_triangle_with_point(Triangle*, const Point *pt);
-        void generate_Voronoi_diagram();
-        void extract_vertex_coordinate_values(int, bool, double**, double**, int*);
-        void get_convex_set(int, double*, double*, double, double, int &, int **);
         vector<Triangle*> generate_initial_triangles(int, double*, double*, bool*);
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);

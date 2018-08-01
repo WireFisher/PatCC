@@ -244,6 +244,7 @@ inline void calculate_circle_center(double x[3], double y[3], double *center_x, 
 extern double global_p_lon[4];
 extern double global_p_lat[4];
 #define PDLN_INSERT_VIRTUAL_POINT (true)
+#define PDLN_REMOVE_UNNECESSARY_TRIANGLES (false)
 void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inserted)
 {
     delete triangulation;
@@ -289,24 +290,21 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 
             //triangulation->plot_projection_into_file(filename);
 
-            if(real_boundry->min_lat < 0) {
+            if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->min_lat < 0) {
                 calculate_stereographic_projection(0, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
                 calculate_stereographic_projection(90, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[1], y[1]);
                 calculate_stereographic_projection(180, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[2], y[2]);
 
                 calculate_circle_center(x, y, &circle_center.x, &circle_center.y);
-
                 radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
 
                 if(radius < 100) {
                     //printf("[%d] + circle_center: (%lf, %lf), point: (%lf, %lf) radius: %lf\n", rank, circle_center.x, circle_center.y, x[2], y[2], radius);
                     triangulation->remove_triangles_in_circle(circle_center, radius);
-
                     double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
                     double head_lon, head_lat, tail_lon, tail_lat;
                     calculate_stereographic_projection(lon, -center[PDLN_LAT]-20 , center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
                     calculate_stereographic_projection(lon, real_boundry->min_lat, center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
-
                     //printf("[%d]real: (%lf, %lf, %lf, %lf), (%lf, %lf) -- (%lf, %lf)\n", rank, real_boundry->min_lon, real_boundry->max_lon,
                     //                                                               real_boundry->min_lat, real_boundry->max_lat,
                     //                                                             head_lon, head_lat, tail_lon, tail_lat);
@@ -314,23 +312,20 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
                 }
             }
 
-            if(real_boundry->max_lat > 0) {
+            if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->max_lat > 0) {
                 calculate_stereographic_projection(0, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
                 calculate_stereographic_projection(90, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[1], y[1]);
                 calculate_stereographic_projection(180, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[2], y[2]);
 
                 calculate_circle_center(x, y, &circle_center.x, &circle_center.y);
-
                 radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
 
                 if(radius < 100) {
                     triangulation->remove_triangles_in_circle(circle_center, radius);
-
                     double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
                     double head_lon, head_lat, tail_lon, tail_lat;
                     calculate_stereographic_projection(lon, real_boundry->max_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
                     calculate_stereographic_projection(lon, -center[PDLN_LAT]+20 , center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
-
                     triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
                 }
             }
@@ -409,7 +404,7 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
 {
     double length[2], boundry_values[4], child_total_workload[2];
     Midline midline;
-    unsigned int i;
+    unsigned i;
     int iteration_count;
 
     assert(region_ids.size() > 1);
@@ -1526,7 +1521,6 @@ int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
 
     double min_lon, max_lon, min_lat, max_lat;
     grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
-    bool is_non_monotonic = min_lon > max_lon;
 
     if(assign_polars(std::abs(min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR, std::abs(max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR))
         return 1;
@@ -1613,6 +1607,7 @@ double Search_tree_node::load_polars_info()
         }
         return PDLN_DOUBLE_INVALID_VALUE;
     }
+    return PDLN_DOUBLE_INVALID_VALUE;
 }
 
 
@@ -1935,7 +1930,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             printf("111\n");
             break;
         }
-        /* TODO: allgather ret */
 
         #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {

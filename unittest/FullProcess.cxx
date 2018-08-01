@@ -711,7 +711,7 @@ void prepare_dim1_grid(const char grid_name[])
     if(max_lat > 90) max_lat = 90;
     assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
 
-    for(int i = 0; i < sizeof(dim1_global_grid_name)/64; i++)
+    for(unsigned i = 0; i < sizeof(dim1_global_grid_name)/64; i++)
         if(strncmp(grid_name, dim1_global_grid_name[i], 64) == 0) {
             min_lon = 0;
             max_lon = 360;
@@ -824,9 +824,9 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
             if(mpi_rank == 0 && strncmp(md5[0], md5[1], 64) == 0) {
                 char cmd[256];
-                snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", dim1_grid_name[i], dim1_grid_name[i]);
+                snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", dim1_grid_name[i]);
                 system(cmd);
-                snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", dim1_grid_name[i], dim1_grid_name[i]);
+                snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", dim1_grid_name[i]);
                 system(cmd);
             }
         }

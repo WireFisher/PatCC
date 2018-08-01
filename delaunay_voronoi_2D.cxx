@@ -915,16 +915,16 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
     dy = maxY - minY;
     deltaMax = std::max(dx, dy);
 
-    double v_minx, v_maxx, v_miny, v_maxy;
-    v_minx = minX-deltaMax*0.1;
-    v_maxx = maxX+deltaMax*0.1;
-    v_miny = minY-deltaMax*0.1;
-    v_maxy = maxY+deltaMax*0.1;
+    double ratio  = 0.1;
+    double v_minx = minX-deltaMax*ratio;
+    double v_maxx = maxX+deltaMax*ratio;
+    double v_miny = minY-deltaMax*ratio;
+    double v_maxy = maxY+deltaMax*ratio;
 
-    virtual_point[0] = new Point(minX-deltaMax*0.01, minY-deltaMax*0.01, -1);
-    virtual_point[1] = new Point(minX-deltaMax*0.01, maxY+deltaMax*0.01, -1);
-    virtual_point[2] = new Point(maxX+deltaMax*0.01, minY-deltaMax*0.01, -1);
-    virtual_point[3] = new Point(maxX+deltaMax*0.01, maxY+deltaMax*0.01, -1);
+    virtual_point[0] = new Point(minX-deltaMax*ratio, minY-deltaMax*ratio, -1);
+    virtual_point[1] = new Point(minX-deltaMax*ratio, maxY+deltaMax*ratio, -1);
+    virtual_point[2] = new Point(maxX+deltaMax*ratio, minY-deltaMax*ratio, -1);
+    virtual_point[3] = new Point(maxX+deltaMax*ratio, maxY+deltaMax*ratio, -1);
 
     virtual_triangles.push_back(allocate_Triangle(allocate_edge(virtual_point[0], virtual_point[2]),
                                                   allocate_edge(virtual_point[2], virtual_point[1]),

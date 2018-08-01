@@ -59,7 +59,7 @@ static void get_boundry(int grid_id, double* min_lon, double* max_lon, double* m
     *max_lon = 360.0;
 }
 
-TEST(GridTest, SmallRegion) {
+TEST(GridDecompositionTest, Plot) {
     int nums_thread[10] = {16, 32, 10, 1, 40, 11, 17, 19, 7, 4};
     int num_thread;
     int total_num_threads = 0;
@@ -88,11 +88,12 @@ TEST(GridTest, SmallRegion) {
     int num_points = size * size;
     coord_values[0] = new double[num_points]();
     coord_values[1] = new double[num_points]();
-    for(int i = 0; i < size; i++)
+    for(int i = 0; i < size; i++) {
         for(int j = 0; j < size; j++) {
             coord_values[0][i * size + j] = 0.0  + 360.0 * j / (size);
             coord_values[1][i * size + j] = -90.0 + 180.0 * i / (size-1);
         }
+    }
     ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
         .WillByDefault(Return(coord_values));
 
