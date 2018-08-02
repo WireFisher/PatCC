@@ -8,7 +8,7 @@
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
 
-class Mock_Process_thread_manager2 : public Process_thread_manager//_base
+class Mock_Process_thread_manager5 : public Process_thread_manager//_base
 {
 public:
     MOCK_METHOD2(get_hostname, void(char* hostname, int len));
@@ -59,11 +59,11 @@ static void get_boundry(int grid_id, double* min_lon, double* max_lon, double* m
     *max_lon = 360.0;
 }
 
-TEST(GridDecompositionTest, Plot) {
+TEST(GridDecompTest, Plot) {
     int nums_thread[10] = {16, 32, 10, 1, 40, 11, 17, 19, 7, 4};
     int num_thread;
     int total_num_threads = 0;
-    NiceMock<Mock_Process_thread_manager2> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager2>;
+    NiceMock<Mock_Process_thread_manager5> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager5>;
     NiceMock<Mock_Grid_info_manager> *mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager>;
     process_thread_mgr = mock_process_thread_manager;
     grid_info_mgr = mock_grid_info_manager;
