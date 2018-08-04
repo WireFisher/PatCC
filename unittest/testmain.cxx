@@ -5,6 +5,8 @@
 #include "../processing_unit_mgt.h"
 #include "../delaunay_grid_decomposition_mgt.h"
 
+Grid_info_manager *grid_info_mgr;
+Process_thread_manager *process_thread_mgr;
 
 int main(int argc, char** argv) {
     int result = 0;

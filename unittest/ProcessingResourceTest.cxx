@@ -5,8 +5,8 @@
 #include "../processing_unit_mgt.h"
 #include "../delaunay_grid_decomposition_mgt.h"
 
-Grid_info_manager *grid_info_mgr;
-Process_thread_manager *process_thread_mgr;
+extern Grid_info_manager *grid_info_mgr;
+extern Process_thread_manager *process_thread_mgr;
 
 class Mock_Process_thread_manager : public Process_thread_manager//_base
 {
@@ -80,7 +80,6 @@ void setup_dependency(void(*func)(char*, int), int num_threads)
 {
     NiceMock<Mock_Process_thread_manager> *mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager>;
     process_thread_mgr = mock_process_thread_manager;
-    grid_info_mgr = new Grid_info_manager;
 
     ON_CALL(*mock_process_thread_manager, get_hostname(_, _))
         .WillByDefault(Invoke(*func));
@@ -196,7 +195,6 @@ TEST(ProcessingResourceTest, EmptyHostname) {
     check_proc_units(proc_resrc, num_different_hostnames, max_num_threads_per_proc);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
@@ -212,7 +210,6 @@ TEST(ProcessingResourceTest, DefaultHostname) {
     check_proc_units(proc_resrc, num_different_hostnames, max_num_threads_per_proc);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
@@ -228,7 +225,6 @@ TEST(ProcessingResourceTest, DifferentHostname) {
     check_proc_units(proc_resrc, num_different_hostnames, max_num_threads_per_proc);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
@@ -244,7 +240,6 @@ TEST(ProcessingResourceTest, ThreadNumOne) {
     check_proc_units(proc_resrc, num_different_hostnames, num_thread);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
@@ -260,7 +255,6 @@ TEST(ProcessingResourceTest, ThreadNumHundred) {
     check_proc_units(proc_resrc, num_different_hostnames, num_thread);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
@@ -276,7 +270,6 @@ TEST(ProcessingResourceTest, ThreadNumThousand) {
     check_proc_units(proc_resrc, num_different_hostnames, num_thread);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
@@ -292,7 +285,6 @@ TEST(ProcessingResourceTest, ThreadNumMillion) {
     check_proc_units(proc_resrc, num_different_hostnames, num_thread);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
@@ -319,7 +311,6 @@ TEST(ProcessingResourceTest, ThreadNumDifferent1) {
     check_proc_units(proc_resrc, num_different_hostnames, max_num_threads_per_proc);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
@@ -346,11 +337,10 @@ TEST(ProcessingResourceTest, ThreadNumDifferent2) {
     check_proc_units(proc_resrc, num_different_hostnames, max_num_threads_per_proc);
 
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
-TEST(ProcessingResourceTest, ActivedUnitsLT1) {
+TEST(ProcessingResourceTest, DISABLED_ActivedUnitsLT1) {
     int num_different_hostnames = 4;
     int nums_thread[10] = {1, 1, 4, 1, 1, 1, 1, 1, 1, 1};
     int max_num_threads_per_proc = 9;
@@ -378,11 +368,10 @@ TEST(ProcessingResourceTest, ActivedUnitsLT1) {
 
     delete active_flag;
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
-TEST(ProcessingResourceTest, ActivedUnitsLT2) {
+TEST(ProcessingResourceTest, DISABLED_ActivedUnitsLT2) {
     int num_different_hostnames = 4;
     int nums_thread[10] = {16, 32, 10, 40, 4, 11, 17, 1, 7, 19};
     int max_num_threads_per_proc = 40;
@@ -410,11 +399,10 @@ TEST(ProcessingResourceTest, ActivedUnitsLT2) {
 
     delete active_flag;
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
 
-TEST(ProcessingResourceTest, ActivedUnitsEQ) {
+TEST(ProcessingResourceTest, DISABLED_ActivedUnitsEQ) {
     int num_different_hostnames = 4;
     int nums_thread[10] = {16, 32, 10, 40, 4, 11, 17, 1, 7, 19};
     int max_num_threads_per_proc = 40;
@@ -442,6 +430,5 @@ TEST(ProcessingResourceTest, ActivedUnitsEQ) {
 
     delete active_flag;
     delete proc_resrc;
-    delete grid_info_mgr;
     delete process_thread_mgr;
 };
