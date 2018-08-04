@@ -211,8 +211,16 @@ int Point::position_to_edge(const Point *pt1, const Point *pt2) const
  */
 int Point::position_to_triangle(const Triangle *triangle) const
 {
-    int pos, ret = 0;
-    pos = position_to_edge(triangle->v[0], triangle->v[1]);
+#ifdef DEBUG
+    bool on1 = position_to_edge(triangle->v[0], triangle->v[1]) == 0;
+    bool on2 = position_to_edge(triangle->v[1], triangle->v[2]) == 0;
+    bool on3 = position_to_edge(triangle->v[2], triangle->v[0]) == 0;
+    assert(!(on1 && on2));
+    assert(!(on2 && on3));
+    assert(!(on3 && on1));
+#endif
+    int ret = 0;
+    int pos = position_to_edge(triangle->v[0], triangle->v[1]);
     if (pos == -1)
         return -1;
     else if (pos == 0)
@@ -308,16 +316,6 @@ bool Delaunay_Voronoi::is_angle_ambiguous(const Point *pt, const Edge *edge)
 }
 
 
-bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
-{
-    if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
-       edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
-        return false;
-    else {
-        return true;
-    }
-}
-
 /* Debug staff */
 int triangulate_count = 0;
 bool Print_Error_info=false;
@@ -348,8 +346,17 @@ extern double global_p_lat[4];
             is = true;
     }
 */
+
+enum REASON {
+    SUCCESS,
+    IN_CIRCUMCIRCLE,
+    AMBIGUOUS
+} reason;
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
+#ifdef DEBUG
+    reason = SUCCESS;
+#endif
     if (!edge->twin_edge) {
         return true;
     }
@@ -362,7 +369,7 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
         return true;
     }
 
-    int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
+    int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head, tolerance);
     if (ret == -1) {
         return true;
     }
@@ -371,7 +378,23 @@ bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
         return !is_angle_too_large(pt, edge);
     }
 
+#ifdef DEBUG
+    reason = IN_CIRCUMCIRCLE;
+#endif
     return false;
+}
+
+bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
+{
+    if(pt == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head) ||
+       edge->twin_edge->prev_edge_in_triangle->head == get_lowest_point_of_four(pt, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head))
+        return false;
+    else {
+#ifdef DEBUG
+        reason = AMBIGUOUS;
+#endif
+        return true;
+    }
 }
 
 bool Delaunay_Voronoi::is_triangle_ambiguous(const Point *pt, const Edge *edge)
@@ -401,7 +424,11 @@ bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 {
     for(int i = 0; i < 3; i++)
         if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i])) {
-            //printf("[%d] illegal triangle: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, t->v[0]->x, t->v[0]->y, t->v[1]->x, t->v[1]->y, t->v[2]->x, t->v[2]->y);
+            printf("[%d] +illegal triangle: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", 1, t->v[0]->x, t->v[0]->y, t->v[1]->x, t->v[1]->y, t->v[2]->x, t->v[2]->y);
+            Triangle *tt = t->edge[i]->twin_edge->triangle;
+            printf("[%d] -illegal triangle: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", 1, tt->v[0]->x, tt->v[0]->y, tt->v[1]->x, tt->v[1]->y, tt->v[2]->x, tt->v[2]->y);
+            printf("[%d] +: %d, -: %d\n", 1, t->is_leaf, tt->is_leaf);
+            printf("===============================================================\n");
             return false;
         }
     return true;
@@ -415,10 +442,11 @@ bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
     //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
 
     bool is_legal = true;
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
         if(result_leaf_triangles[i]->is_leaf)
             if(!is_triangle_legal(result_leaf_triangles[i])) {
                 is_legal = false;
+                //printf("illegal reason: %d\n", reason);
                 //fprintf(stderr, "[%d] illegal: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y);
             }
     if(is_legal)
@@ -642,8 +670,7 @@ int Triangle::circum_circle_contains(Point *p, double tolerance)
 {
     calulate_circum_circle();
     double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
-    if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance &&
-       really_on_circum_circle(p, tolerance))
+    if(really_on_circum_circle(p, tolerance))
         return 0;
     else if(dist2 < circum_radius*circum_radius)
         return 1;
@@ -763,7 +790,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
     
     best_candidate_point_id = triangle->find_best_candidate_point();
     best_candidate_point = triangle->remained_points_in_triangle[best_candidate_point_id];
-    triangle->remained_points_in_triangle.erase(triangle->remained_points_in_triangle.begin()+best_candidate_point_id);
+    triangle->remained_points_in_triangle.erase(triangle->remained_points_in_triangle.begin()+best_candidate_point_id); //TODO: erase is slow
 
     if (best_candidate_point->position_to_triangle(triangle) == 0) { //inside
         Edge *e_v1_can = allocate_edge(triangle->v[0], best_candidate_point);
@@ -996,7 +1023,7 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
                     if((*t)->edge[j]->twin_edge)
                         (*t)->edge[j]->twin_edge->twin_edge = NULL;
                 }
-                
+                (*t)->is_leaf = false;
                 result_leaf_triangles.erase(t); //TODO: erase is slow
                 contain = true;
                 break;
@@ -1012,6 +1039,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
                                    double min_lat, double max_lat, bool *redundant_cell_mark, int virtual_polar_local_index)
     : x_ref(x_origin)
     , y_ref(y_origin)
+    , tolerance(FLOAT_ERROR)
 {
     timeval start, end;
 
@@ -1045,7 +1073,8 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
-    //assert(is_all_leaf_triangle_legal());
+    //if(!is_all_leaf_triangle_legal())
+    //    printf("warning: illegal\n");
 
     gettimeofday(&end, NULL);
 }

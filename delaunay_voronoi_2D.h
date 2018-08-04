@@ -145,6 +145,7 @@ class Delaunay_Voronoi
         vector<Triangle*> triangles_containing_vpolar;
         double lat_nearest_vpolar;
         int vpolar_local_index;
+        double tolerance;
         const double *x_ref;
         const double *y_ref;
 
