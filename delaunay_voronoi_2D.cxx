@@ -211,7 +211,7 @@ int Point::position_to_edge(const Point *pt1, const Point *pt2) const
  */
 int Point::position_to_triangle(const Triangle *triangle) const
 {
-#ifdef DEBUG
+#ifdef DDEBUG
     bool on1 = position_to_edge(triangle->v[0], triangle->v[1]) == 0;
     bool on2 = position_to_edge(triangle->v[1], triangle->v[2]) == 0;
     bool on3 = position_to_edge(triangle->v[2], triangle->v[0]) == 0;
@@ -670,7 +670,8 @@ int Triangle::circum_circle_contains(Point *p, double tolerance)
 {
     calulate_circum_circle();
     double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
-    if(really_on_circum_circle(p, tolerance))
+    if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance &&
+       really_on_circum_circle(p, tolerance))
         return 0;
     else if(dist2 < circum_radius*circum_radius)
         return 1;
@@ -1037,9 +1038,9 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, const double *x_origin, const double *y_origin,
                                    int *global_idx, bool is_global_grid, double min_lon, double max_lon, 
                                    double min_lat, double max_lat, bool *redundant_cell_mark, int virtual_polar_local_index)
-    : x_ref(x_origin)
+    : tolerance(FLOAT_ERROR)
+    , x_ref(x_origin)
     , y_ref(y_origin)
-    , tolerance(FLOAT_ERROR)
 {
     timeval start, end;
 

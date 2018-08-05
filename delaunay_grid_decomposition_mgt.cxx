@@ -110,17 +110,20 @@ void Boundry::max(double min_lo, double max_lo, double min_la, double max_la)
 
 Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], int *global_index, int num_points, Boundry boundry, int type)
     : parent(p)
-    , num_kernel_points(num_points)
     , node_type(type)
-    , real_boundry(NULL)
+    , region_id(-1)
+    , kernel_boundry(NULL)
+    , expanded_boundry(NULL)
     , rotated_kernel_boundry(NULL)
     , rotated_expanded_boundry(NULL)
-    , triangulation(NULL)
-    , group_intervals(NULL)
+    , real_boundry(NULL)
     , len_expanded_points_coord_buf(0)
-    , num_rotated_points(0)
+    , num_kernel_points(num_points)
     , num_expanded_points(0)
+    , num_projected_points(0)
     , midline(Midline{-1, -361.0})
+    , group_intervals(NULL)
+    , triangulation(NULL)
     , virtual_point_local_index(-1)
 {
     children[0] = NULL;
@@ -287,7 +290,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             double x[3], y[3];
 
             calculate_real_boundary();
-
             //triangulation->plot_projection_into_file(filename);
 
             if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->min_lat < 0) {
@@ -721,20 +723,20 @@ void Search_tree_node::project_grid()
                                                projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
         }
 
-        num_rotated_points = num_kernel_points + num_expanded_points;
+        num_projected_points = num_kernel_points + num_expanded_points;
     }
     else {
         #pragma omp parallel for
-        for(int i = num_rotated_points; i < num_kernel_points + num_expanded_points; i++) {
+        for(int i = num_projected_points; i < num_kernel_points + num_expanded_points; i++) {
             calculate_stereographic_projection(points_coord[PDLN_LON][i], points_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
                                                projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
         }
-        num_rotated_points = num_kernel_points + num_expanded_points;
+        num_projected_points = num_kernel_points + num_expanded_points;
     }
 
     /* recalculate expanded boundary */
     double top = -1e20, bot = 1e20, left = 1e20, right = -1e20;
-    for(int i = 0; i < num_rotated_points; i++) { //TODO: i can be started from non-zero
+    for(int i = 0; i < num_projected_points; i++) { //TODO: i can be started from non-zero
         if (projected_coord[PDLN_LON][i] < left)  left = projected_coord[PDLN_LON][i];
         if (projected_coord[PDLN_LON][i] > right) right = projected_coord[PDLN_LON][i];
         if (projected_coord[PDLN_LAT][i] < bot) bot = projected_coord[PDLN_LAT][i];
@@ -1506,7 +1508,7 @@ void Delaunay_grid_decomposition::decompose_with_fixed_longitude(double fixed_lo
 bool Delaunay_grid_decomposition::have_local_region_ids(vector<int> chunk_id)
 {
     for(int j = 0; j < processing_info->get_num_local_proc_processing_units(); j++)
-        for(unsigned int i = 0; i < chunk_id.size(); i++)
+        for(unsigned i = 0; i < chunk_id.size(); i++)
             if(regionID_to_unitID[chunk_id[i]] == processing_info->get_local_proc_common_id()[j])
                 return true;
 

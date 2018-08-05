@@ -42,40 +42,50 @@ public:
     void max(double, double, double, double);
 };
 
+class Search_tree_node;
+typedef vector<pair<Search_tree_node*, bool> > Neighbors;
 
 class Search_tree_node {
 private:
-    friend class Delaunay_grid_decomposition;
     Search_tree_node *parent;
     Search_tree_node *children[3];
-    Boundry *kernel_boundry;
-    Boundry *expanded_boundry;
-    Boundry *rotated_kernel_boundry;
-    Boundry *rotated_expanded_boundry;
-    Boundry *real_boundry;
-    double center[2];
-    Midline midline;
-    double *points_coord[2]; //(clean after having children)
-    double *projected_coord[2];
-    int *points_global_index;
-    int len_expanded_points_coord_buf;
-    int num_kernel_points;
-    int num_expanded_points;
-    int num_rotated_points; /* kernel + part of expanded */
     int node_type;
-    bool non_monotonic;
-    vector<int> *polars_local_index;
-    int virtual_point_local_index;
+    int region_id;
+
+    Boundry* kernel_boundry;
+    Boundry* expanded_boundry;
+    Boundry* rotated_kernel_boundry;
+    Boundry* rotated_expanded_boundry;
+    Boundry* real_boundry;
+
+    double  center[2];
+    double* points_coord[2]; //(clean after having children)
+    double* projected_coord[2];
+    int*    points_global_index;
+
+    int     len_expanded_points_coord_buf;
+    int     num_kernel_points;
+    int     num_expanded_points;
+    int     num_projected_points; /* number of points already been projected, kernel + part of expanded */
+    bool    non_monotonic;
+    Midline midline;
+
+    vector<int> region_ids;
+    int*        group_intervals;
+    int         num_groups;
+
     int expanding_scale[4];
     int num_neighbors_on_boundry[4];
-    int region_id;
-    int *group_intervals;
-    int num_groups;
+    Neighbors neighbors;
+    Delaunay_Voronoi* triangulation;
+
+    vector<int>* polars_local_index;
+    int          virtual_point_local_index;
     
+
+    friend class Delaunay_grid_decomposition;
+
     void fix_view_point();
-    vector<int> region_ids;
-    vector<pair<Search_tree_node*, bool> > neighbors;
-    Delaunay_Voronoi *triangulation;
     void calculate_real_boundary();
     void fix_expanded_boundry(int index, int count);
     double load_polars_info();
@@ -110,8 +120,8 @@ public:
 
 class Delaunay_grid_decomposition {
 private:
-    Processing_resource *processing_info;
     int original_grid;
+    Processing_resource *processing_info;
     Search_tree_node *search_tree_root;
     Search_tree_node *current_tree_node;
     vector<Search_tree_node*> local_leaf_nodes;
