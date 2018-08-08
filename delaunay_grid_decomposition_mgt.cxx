@@ -753,8 +753,9 @@ void Search_tree_node::project_grid()
 Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_points_per_chunk)
     : original_grid(grid_id)
     , processing_info(proc_info)
-    , min_num_points_per_chunk(min_points_per_chunk)
+    , min_points_per_chunk(min_points_per_chunk)
     , workloads(NULL)
+    , average_workload(0)
     , regionID_to_unitID(NULL)
     , all_group_intervals(NULL)
 {
@@ -906,12 +907,12 @@ int Delaunay_grid_decomposition::insert_virtual_points(double *coord_values[2], 
 void Delaunay_grid_decomposition::initialze_workload()
 {
     std::vector<int> active_processing_common_id;
-    int max_num_punits      = (num_points + min_num_points_per_chunk - 1) / min_num_points_per_chunk;
+    int max_num_punits      = (num_points + min_points_per_chunk - 1) / min_points_per_chunk;
     int total_units         = processing_info->get_num_total_processing_units();
     int num_regions         = std::max(std::min(total_units, max_num_punits), 4);
-    double average_workload = (double)num_points / num_regions;
+    average_workload = (double)num_points / num_regions;
 
-    assert(min_num_points_per_chunk > 0);
+    assert(min_points_per_chunk > 0);
     delete[] regionID_to_unitID;
     delete[] workloads;
     regionID_to_unitID = new int[num_regions];
@@ -948,7 +949,7 @@ void Delaunay_grid_decomposition::initialze_workload()
 
 void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<int> &ids)
 {
-    /* NOTE: This will make the final workload of leaf node not exactly more than min_num_points_per_chunk */
+    /* NOTE: This will make the final workload of leaf node not exactly more than min_points_per_chunk */
     if(ids.size() == 1) {
         workloads[ids[0]] = total_workload;
         return;
@@ -965,7 +966,7 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
         if(ids.size() < 2)
             break;
 
-        if(workloads[ids[i]] < min_num_points_per_chunk) {
+        if(workloads[ids[i]] < min_points_per_chunk) {
             double unassigned_workload = workloads[ids[i]];
             workloads[ids[i]] = 0;
             active_processing_units_flag[ids[i]] = false;
@@ -1350,12 +1351,12 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             midline.value = PDLN_SPOLAR_MAX_LAT;
             search_tree_root->split_local_points(midline, child_points_coord, child_points_index, child_num_points);
 
-            if(child_num_points[0] < min_num_points_per_chunk) {
+            if(child_num_points[0] < min_points_per_chunk) {
                 for(int i = 0; i < 4; i++)
                     delete[] child_points_coord[i];
                 delete[] child_points_index[0];
                 delete[] child_points_index[1];
-                printf("assign polars fault, %d vs %d\n", child_num_points[0], min_num_points_per_chunk);
+                printf("assign polars fault, %d vs %d\n", child_num_points[0], min_points_per_chunk);
                 return 1;
             }
             child_boundry[0].max_lat = PDLN_SPOLAR_MAX_LAT;
@@ -1395,12 +1396,12 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             midline.value = PDLN_NPOLAR_MIN_LAT;
             current_tree_node->split_local_points(midline, child_points_coord, child_points_index, child_num_points);
 
-            if(child_num_points[1] < min_num_points_per_chunk) {
+            if(child_num_points[1] < min_points_per_chunk) {
                 for(int i = 0; i < 4; i++)
                     delete[] child_points_coord[i];
                 delete[] child_points_index[0];
                 delete[] child_points_index[1];
-                printf("assign polars fault, %d vs %d\n", child_num_points[1], min_num_points_per_chunk);
+                printf("assign polars fault, %d vs %d\n", child_num_points[1], min_points_per_chunk);
                 return 1;
             }
             child_boundry[0].max_lat = PDLN_NPOLAR_MIN_LAT;
@@ -1613,7 +1614,6 @@ double Search_tree_node::load_polars_info()
 }
 
 
-#define PDLN_EXPANDING_RATIO (DEFAULT_EXPANGDING_RATIO*2)
 Boundry Search_tree_node::expand()
 {
     Boundry expanded = *expanded_boundry;
@@ -1660,6 +1660,11 @@ void Search_tree_node::set_groups(int *intervals, int num)
 
 int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
 {
+    int sides = 0;
+    for (unsigned i = 0; i < 4; i++)
+        if (tree_node->num_neighbors_on_boundry[i] > 0)
+            sides++;
+    int quota = average_workload * 0.1 / sides;
     int fail_count = 0;
     Boundry old_boundry, new_boundry;
     do {
@@ -1669,8 +1674,8 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
         new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
 
-        int rank;
-        MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
+        //int rank;
+        //MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
         //printf("[%d] old boundary: %lf, %lf, %lf, %lf\n", rank, old_boundry.min_lon, old_boundry.max_lon, old_boundry.min_lat, old_boundry.max_lat);
         //printf("[%d] new boundary: %lf, %lf, %lf, %lf\n", rank, new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         if(processing_info->get_num_total_processing_units() > 4 &&
@@ -2137,7 +2142,7 @@ void Delaunay_grid_decomposition::merge_all_triangles()
         for(int i = 1; i < processing_info->get_num_total_processes(); i++)
             MPI_Recv(&num_remote_triangles[i], 1, MPI_INT, i, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm(), &status);
         for(int i = 1; i < processing_info->get_num_total_processes(); i++) {
-            //assert(num_remote_triangles[i] > min_num_points_per_chunk/2);
+            //assert(num_remote_triangles[i] > min_points_per_chunk/2);
             remote_buf_len += num_remote_triangles[i];
         }
         remote_triangles = new Triangle_Transport[remote_buf_len + num_local_triangles];

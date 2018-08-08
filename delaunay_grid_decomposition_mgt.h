@@ -120,21 +120,26 @@ public:
 
 class Delaunay_grid_decomposition {
 private:
-    int original_grid;
-    Processing_resource *processing_info;
-    Search_tree_node *search_tree_root;
-    Search_tree_node *current_tree_node;
-    vector<Search_tree_node*> local_leaf_nodes;
-    int min_num_points_per_chunk;
-    bool is_cyclic;
-    bool *active_processing_units_flag;
-    double* workloads;
-    int num_inserted;
-    int num_points;
-    int *regionID_to_unitID;
-    unsigned *regionID_to_checksum;
+    Search_tree_node*         search_tree_root;
+    Search_tree_node*         current_tree_node;
     vector<Search_tree_node*> all_leaf_nodes;
-    int *all_group_intervals;
+    vector<Search_tree_node*> local_leaf_nodes;
+    int min_points_per_chunk;
+
+    /* grid info */
+    int  original_grid;
+    bool is_cyclic;
+    int  num_points;
+    int  num_inserted;
+
+    /* proc info */
+    Processing_resource* processing_info;
+    bool*     active_processing_units_flag;
+    double*   workloads;
+    double    average_workload;
+    int*      regionID_to_unitID;
+    unsigned* regionID_to_checksum;
+    int*      all_group_intervals;
     
     void initialze_workload();
     int assign_polars(bool, bool);
