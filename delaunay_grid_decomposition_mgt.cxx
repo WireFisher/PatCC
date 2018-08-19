@@ -20,7 +20,7 @@
 #include "netcdf_utils.h"
 #include "opencv_utils.h"
 
-#define DEFAULT_EXPANGDING_RATIO (0.2)
+#define PDLN_DEFAULT_EXPANGDING_RATIO (0.2)
 #define PDLN_EXPECTED_EXPANDING_LOOP_TIMES (3)
 
 #define PDLN_SPOLAR_MAX_LAT (-19.47)
@@ -1914,7 +1914,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
     int iter = 0;
     bool all_finished = false;
-    double expanding_ratio = DEFAULT_EXPANGDING_RATIO;
+    double expanding_ratio = PDLN_DEFAULT_EXPANGDING_RATIO;
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
         local_leaf_nodes[i]->init_num_neighbors_on_boundry(1);
 
@@ -1934,7 +1934,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, processing_info->get_mpi_comm());
         if(all_ret) {
             all_finished = false;
-            printf("111\n");
             break;
         }
 
@@ -2077,10 +2076,52 @@ void Delaunay_grid_decomposition::plot_grid_decomposition(const char *filename)
 }
 
 
-void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Transport *triangles, int num_triangles)
+void delete_redundent_triangles(Triangle_Transport *&all_triangles, int &num)
 {
-    sort_triangles(triangles, num_triangles);
+    std::tr1::unordered_map<Triangle_Transport, std::list<int> > hash_table;
+    std::tr1::unordered_map<Triangle_Transport, std::list<int> >::iterator it_hash;
 
+    if(num == 0)
+        return;
+
+    Triangle_Transport *tmp_triangles = new Triangle_Transport[num];
+
+    int count = 0;
+    for(int i = 0; i < num; i++) {
+        it_hash = hash_table.find(all_triangles[i]);
+        if(it_hash != hash_table.end()) {
+            bool same = false;
+            for(std::list<int>::iterator it_list = it_hash->second.begin(); it_list != it_hash->second.end(); it_list ++)
+                if(all_triangles[*it_list] == all_triangles[i]) {
+                    same = true;
+                    break;
+                }
+            if(same)
+                continue;
+            else {
+                it_hash->second.push_back(i);
+                tmp_triangles[count++] = all_triangles[i];
+            }
+        }
+        else {
+            hash_table[all_triangles[i]].push_back(i);
+            tmp_triangles[count++] = all_triangles[i];
+        }
+    }
+
+    delete[] all_triangles;
+    all_triangles = tmp_triangles;
+    num = count;
+
+    return;
+}
+
+
+void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Transport *&triangles, int num_triangles)
+{
+    /*
+    sort_points_in_triangle(triangles, num_triangles);
+    sort_triangles(triangles, num_triangles);
     int i, j;
     for(i = 0, j = 1; j < num_triangles; j++) {
         if(triangles[i].v[0].id == triangles[j].v[0].id &&
@@ -2092,12 +2133,15 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
             triangles[++i] = triangles[j];
     }
     int num_different_triangles = i + 1;
+    */
+    delete_redundent_triangles(triangles, num_triangles);
+    int num_different_triangles = num_triangles;
     
     char file_fmt[] = "log/global_triangles_%d";
     char filename[64];
     snprintf(filename, 64, file_fmt, processing_info->get_num_total_processing_units());
     FILE *fp = fopen(filename, "w");
-    for(i = 0; i < num_different_triangles; i++)
+    for(int i = 0; i < num_different_triangles; i++)
         fprintf(fp, "%d, %d, %d, (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id,
                                                                         triangles[i].v[0].x, triangles[i].v[0].y,
                                                                         triangles[i].v[1].x, triangles[i].v[1].y,
@@ -2106,7 +2150,7 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
 
     char file_fmt2[] = "log/image_global_triangles_%d";
     snprintf(filename, 64, file_fmt2, processing_info->get_num_total_processing_units());
-    plot_triangles_into_file(filename, triangles, num_different_triangles, true);
+    //plot_triangles_into_file(filename, triangles, num_different_triangles, true);
 }
 
 
@@ -2136,7 +2180,6 @@ void Delaunay_grid_decomposition::merge_all_triangles()
     if(processing_info->get_local_process_id() == 0) {
         int *num_remote_triangles = new int[processing_info->get_num_total_processes()];
         int remote_buf_len = 0;
-        Triangle_Transport *remote_triangles;
         MPI_Status status;
 
         for(int i = 1; i < processing_info->get_num_total_processes(); i++)
@@ -2145,7 +2188,7 @@ void Delaunay_grid_decomposition::merge_all_triangles()
             //assert(num_remote_triangles[i] > min_points_per_chunk/2);
             remote_buf_len += num_remote_triangles[i];
         }
-        remote_triangles = new Triangle_Transport[remote_buf_len + num_local_triangles];
+        Triangle_Transport *remote_triangles = new Triangle_Transport[remote_buf_len + num_local_triangles];
 
         int count = 0;
         for(int i = 1; i < processing_info->get_num_total_processes(); i++) {
@@ -2170,6 +2213,8 @@ void Delaunay_grid_decomposition::merge_all_triangles()
         assert(count == remote_buf_len);
         memcpy(remote_triangles + remote_buf_len, local_triangles, num_local_triangles * sizeof(Triangle_Transport));
         save_ordered_triangles_into_file(remote_triangles, remote_buf_len + num_local_triangles);
+        delete[] remote_triangles;
+        delete[] num_remote_triangles;
     }
     else {
         MPI_Send(&num_local_triangles, 1, MPI_INT, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());

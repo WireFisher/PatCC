@@ -107,14 +107,18 @@ static inline void radix_sort(Triangle_Transport *triangles, int num_triangles)
 }
 
 
-void sort_triangles(Triangle_Transport *triangles, int num_triangles)
+void sort_points_in_triangle(Triangle_Transport *triangles, int num_triangles)
 {
     for(int i = 0; i < num_triangles; i++) {
         if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
         if(triangles[i].v[1].id > triangles[i].v[2].id) swap(&triangles[i].v[1], &triangles[i].v[2]);
         if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
     }
+}
 
+
+void sort_triangles(Triangle_Transport *triangles, int num_triangles)
+{
     radix_sort(triangles, num_triangles);
 }
 
@@ -1151,11 +1155,11 @@ void delete_redundent_points(double *&x, double *&y, int &num)
     double *tmp_x, *tmp_y;
     int count = 0;
 
-    tmp_x = new double[num];
-    tmp_y = new double[num];
-
     if(num == 0)
         return;
+
+    tmp_x = new double[num];
+    tmp_y = new double[num];
 
     for(int i = 0; i < num; i++) {
         it_hash = hash_table.find(x[i] * 1000.0 + y[i]);
@@ -1594,6 +1598,7 @@ unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_Transport *tria
     if(num_triangles < 1)
         return PDLN_CHECKSUM_FALSE;
 
+    sort_points_in_triangle(triangles, num_triangles);
     sort_triangles(triangles, num_triangles);
 
     int checksum = hash_triangle_by_id(triangles[0]);

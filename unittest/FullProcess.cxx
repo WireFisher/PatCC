@@ -657,94 +657,189 @@ void prepare_dim1_grid(const char grid_name[])
     char lat_unit[32];
     int squeeze_ratio = 0;
 
-    if(strncmp(grid_name, "ar9v4_100920.nc", 15) == 0)
-        squeeze_ratio = 100;
-    if(strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0)
-        squeeze_ratio = 10;
+    if (mpi_rank == 0) {
+        if(strncmp(grid_name, "ar9v4_100920.nc", 15) == 0)
+            squeeze_ratio = 100;
+        if(strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0)
+            squeeze_ratio = 10;
 
-    snprintf(fullname, 128, dim1_grid_path, grid_name);
-    read_file_field_as_double(fullname, "grid_center_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size, lon_unit);
-    delete dim_size_ptr;
-    read_file_field_as_double(fullname, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
-    delete dim_size_ptr;
+        snprintf(fullname, 128, dim1_grid_path, grid_name);
+        read_file_field_as_double(fullname, "grid_center_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size, lon_unit);
+        delete dim_size_ptr;
+        read_file_field_as_double(fullname, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
+        delete dim_size_ptr;
 
-    ASSERT_EQ(field_size, field_size2);
-    num_points = field_size;
-    coord_values[PDLN_LON] = (double*)coord_buf0;
-    coord_values[PDLN_LAT] = (double*)coord_buf1;
+        ASSERT_EQ(field_size, field_size2);
+        num_points = field_size;
+        coord_values[PDLN_LON] = (double*)coord_buf0;
+        coord_values[PDLN_LAT] = (double*)coord_buf1;
 
-    min_lon = 1e10;
-    max_lon = -1e10;
-    min_lat = 1e10;
-    max_lat = -1e10;
+        min_lon = 1e10;
+        max_lon = -1e10;
+        min_lat = 1e10;
+        max_lat = -1e10;
 
-    bool convert = strncmp(lon_unit, "radians", 32) == 0;
-    for(int i = 0; i < num_points; i ++) {
-        if(convert) {
+        bool convert = strncmp(lon_unit, "radians", 32) == 0;
+        for(int i = 0; i < num_points; i ++) {
+            if(convert) {
+                coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
+                coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
+            }
+            while(coord_values[PDLN_LON][i] >= 360)
+                coord_values[PDLN_LON][i] -= 360;
+            if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
+            if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
+            if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
+            if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
+        }
+     
+        if(squeeze_ratio > 0) {
+            for(int i = 0; i < num_points/squeeze_ratio; i++) {
+                coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*squeeze_ratio];
+                coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*squeeze_ratio];
+            }
+            num_points = num_points/squeeze_ratio;
+        }
+
+        //printf("num points: %d\n", num_points);
+        //printf("point range: %lf, %.60lf, %lf, %lf\n", min_lon, max_lon, min_lat, max_lat);
+        max_point_lat = max_lat;
+        max_lon += 0.0001;
+        if(max_lon > 360) max_lon = 360;
+        max_lat += 0.0001;
+        if(max_lat > 90) max_lat = 90;
+        assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+
+        for(unsigned i = 0; i < sizeof(dim1_global_grid_name)/64; i++)
+            if(strncmp(grid_name, dim1_global_grid_name[i], 64) == 0) {
+                min_lon = 0;
+                max_lon = 360;
+                min_lat = -90;
+                max_lat = 90;
+                break;
+            }
+
+        if(strncmp(grid_name, "V3_Greenland_pole_x1_T_grid.nc", 64) == 0 ||
+           strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0 ||
+           strncmp(grid_name, "ar9v4_100920.nc", 64) == 0 ||
+           strncmp(grid_name, "gx3v5_Present_DP_x3.nc", 64) == 0) {
+                min_lon = 0;
+                max_lon = 360;
+                max_lat = 90;
+        }
+        if(strncmp(grid_name, "licom_eq1x1_degree_Grid.nc", 64) == 0 ||
+           strncmp(grid_name, "licom_gr1x1_degree_Grid.nc", 64) == 0 ||
+           strncmp(grid_name, "LICOM_P5_Grid.nc", 64) == 0) {
+                min_lon = 0;
+                max_lon = 360;
+                max_lat = 90;
+        }
+        if(strncmp(grid_name, "wr50a_090301.nc", 64) == 0) {
+            min_lon = -180;
+            max_lon = 180;
+            max_lat = 90;
+        }
+
+        if(fabs((max_lon - min_lon) - 360) < 0.5)
+            is_cyclic = true;
+        else
+            is_cyclic = false;
+    }
+
+    MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (mpi_rank != 0) {
+        coord_values[PDLN_LON] = new double[num_points];
+        coord_values[PDLN_LAT] = new double[num_points];
+    }
+    MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+    assert(sizeof(bool) == 1);
+#ifdef TIME_PERF
+    printf("[ - ] Total points: %d\n", num_points);
+#endif
+};
+
+const int scvt_grid_size[] = { 500000,
+                             };
+const char scvt_grid_name[][64] = { "500000.dat", 
+                                  };
+const char scvt_grid_path[] = "gridfile/scvt_grid/%s";
+void prepare_scvt_grid(const char grid_name[], int grid_size)
+{
+    char fullname[128];
+    int squeeze_ratio = 0;
+
+    if (mpi_rank == 0) {
+        snprintf(fullname, 128, scvt_grid_path, grid_name);
+        FILE *fp = fopen(fullname, "r");
+        if(!fp) {
+            fprintf(stderr, "can not find grid file\n");
+            return;
+        }
+        double *x = new double[grid_size];
+        double *y = new double[grid_size];
+        double *z = new double[grid_size];
+        for(int i = 0; i < grid_size; i++)
+            fscanf(fp, "%lf %lf %lf\n", &x[i], &y[i], &z[i]);
+        fclose(fp);
+
+        coord_values[PDLN_LON] = new double[grid_size];
+        coord_values[PDLN_LAT] = new double[grid_size];
+        for(int i = 0; i < grid_size; i++) {
+            coord_values[PDLN_LON][i] = atan2(y[i], x[i]);
+            coord_values[PDLN_LAT][i] = asin(z[i]);
+        }
+        delete[] x;
+        delete[] y;
+        delete[] z;
+
+        num_points = grid_size;
+
+        for(int i = 0; i < num_points; i ++) {
             coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
             coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
-            //printf("lat: %lf\n", coord_values[PDLN_LAT][i]);
+            while(coord_values[PDLN_LON][i] >= 360)
+                coord_values[PDLN_LON][i] -= 360;
+            while(coord_values[PDLN_LON][i] < 0)
+                coord_values[PDLN_LON][i] += 360;
         }
-        while(coord_values[PDLN_LON][i] >= 360)
-            coord_values[PDLN_LON][i] -= 360;
-        if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
-        if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
-        if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
-        if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
-        //printf("point: %.40lf, %.40lf\n", coord_values[PDLN_LON][i], coord_values[PDLN_LAT][i]);
-    }
- 
-    if(squeeze_ratio > 0) {
-        for(int i = 0; i < num_points/squeeze_ratio; i++) {
-            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*squeeze_ratio];
-            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*squeeze_ratio];
-        }
-        num_points = num_points/squeeze_ratio;
-    }
-
-    //printf("num points: %d\n", num_points);
-    //printf("point range: %lf, %.60lf, %lf, %lf\n", min_lon, max_lon, min_lat, max_lat);
-    max_point_lat = max_lat;
-    max_lon += 0.0001;
-    if(max_lon > 360) max_lon = 360;
-    max_lat += 0.0001;
-    if(max_lat > 90) max_lat = 90;
-    assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
-
-    for(unsigned i = 0; i < sizeof(dim1_global_grid_name)/64; i++)
-        if(strncmp(grid_name, dim1_global_grid_name[i], 64) == 0) {
-            min_lon = 0;
-            max_lon = 360;
-            min_lat = -90;
-            max_lat = 90;
-            break;
+     
+        if(squeeze_ratio > 0) {
+            for(int i = 0; i < num_points/squeeze_ratio; i++) {
+                coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*squeeze_ratio];
+                coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*squeeze_ratio];
+            }
+            num_points = num_points/squeeze_ratio;
         }
 
-    if(strncmp(grid_name, "V3_Greenland_pole_x1_T_grid.nc", 64) == 0 ||
-       strncmp(grid_name, "Version_3_of_Greenland_pole_x1_T-grid.nc", 64) == 0 ||
-       strncmp(grid_name, "ar9v4_100920.nc", 64) == 0 ||
-       strncmp(grid_name, "gx3v5_Present_DP_x3.nc", 64) == 0) {
-            min_lon = 0;
-            max_lon = 360;
-            max_lat = 90;
-    }
-    if(strncmp(grid_name, "licom_eq1x1_degree_Grid.nc", 64) == 0 ||
-       strncmp(grid_name, "licom_gr1x1_degree_Grid.nc", 64) == 0 ||
-       strncmp(grid_name, "LICOM_P5_Grid.nc", 64) == 0) {
-            min_lon = 0;
-            max_lon = 360;
-            max_lat = 90;
-    }
-    if(strncmp(grid_name, "wr50a_090301.nc", 64) == 0) {
-        min_lon = -180;
-        max_lon = 180;
+        //printf("num points: %d\n", num_points);
+        assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+
+        min_lon = 0;
+        max_lon = 360;
+        min_lat = -90;
         max_lat = 90;
+        is_cyclic = true;
     }
 
-    if(fabs((max_lon - min_lon) - 360) < 0.5)
-        is_cyclic = true;
-    else
-        is_cyclic = false;
+    MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (mpi_rank != 0) {
+        coord_values[PDLN_LON] = new double[num_points];
+        coord_values[PDLN_LAT] = new double[num_points];
+    }
+    MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+    assert(sizeof(bool) == 1);
 #ifdef TIME_PERF
     printf("[ - ] Total points: %d\n", num_points);
 #endif
@@ -765,7 +860,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
     ON_CALL(*mock_process_thread_manager, get_openmp_size())
         .WillByDefault(Return(num_thread));
 
-    for(int i = 0; i < sizeof(dim1_grid_name)/64; i++) {
+    for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
         printf("processing: %s\n", dim1_grid_name[i]);
         prepare_dim1_grid(dim1_grid_name[i]);
 
@@ -831,5 +926,50 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             }
         }
 
+    }
+};
+
+TEST_F(FullProcess, SCVTPoints) {
+    MPI_Barrier(MPI_COMM_WORLD);
+    const int num_thread = 1;
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    MPI_Comm split_world;
+    if (mpi_size/3 > 1)
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+
+    ON_CALL(*mock_process_thread_manager, get_openmp_size())
+        .WillByDefault(Return(num_thread));
+
+    for(unsigned i = 0; i < sizeof(scvt_grid_name)/64; i++) {
+        printf("processing: %s\n", scvt_grid_name[i]);
+        prepare_scvt_grid(scvt_grid_name[i], scvt_grid_size[i]);
+
+        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+            .WillByDefault(Return(comm));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
+            .WillByDefault(Return(coord_values));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
+            .WillByDefault(Return(num_points));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
+            .WillByDefault(Invoke(get_boundry));
+
+        ON_CALL(*mock_grid_info_manager, set_grid_boundry(1, _, _, _, _))
+            .WillByDefault(Invoke(set_boundry));
+
+        ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
+            .WillByDefault(Return(is_cyclic));
+
+        Component* comp;
+        comp = new Component(0);
+        comp->register_grid(new Grid(1));
+        int ret = comp->generate_delaunay_trianglulation(1);
+        EXPECT_EQ(ret, 0);
+        delete comp;
     }
 };

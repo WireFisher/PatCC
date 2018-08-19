@@ -169,7 +169,7 @@ private:
 
     /* debug */
     void print_tree_node_info_recursively(Search_tree_node*);
-    void save_ordered_triangles_into_file(Triangle_Transport *, int);
+    void save_ordered_triangles_into_file(Triangle_Transport *&, int);
 
 public:
     Delaunay_grid_decomposition(int, Processing_resource*, int);

@@ -38,6 +38,7 @@ class Point;
 class Triangle;
 class Triangle_Transport;
 
+void sort_points_in_triangle(Triangle_Transport*, int);
 void sort_triangles(Triangle_Transport*, int);
 
 class Point
