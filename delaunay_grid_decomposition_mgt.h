@@ -34,12 +34,15 @@ public:
     Boundry() {};
     Boundry(double l, double r, double b, double t): min_lon(l), max_lon(r), min_lat(b), max_lat(t) {};
     Boundry& operator* (double);
-    bool operator== (Boundry& boundry);
-    bool operator!= (Boundry& boundry);
-    bool operator<= (Boundry &boundry);
+    bool operator== (Boundry& boundry) const;
+    bool operator!= (Boundry& boundry) const;
+    bool operator<= (Boundry &boundry) const;
     void legalize();
     void legalize(const Boundry*, bool);
     void max(double, double, double, double);
+    void max(const Boundry);
+    void squeeze(const Boundry*, double);
+    void move_close(double**, int, int);
 };
 
 class Search_tree_node;
@@ -111,8 +114,9 @@ public:
     Boundry expand();
     void set_groups(int *, int);
 
-    void search_points_in_halo(Boundry *inner_boundary, Boundry *outer_boundary, double *coord_values[2], int *global_idx, int *num_points_found);
-    bool is_coordinate_in_halo(double x, double y, Boundry *inner, Boundry *outer);
+    static void search_points_in_halo(Boundry*, Boundry*, double*const *, const int*, int, double**, int*, int*);
+    void search_points_in_halo(Boundry*, Boundry*, double**, int*, int*);
+    static bool is_coordinate_in_halo(double x, double y, Boundry *inner, Boundry *outer);
 
     int get_num_kernel_points(){return num_kernel_points; };
     double** get_points_coord(){return points_coord; };
@@ -152,10 +156,13 @@ private:
     bool do_two_regions_overlap(Boundry, Boundry);
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, vector<int> &, int);
     int insert_virtual_points(double *coord_values[2], Boundry *boundry, int num_points);
+    vector<Search_tree_node*> adjust_expanding_boundry(Boundry*, Boundry*, double, double**, int*, int*);
+    //void search_halo_points();
 
     void add_halo_points(Search_tree_node*, Boundry*, Boundry*);
-    vector<Search_tree_node*> search_points_in_halo(Boundry*, Boundry*, double**, int*, int*);
+    vector<Search_tree_node*> search_halo_points_from_top(Boundry*, Boundry*, double**, int*, int*);
     void search_down_for_points_in_halo(Search_tree_node*, Boundry*, Boundry*, vector<Search_tree_node*>&, double **, int*, int*);
+    void search_halo_points_from_buf(Boundry*, Boundry*, double**, int*, int*);
 
     /* different decompositon consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
