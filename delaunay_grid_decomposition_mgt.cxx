@@ -93,7 +93,9 @@ void Boundry::squeeze(const Boundry *inner, double area_ratio)
 {
     double area_outter = (max_lat - min_lat) * (max_lon - min_lon);
     double area_inner  = (inner->max_lat - inner->min_lat) * (inner->max_lon - inner->min_lon);
-    double edge_ratio  = sqrt((area_outter + (area_ratio-1) * area_inner) / area_ratio / area_outter);
+    double edge_ratio  = sqrt(area_ratio * area_outter / (area_outter + (area_ratio-1) * area_inner));
+    printf("edge_ratio %lf\n", edge_ratio);
+    assert(edge_ratio >= 1);
 
 #ifdef DEBUG
     assert(*inner <= *this);
@@ -104,16 +106,19 @@ void Boundry::squeeze(const Boundry *inner, double area_ratio)
 #endif
     
     printf("old [%lf, %lf], [%lf, %lf]\n", min_lon, max_lon, min_lat, max_lat);
-    double delta = (1 - edge_ratio) / edge_ratio;
+    //double delta = (1 - edge_ratio) / edge_ratio;
+    double delta = (edge_ratio - 1) / edge_ratio;
     double lef_rate = (inner->min_lon - min_lon) / (max_lon - min_lon - inner->max_lon + inner->min_lon);
     double rit_rate = (max_lon - inner->max_lon) / (max_lon - min_lon - inner->max_lon + inner->min_lon);
     double bot_rate = (inner->min_lat - min_lat) / (max_lat - min_lat - inner->max_lat + inner->min_lat);
     double top_rate = (max_lat - inner->max_lat) / (max_lat - min_lat - inner->max_lat + inner->min_lat);
+    printf("delta: %lf\n", delta);
     if(fabs(max_lon - min_lon - inner->max_lon + inner->min_lon) < FLOAT_ERROR)
         lef_rate = rit_rate = 0;
     if(fabs(max_lat - min_lat - inner->max_lat + inner->min_lat) < FLOAT_ERROR)
         bot_rate = top_rate = 0;
 
+    assert(delta >= 0);
     min_lon += (max_lon - min_lon) * delta * lef_rate;
     max_lon -= (max_lon - min_lon) * delta * rit_rate;
     min_lat += (max_lat - min_lat) * delta * bot_rate;
@@ -1301,8 +1306,6 @@ namespace std
 #define PDLN_SET_TAG_DST(tag, id)       ((id<< 8&0x000FFF00) | tag)
 #define PDLN_SET_TAG(src, dst, iter)    (PDLN_SET_TAG_DST(PDLN_SET_TAG_SRC(PDLN_SET_TAG_ITER(iter), src), dst))
 
-
-
 void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree_node *leaf_node, unsigned *local_checksums,
                                                                      unsigned *remote_checksums, vector<MPI_Request*> *waiting_list, int iter)
 {
@@ -1315,6 +1318,7 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
 
     leaf_node->init_num_neighbors_on_boundry(0);
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
+        //printf("[%2d] neighbor ID: %2lu\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id);
         if(leaf_node->neighbors[i].second)
             continue;
 
@@ -1702,16 +1706,32 @@ Boundry Search_tree_node::expand()
 }
 
 
-bool Search_tree_node::expanding_success(Boundry *prev_expanded, Boundry *max_expanded)
+bool Search_tree_node::expanding_success(Boundry *prev_expanded, Boundry *max_expanded, bool is_cyclic)
 {
     if(expanded_boundry->min_lat < prev_expanded->min_lat || expanded_boundry->min_lat <= max_expanded->min_lat)
         num_neighbors_on_boundry[PDLN_DOWN] = 0;
+    else {
+        printf("down not\n");
+        num_neighbors_on_boundry[PDLN_DOWN] = 1;
+    }
     if(expanded_boundry->max_lat > prev_expanded->max_lat || expanded_boundry->max_lat >= max_expanded->max_lat)
         num_neighbors_on_boundry[PDLN_UP] = 0;
-    if(expanded_boundry->min_lon < prev_expanded->min_lon || expanded_boundry->min_lon <= max_expanded->min_lon)
+    else {
+        printf("up not\n");
+        num_neighbors_on_boundry[PDLN_UP] = 1;
+    }
+    if(node_type != PDLN_NODE_TYPE_COMMON || expanded_boundry->min_lon < prev_expanded->min_lon || (!is_cyclic && expanded_boundry->min_lon <= max_expanded->min_lon))
         num_neighbors_on_boundry[PDLN_LEFT] = 0;
-    if(expanded_boundry->max_lon > prev_expanded->max_lon || expanded_boundry->max_lon >= max_expanded->max_lon)
+    else {
+        printf("left not\n");
+        num_neighbors_on_boundry[PDLN_LEFT] = 1;
+    }
+    if(node_type != PDLN_NODE_TYPE_COMMON || expanded_boundry->max_lon > prev_expanded->max_lon || (!is_cyclic && expanded_boundry->max_lon >= max_expanded->max_lon))
         num_neighbors_on_boundry[PDLN_RIGHT] = 0;
+    else {
+        printf("right not\n");
+        num_neighbors_on_boundry[PDLN_RIGHT] = 1;
+    }
     return num_neighbors_on_boundry[PDLN_DOWN] == 0 && num_neighbors_on_boundry[PDLN_UP] == 0 &&
            num_neighbors_on_boundry[PDLN_LEFT] == 0 && num_neighbors_on_boundry[PDLN_RIGHT] == 0;
 }
@@ -1724,6 +1744,7 @@ void Search_tree_node::set_groups(int *intervals, int num)
 }
 
 
+#define PDLN_MIN_QUOTA (400.0)
 int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
 {
     double *expanded_coord[2];
@@ -1735,34 +1756,38 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     expanded_index    = new int[search_tree_root->num_kernel_points];
 
     vector<Search_tree_node*> leaf_nodes_found;
-    double quota = average_workload * expanding_ratio;
+    double quota = std::max(average_workload * expanding_ratio, PDLN_MIN_QUOTA);
     Boundry old_boundry, new_boundry;
     old_boundry = *tree_node->expanded_boundry;
     int fail_count = 0;
     do {
+        Boundry last_boundry = *tree_node->expanded_boundry;
         new_boundry = tree_node->expand();
         new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
 
         //int rank;
         //MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
         //printf("[%d] old boundary: %lf, %lf, %lf, %lf\n", rank, old_boundry.min_lon, old_boundry.max_lon, old_boundry.min_lat, old_boundry.max_lat);
-        //printf("[%d] new boundary: %lf, %lf, %lf, %lf\n", rank, new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
+        //printf("kern boundary: %lf, %lf, %lf, %lf\n", tree_node->kernel_boundry->min_lon, tree_node->kernel_boundry->max_lon, tree_node->kernel_boundry->min_lat, tree_node->kernel_boundry->max_lat);
+        //printf("new0 boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         if(processing_info->get_num_total_processing_units() > 4 &&
            new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
            new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
-            printf("expanged to the max1\n");
+            printf("expanded to the max1\n");
             return -1;
         }
         if(new_boundry == *search_tree_root->kernel_boundry || new_boundry.max_lon - new_boundry.min_lon > 360.0) {
-            printf("expanged to the max2\n");
+            printf("expanded to the max2\n");
             return -1;
         }
 
+        //printf("adjusting ID: %d\n", tree_node->region_id);
         leaf_nodes_found = adjust_expanding_boundry(&old_boundry, &new_boundry, quota, expanded_coord, expanded_index, &num_found);
+        //printf("new1 boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         //add_halo_points(tree_node, &old_boundry, &new_boundry);
         //printf("expanded boundry : %lf, %lf, %lf, %lf\n", tree_node->expanded_boundry->min_lon, tree_node->expanded_boundry->max_lon, tree_node->expanded_boundry->min_lat, tree_node->expanded_boundry->max_lat);
         //printf("root real boundry: %lf, %lf, %lf, %lf\n", search_tree_root->real_boundry->min_lon, search_tree_root->real_boundry->max_lon, search_tree_root->real_boundry->min_lat, search_tree_root->real_boundry->max_lat);
-        if(old_boundry == *tree_node->expanded_boundry)
+        if(last_boundry == *tree_node->expanded_boundry)
             fail_count ++;
         else
             fail_count = 0;
@@ -1771,7 +1796,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
             return -1;
         }
         *tree_node->expanded_boundry = new_boundry;
-    }while(!tree_node->expanding_success(&old_boundry, search_tree_root->real_boundry));
+    }while(!tree_node->expanding_success(&old_boundry, search_tree_root->real_boundry, is_cyclic));
 
     tree_node->add_expanded_points(expanded_coord, expanded_index, num_found);
     tree_node->add_neighbors(leaf_nodes_found);
@@ -1809,6 +1834,7 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
         outer->move_close(expanded_coord, 0, *num_found);
         outer->max(*inner);
     }
+    //printf("fnl [%lf, %lf], [%lf, %lf]\n", outer->min_lon, outer->max_lon, outer->min_lat, outer->max_lat);
     return leaf_nodes_found;
 }
 
@@ -2245,7 +2271,6 @@ void delete_redundent_triangles(Triangle_Transport *&all_triangles, int &num)
 
 void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Transport *&triangles, int num_triangles)
 {
-    /*
     sort_points_in_triangle(triangles, num_triangles);
     sort_triangles(triangles, num_triangles);
     int i, j;
@@ -2259,9 +2284,10 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
             triangles[++i] = triangles[j];
     }
     int num_different_triangles = i + 1;
-    */
+    /*
     delete_redundent_triangles(triangles, num_triangles);
     int num_different_triangles = num_triangles;
+    */
     
     char file_fmt[] = "log/global_triangles_%d";
     char filename[64];
