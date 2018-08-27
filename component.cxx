@@ -48,10 +48,14 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
 #ifdef TIME_PERF
         printf("[%3d] Grid decomposition: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
 #endif
+        //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
 
         gettimeofday(&start, NULL);
         ret = delaunay_triangulation->generate_trianglulation_for_local_decomp();
         gettimeofday(&end, NULL);
+        int all_ret = 0;
+        MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
+        ret = all_ret;
         //printf("[%3d] Trianglulation for local decomp: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
         /* Return Values: 0 - success
          *                1 - fail, normal decomp's expanded_boundry exceeded too large (expanding fail)
