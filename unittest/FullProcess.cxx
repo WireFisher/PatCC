@@ -623,8 +623,6 @@ const char dim1_grid_name[][64] = {
     "ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK | md5sum wrong: virtual p
     "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
     /*
-    */
-    /*
     "thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", ncfile float don't match double
     "tos_Omon_MPI-ESM-LR_historical_r1i1p1_185001-200512.nc",
     "tos_Omon_inmcm4_historical_r1i1p1_185001-200512.nc",
@@ -845,12 +843,13 @@ void prepare_scvt_grid(const char grid_name[], int grid_size)
 #endif
 };
 
-
+#include <unistd.h>
 TEST_F(FullProcess, ManyTypesOfGrids) {
     MPI_Barrier(MPI_COMM_WORLD);
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
+    printf("pid: %d\n", getpid());
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm split_world;
@@ -861,6 +860,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
         .WillByDefault(Return(num_thread));
 
     for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
+        MPI_Barrier(MPI_COMM_WORLD);
         printf("processing: %s\n", dim1_grid_name[i]);
         prepare_dim1_grid(dim1_grid_name[i]);
 
@@ -890,6 +890,8 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
         delete comp;
 
         if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+            printf("spliting world: %s\n", dim1_grid_name[i]);
+            MPI_Barrier(split_world);
             ON_CALL(*mock_process_thread_manager, get_mpi_comm())
                 .WillByDefault(Return(split_world));
 
@@ -900,30 +902,32 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
             delete comp;
 
-            int new_mpi_size;
-            MPI_Comm_size(split_world, &new_mpi_size);
+            if (mpi_rank == 0) {
+                int new_mpi_size;
+                MPI_Comm_size(split_world, &new_mpi_size);
 
-            FILE *fp;
-            char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-            char cmd[256];
-            snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
-
-            MPI_Barrier(split_world);
-            char md5[2][64];
-            memset(md5[0], 0, 64);
-            memset(md5[1], 0, 64);
-            fp = popen(cmd, "r");
-            fgets(md5[0], 64, fp);
-            fgets(md5[1], 64, fp);
-            EXPECT_STREQ(md5[0], md5[1]);
-
-            if(mpi_rank == 0 && strncmp(md5[0], md5[1], 64) == 0) {
+                FILE *fp;
+                char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
                 char cmd[256];
-                snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", dim1_grid_name[i]);
-                system(cmd);
-                snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", dim1_grid_name[i]);
-                system(cmd);
+                snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+
+                char md5[2][64];
+                memset(md5[0], 0, 64);
+                memset(md5[1], 0, 64);
+                fp = popen(cmd, "r");
+                fgets(md5[0], 64, fp);
+                fgets(md5[1], 64, fp);
+                EXPECT_STREQ(md5[0], md5[1]);
+
+                if(strncmp(md5[0], md5[1], 64) == 0) {
+                    char cmd[256];
+                    snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", dim1_grid_name[i]);
+                    system(cmd);
+                    snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", dim1_grid_name[i]);
+                    system(cmd);
+                }
             }
+            MPI_Barrier(split_world);
         }
 
     }
