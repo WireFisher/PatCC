@@ -34,9 +34,9 @@ public:
     Boundry() {};
     Boundry(double l, double r, double b, double t): min_lon(l), max_lon(r), min_lat(b), max_lat(t) {};
     Boundry& operator* (double);
-    bool operator== (Boundry& boundry) const;
-    bool operator!= (Boundry& boundry) const;
-    bool operator<= (Boundry &boundry) const;
+    bool operator== (const Boundry& boundry) const;
+    bool operator!= (const Boundry& boundry) const;
+    bool operator<= (const Boundry &boundry) const;
     void legalize();
     void legalize(const Boundry*, bool);
     void max(double, double, double, double);
@@ -78,13 +78,15 @@ private:
     int         num_groups;
 
     int expanding_scale[4];
-    int num_neighbors_on_boundry[4];
     Neighbors neighbors;
     Delaunay_Voronoi* triangulation;
 
     vector<int>* polars_local_index;
     int          virtual_point_local_index;
     
+    /* consistency check */
+    int num_neighbors_on_boundry[4];
+    int edge_expanding_count[4];
 
     friend class Delaunay_grid_decomposition;
 
@@ -109,14 +111,18 @@ public:
     void add_expanded_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
     void init_num_neighbors_on_boundry(int);
-    bool expanding_success(Boundry *, Boundry *);
+    bool expanding_success(Boundry *, Boundry *, bool);
+
     void reduce_num_neighbors_on_boundry(unsigned);
+    void clear_expanding_count(unsigned);
+
     Boundry expand();
     void set_groups(int *, int);
 
-    static void search_points_in_halo(Boundry*, Boundry*, double*const *, const int*, int, double**, int*, int*);
-    void search_points_in_halo(Boundry*, Boundry*, double**, int*, int*);
-    static bool is_coordinate_in_halo(double x, double y, Boundry *inner, Boundry *outer);
+    static void search_points_in_halo(const Boundry*, const Boundry*, double*const *, const int*, int, double**, int*, int*);
+    void search_points_in_halo(const Boundry*, const Boundry*, double**, int*, int*);
+    static bool is_coordinate_in_halo(double x, double y, const Boundry *inner, const Boundry *outer);
+    static void count_points(double**, int*, int, int, Midline, int*);
 
     int get_num_kernel_points(){return num_kernel_points; };
     double** get_points_coord(){return points_coord; };
@@ -144,7 +150,7 @@ private:
     int*      regionID_to_unitID;
     unsigned* regionID_to_checksum;
     int*      all_group_intervals;
-    
+
     void initialze_workload();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*, bool =true);
@@ -156,13 +162,18 @@ private:
     bool do_two_regions_overlap(Boundry, Boundry);
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, vector<int> &, int);
     int insert_virtual_points(double *coord_values[2], Boundry *boundry, int num_points);
-    vector<Search_tree_node*> adjust_expanding_boundry(Boundry*, Boundry*, double, double**, int*, int*);
+    vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double, double**, int*, int*);
     //void search_halo_points();
+    static double adjust_subrectangle(double, double, double**, int*, int, int, Boundry*, int, int);
 
     void add_halo_points(Search_tree_node*, Boundry*, Boundry*);
-    vector<Search_tree_node*> search_halo_points_from_top(Boundry*, Boundry*, double**, int*, int*);
-    void search_down_for_points_in_halo(Search_tree_node*, Boundry*, Boundry*, vector<Search_tree_node*>&, double **, int*, int*);
+    vector<Search_tree_node*> search_halo_points_from_top(const Boundry*, const Boundry*, double**, int*, int*);
+    void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>&, double **, int*, int*);
     void search_halo_points_from_buf(Boundry*, Boundry*, double**, int*, int*);
+
+    static void halo_to_rectangles(Boundry, Boundry, Boundry*);
+    static void rectangles_to_halo(Boundry*, Boundry*);
+    static int classify_points(double**, int*, int, Boundry, int);
 
     /* different decompositon consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
