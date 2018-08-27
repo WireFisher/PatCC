@@ -1590,7 +1590,7 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
 
 static inline unsigned hash_triangle_by_id(Triangle_Transport triangle)
 {
-    return triangle.v[0].id ^ (triangle.v[1].id << 1) ^ (triangle.v[2].id << 2);
+    return triangle.v[0].id ^ (triangle.v[1].id << 10) ^ (triangle.v[2].id << 20);
 }
 
 unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_Transport *triangles, int num_triangles)
