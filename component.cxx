@@ -80,10 +80,14 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
     return 0;
 }
 
+
+#ifdef OPENCV
 void Grid::plot_triangles_into_file()
 {
     this->delaunay_triangulation->plot_local_triangles("log/chunk");
 }
+#endif
+
 
 void Grid::merge_all_triangles()
 {
@@ -194,7 +198,9 @@ int Component::generate_delaunay_trianglulation(int grid_id)
 #ifdef TIME_PERF
     printf("[%3d] Full process: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
 #endif
+#ifdef OPENCV
     operating_grid->plot_triangles_into_file();
+#endif
     operating_grid->merge_all_triangles();
     return 0;
 }

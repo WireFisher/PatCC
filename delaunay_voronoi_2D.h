@@ -20,6 +20,9 @@
 
 #ifdef UNITTEST
 #include "gtest/gtest_prod.h"
+#endif
+
+#ifdef OPENCV
 #include "opencv2/opencv.hpp"
 #endif
 
@@ -64,7 +67,7 @@ class Point
 class Edge
 {
     private:
-#ifdef UNITTEST
+#ifdef OPENCV 
         friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
 #endif
         friend class Triangle;
@@ -199,11 +202,13 @@ class Delaunay_Voronoi
         void remove_triangles_till(int);
 
         /* debug */
+        void save_original_points_into_file();
+#ifdef OPENCV
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void plot_projection_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void plot_original_points_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
-        void save_original_points_into_file();
         void plot_current_step_into_file(const char*);
+#endif
 };
 
 class Triangle_Transport
@@ -215,8 +220,10 @@ class Triangle_Transport
         friend bool operator == (Triangle_Transport, Triangle_Transport);
 };
 
+#ifdef OPENCV
 void plot_triangles_into_file(const char *filename, Triangle_Transport *t, int num, bool plot_cyclic_triangles=true);
 void plot_triangles_into_file(const char *filename, std::vector<Triangle*>);
+#endif
 void save_triangles_info_file(const char *filename, Triangle_Transport *t, int num);
 
 #endif

@@ -2378,19 +2378,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_whole_grid()
 }
 
 
-void Delaunay_grid_decomposition::plot_local_triangles(const char *perfix)
-{
-    for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
-        char filename[64];
-        snprintf(filename, 64, "%s_%d.png", perfix, local_leaf_nodes[i]->region_id);
-        local_leaf_nodes[i]->triangulation->plot_into_file(filename, local_leaf_nodes[i]->kernel_boundry->min_lon,
-                                                                     local_leaf_nodes[i]->kernel_boundry->max_lon,
-                                                                     local_leaf_nodes[i]->kernel_boundry->min_lat,
-                                                                     local_leaf_nodes[i]->kernel_boundry->max_lat);
-    }
-}
-
-
 void Delaunay_grid_decomposition::print_tree_node_info_recursively(Search_tree_node *node)
 {
     if(node->region_ids.size() == 1){
@@ -2412,6 +2399,7 @@ void Delaunay_grid_decomposition::print_whole_search_tree_info()
 }
 
 
+#ifdef OPENCV
 void Delaunay_grid_decomposition::plot_grid_decomposition(const char *filename)
 {
     if (processing_info->get_local_process_id() == 0) {
@@ -2425,6 +2413,20 @@ void Delaunay_grid_decomposition::plot_grid_decomposition(const char *filename)
         }
     }
 }
+
+
+void Delaunay_grid_decomposition::plot_local_triangles(const char *perfix)
+{
+    for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
+        char filename[64];
+        snprintf(filename, 64, "%s_%d.png", perfix, local_leaf_nodes[i]->region_id);
+        local_leaf_nodes[i]->triangulation->plot_into_file(filename, local_leaf_nodes[i]->kernel_boundry->min_lon,
+                                                                     local_leaf_nodes[i]->kernel_boundry->max_lon,
+                                                                     local_leaf_nodes[i]->kernel_boundry->min_lat,
+                                                                     local_leaf_nodes[i]->kernel_boundry->max_lat);
+    }
+}
+#endif
 
 
 void delete_redundent_triangles(Triangle_Transport *&all_triangles, int &num)
@@ -2499,9 +2501,11 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
                                                                         triangles[i].v[2].x, triangles[i].v[2].y);
     fclose(fp);
 
+#ifdef OPENCV
     char file_fmt2[] = "log/image_global_triangles_%d";
     snprintf(filename, 64, file_fmt2, processing_info->get_num_total_processing_units());
     plot_triangles_into_file(filename, triangles, num_different_triangles, true);
+#endif
 }
 
 
@@ -2608,6 +2612,8 @@ void Grid_info_manager::gen_basic_grid()
     //max_lon = 359.0;
 }
 
+
+#ifdef NETCDF
 void Grid_info_manager::gen_three_polar_grid()
 {
     int num_dims;
@@ -2720,6 +2726,7 @@ void Grid_info_manager::gen_latlon_90_grid()
     min_lat = -90.0;
     max_lat =  90.0;
 }
+#endif
 
 
 Grid_info_manager::Grid_info_manager()

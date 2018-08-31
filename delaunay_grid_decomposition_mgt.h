@@ -202,10 +202,12 @@ public:
     bool are_checksums_identical(Search_tree_node*, unsigned*, unsigned*);
 
     /* debug */
-    void plot_local_triangles(const char*);
     void print_whole_search_tree_info();
     void merge_all_triangles();
+#ifdef NETCDF
     void plot_grid_decomposition(const char*);
+    void plot_local_triangles(const char*);
+#endif
 };
 
 
@@ -225,9 +227,11 @@ private:
     double max_lat;
 
     void gen_basic_grid();
+#ifdef NETCDF
     void gen_three_polar_grid();
     void gen_latlon_grid();
     void gen_latlon_90_grid();
+#endif
 
 public:
     /* for unittest */

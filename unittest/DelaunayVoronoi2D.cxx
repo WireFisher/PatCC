@@ -3,7 +3,6 @@
 #include "gmock/gmock.h"
 
 #include "../delaunay_voronoi_2D.h"
-#include <opencv2/opencv.hpp>
 
 using ::testing::Return;
 using ::testing::_;
@@ -15,6 +14,8 @@ static double fRand(double fMin, double fMax)
     return fMin + f * (fMax - fMin);
 }
 
+#ifdef OPENCV
+#include <opencv2/opencv.hpp>
 void draw_point(cv::Mat img, double x, double y, cv::Scalar scalar)
 {
     cv::circle(img, cv::Point(x * 10, y * 10), 6, scalar, -1, 8);
@@ -36,6 +37,7 @@ void draw_line(cv::Mat img, Edge *e, double min_x, double max_x, double min_y, d
     cv::line(img, cv::Point(e->head->x * 10, e->head->y * 10), cv::Point(e->tail->x * 10, e->tail->y * 10), scalar, thickness, line_type);
 }
 
+
 void write_to_file(cv::Mat mat,const char *filename)
 {
     std::vector<int> compression_params;
@@ -49,6 +51,8 @@ void write_to_file(cv::Mat mat,const char *filename)
     }
     fprintf(stdout, "Saved PNG file with alpha data.\n");
 }
+#endif
+
 
 static inline void do_triangulation_plot(int num_points, double *lat_values, double *lon_values, 
                                          double min_lon, double max_lon, double min_lat, double max_lat,
@@ -66,6 +70,7 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
     delete index;
     edges = delau->get_all_delaunay_edge();
 
+#ifdef OPENCV
     cv::Mat mat = cv::Mat(max_lat*10, max_lon*10, CV_8UC3, cv::Scalar(255, 255, 255));
 
     for(int i = 0; i < num_points; i++)
@@ -85,7 +90,7 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
     */
 
     write_to_file(mat, img_path);
-
+#endif
     delete delau;
 };
 
@@ -105,6 +110,7 @@ static inline void do_triangulation_plot_small_part(int num_points, double *lat_
     delete index;
     edges = delau->get_all_delaunay_edge();
 
+#ifdef OPENCV
     cv::Mat mat = cv::Mat::zeros(max_lat*10, max_lon*10, CV_8UC3);
 
     for(unsigned int i = 0; i < edges.size(); i++)
@@ -118,8 +124,8 @@ static inline void do_triangulation_plot_small_part(int num_points, double *lat_
         draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(255, 0, 0));
     }
     */
-
     write_to_file(mat, img_path);
+#endif
 
     delete delau;
 };

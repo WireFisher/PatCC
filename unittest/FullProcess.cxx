@@ -107,6 +107,7 @@ static void prepare_grid()
 }
 
 
+#ifdef NETCDF
 void prepare_three_polar_grid()
 {
     int num_dims;
@@ -257,6 +258,7 @@ void prepare_latlon_singlepolar()
     min_lat = -90.0;
     max_lat =  90.0;
 }
+#endif
 
 
 TEST_F(FullProcess, Basic) {
@@ -327,7 +329,7 @@ TEST_F(FullProcess, Basic) {
 };
 
 
-
+#ifdef NETCDF
 TEST_F(FullProcess, LatLonGrid) {
     const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
@@ -762,86 +764,6 @@ void prepare_dim1_grid(const char grid_name[])
 #endif
 };
 
-const int scvt_grid_size[] = { 500000,
-                             };
-const char scvt_grid_name[][64] = { "500000.dat", 
-                                  };
-const char scvt_grid_path[] = "gridfile/scvt_grid/%s";
-void prepare_scvt_grid(const char grid_name[], int grid_size)
-{
-    char fullname[128];
-    int squeeze_ratio = 0;
-
-    if (mpi_rank == 0) {
-        snprintf(fullname, 128, scvt_grid_path, grid_name);
-        FILE *fp = fopen(fullname, "r");
-        if(!fp) {
-            fprintf(stderr, "can not find grid file\n");
-            return;
-        }
-        double *x = new double[grid_size];
-        double *y = new double[grid_size];
-        double *z = new double[grid_size];
-        for(int i = 0; i < grid_size; i++)
-            fscanf(fp, "%lf %lf %lf\n", &x[i], &y[i], &z[i]);
-        fclose(fp);
-
-        coord_values[PDLN_LON] = new double[grid_size];
-        coord_values[PDLN_LAT] = new double[grid_size];
-        for(int i = 0; i < grid_size; i++) {
-            coord_values[PDLN_LON][i] = atan2(y[i], x[i]);
-            coord_values[PDLN_LAT][i] = asin(z[i]);
-        }
-        delete[] x;
-        delete[] y;
-        delete[] z;
-
-        num_points = grid_size;
-
-        for(int i = 0; i < num_points; i ++) {
-            coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
-            coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
-            while(coord_values[PDLN_LON][i] >= 360)
-                coord_values[PDLN_LON][i] -= 360;
-            while(coord_values[PDLN_LON][i] < 0)
-                coord_values[PDLN_LON][i] += 360;
-        }
-     
-        if(squeeze_ratio > 0) {
-            for(int i = 0; i < num_points/squeeze_ratio; i++) {
-                coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*squeeze_ratio];
-                coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*squeeze_ratio];
-            }
-            num_points = num_points/squeeze_ratio;
-        }
-
-        //printf("num points: %d\n", num_points);
-        assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
-
-        min_lon = 0;
-        max_lon = 360;
-        min_lat = -90;
-        max_lat = 90;
-        is_cyclic = true;
-    }
-
-    MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (mpi_rank != 0) {
-        coord_values[PDLN_LON] = new double[num_points];
-        coord_values[PDLN_LAT] = new double[num_points];
-    }
-    MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
-    assert(sizeof(bool) == 1);
-#ifdef TIME_PERF
-    printf("[ - ] Total points: %d\n", num_points);
-#endif
-};
 
 #include <unistd.h>
 TEST_F(FullProcess, ManyTypesOfGrids) {
@@ -932,6 +854,90 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
     }
 };
+#endif
+
+
+const int scvt_grid_size[] = { 500000,
+                             };
+const char scvt_grid_name[][64] = { "500000.dat", 
+                                  };
+const char scvt_grid_path[] = "gridfile/scvt_grid/%s";
+void prepare_scvt_grid(const char grid_name[], int grid_size)
+{
+    char fullname[128];
+    int squeeze_ratio = 0;
+
+    if (mpi_rank == 0) {
+        snprintf(fullname, 128, scvt_grid_path, grid_name);
+        FILE *fp = fopen(fullname, "r");
+        if(!fp) {
+            fprintf(stderr, "can not find grid file\n");
+            return;
+        }
+        double *x = new double[grid_size];
+        double *y = new double[grid_size];
+        double *z = new double[grid_size];
+        for(int i = 0; i < grid_size; i++)
+            fscanf(fp, "%lf %lf %lf\n", &x[i], &y[i], &z[i]);
+        fclose(fp);
+
+        coord_values[PDLN_LON] = new double[grid_size];
+        coord_values[PDLN_LAT] = new double[grid_size];
+        for(int i = 0; i < grid_size; i++) {
+            coord_values[PDLN_LON][i] = atan2(y[i], x[i]);
+            coord_values[PDLN_LAT][i] = asin(z[i]);
+        }
+        delete[] x;
+        delete[] y;
+        delete[] z;
+
+        num_points = grid_size;
+
+        for(int i = 0; i < num_points; i ++) {
+            coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
+            coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
+            while(coord_values[PDLN_LON][i] >= 360)
+                coord_values[PDLN_LON][i] -= 360;
+            while(coord_values[PDLN_LON][i] < 0)
+                coord_values[PDLN_LON][i] += 360;
+        }
+     
+        if(squeeze_ratio > 0) {
+            for(int i = 0; i < num_points/squeeze_ratio; i++) {
+                coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*squeeze_ratio];
+                coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*squeeze_ratio];
+            }
+            num_points = num_points/squeeze_ratio;
+        }
+
+        //printf("num points: %d\n", num_points);
+        assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+
+        min_lon = 0;
+        max_lon = 360;
+        min_lat = -90;
+        max_lat = 90;
+        is_cyclic = true;
+    }
+
+    MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (mpi_rank != 0) {
+        coord_values[PDLN_LON] = new double[num_points];
+        coord_values[PDLN_LAT] = new double[num_points];
+    }
+    MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+    assert(sizeof(bool) == 1);
+#ifdef TIME_PERF
+    printf("[ - ] Total points: %d\n", num_points);
+#endif
+};
+
 
 TEST_F(FullProcess, SCVTPoints) {
     MPI_Barrier(MPI_COMM_WORLD);

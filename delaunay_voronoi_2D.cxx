@@ -1713,7 +1713,7 @@ void Delaunay_Voronoi::remove_triangles_till(int max_global_index)
     }
 }
 
-
+#ifdef OPENCV
 void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double max_x, double min_y, double max_y)
 {
     unsigned num_edges;
@@ -1855,6 +1855,86 @@ void Delaunay_Voronoi::plot_original_points_into_file(const char *filename, doub
 }
 
 
+void plot_triangles_into_file(const char *prefix, Triangle_Transport *t, int num, bool plot_cyclic_triangles)
+{
+    int num_edges;
+    double *head_coord[2], *tail_coord[2];
+    char filename[128];
+
+    num_edges = 3 * num;
+    head_coord[0] = new double[num_edges];
+    head_coord[1] = new double[num_edges];
+    tail_coord[0] = new double[num_edges];
+    tail_coord[1] = new double[num_edges];
+
+    num_edges = 0;
+    for(int i = 0; i < num; i ++)
+        if (t[i].v[0].calculate_distance(&t[i].v[1]) < 180 && t[i].v[1].calculate_distance(&t[i].v[2]) < 180 && t[i].v[2].calculate_distance(&t[i].v[0]) < 180)
+            for(int j = 0; j < 3; j++) {
+                head_coord[0][num_edges] = t[i].v[j].x;
+                head_coord[1][num_edges] = t[i].v[j].y;
+                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
+                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
+            }
+        else if(plot_cyclic_triangles) {
+            for(int j = 0; j < 3; j++)
+                if(t[i].v[j].x > 180) t[i].v[j].x -= 360;
+            for(int j = 0; j < 3; j++) {
+                head_coord[0][num_edges] = t[i].v[j].x;
+                head_coord[1][num_edges] = t[i].v[j].y;
+                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
+                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
+            }
+        }
+
+    assert(num_edges%3 == 0);
+    snprintf(filename, 128, "%s.png", prefix);
+    plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
+
+    delete head_coord[0];
+    delete head_coord[1];
+    delete tail_coord[0];
+    delete tail_coord[1];
+
+}
+
+
+void plot_triangles_into_file(const char *prefix, std::vector<Triangle*> t)
+{
+    unsigned int num = t.size();
+    int num_edges;
+    double *head_coord[2], *tail_coord[2];
+    char filename[128];
+
+    num_edges = 3 * num;
+    head_coord[0] = new double[num_edges];
+    head_coord[1] = new double[num_edges];
+    tail_coord[0] = new double[num_edges];
+    tail_coord[1] = new double[num_edges];
+
+    num_edges = 0;
+    for(unsigned i = 0; i < num; i ++)
+        for(int j = 0; j < 3; j++) {
+            head_coord[0][num_edges] = t[i]->v[j]->x;
+            head_coord[1][num_edges] = t[i]->v[j]->y;
+            tail_coord[0][num_edges] = t[i]->v[(j+1)%3]->x;
+            tail_coord[1][num_edges++] = t[i]->v[(j+1)%3]->y;
+        }
+
+    assert(num_edges%3 == 0);
+    snprintf(filename, 128, "%s.png", prefix);
+    //plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
+    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_WHITE, PDLN_PLOT_FILEMODE_NEW);
+
+    delete head_coord[0];
+    delete head_coord[1];
+    delete tail_coord[0];
+    delete tail_coord[1];
+
+}
+#endif
+
+
 static int compare_cell_x(const void* a, const void* b)
 {
     Cell t1 = *(const Cell*)a;
@@ -1957,84 +2037,6 @@ bool operator == (Triangle_Transport t1, Triangle_Transport t2)
     if(t2.v[2] != t1.v[0] && t2.v[2] != t1.v[1] && t2.v[2] != t1.v[2])
         return false;
     return true;
-}
-
-void plot_triangles_into_file(const char *prefix, Triangle_Transport *t, int num, bool plot_cyclic_triangles)
-{
-    int num_edges;
-    double *head_coord[2], *tail_coord[2];
-    char filename[128];
-
-    num_edges = 3 * num;
-    head_coord[0] = new double[num_edges];
-    head_coord[1] = new double[num_edges];
-    tail_coord[0] = new double[num_edges];
-    tail_coord[1] = new double[num_edges];
-
-    num_edges = 0;
-    for(int i = 0; i < num; i ++)
-        if (t[i].v[0].calculate_distance(&t[i].v[1]) < 180 && t[i].v[1].calculate_distance(&t[i].v[2]) < 180 && t[i].v[2].calculate_distance(&t[i].v[0]) < 180)
-            for(int j = 0; j < 3; j++) {
-                head_coord[0][num_edges] = t[i].v[j].x;
-                head_coord[1][num_edges] = t[i].v[j].y;
-                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
-                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
-            }
-        else if(plot_cyclic_triangles) {
-            for(int j = 0; j < 3; j++)
-                if(t[i].v[j].x > 180) t[i].v[j].x -= 360;
-            for(int j = 0; j < 3; j++) {
-                head_coord[0][num_edges] = t[i].v[j].x;
-                head_coord[1][num_edges] = t[i].v[j].y;
-                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
-                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
-            }
-        }
-
-    assert(num_edges%3 == 0);
-    snprintf(filename, 128, "%s.png", prefix);
-    plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
-
-    delete head_coord[0];
-    delete head_coord[1];
-    delete tail_coord[0];
-    delete tail_coord[1];
-
-}
-
-
-void plot_triangles_into_file(const char *prefix, std::vector<Triangle*> t)
-{
-    unsigned int num = t.size();
-    int num_edges;
-    double *head_coord[2], *tail_coord[2];
-    char filename[128];
-
-    num_edges = 3 * num;
-    head_coord[0] = new double[num_edges];
-    head_coord[1] = new double[num_edges];
-    tail_coord[0] = new double[num_edges];
-    tail_coord[1] = new double[num_edges];
-
-    num_edges = 0;
-    for(unsigned i = 0; i < num; i ++)
-        for(int j = 0; j < 3; j++) {
-            head_coord[0][num_edges] = t[i]->v[j]->x;
-            head_coord[1][num_edges] = t[i]->v[j]->y;
-            tail_coord[0][num_edges] = t[i]->v[(j+1)%3]->x;
-            tail_coord[1][num_edges++] = t[i]->v[(j+1)%3]->y;
-        }
-
-    assert(num_edges%3 == 0);
-    snprintf(filename, 128, "%s.png", prefix);
-    //plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
-    plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_WHITE, PDLN_PLOT_FILEMODE_NEW);
-
-    delete head_coord[0];
-    delete head_coord[1];
-    delete tail_coord[0];
-    delete tail_coord[1];
-
 }
 
 
