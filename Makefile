@@ -1,7 +1,7 @@
-#PDLN_USE_OPENCV := false
-#PDLN_USE_NETCDF := false
 CXX := mpicxx
 MPI_PATH := /opt/intel/impi/3.2.0.011
+#PDLN_USE_OPENCV := true
+#PDLN_USE_NETCDF := true
 NETCDF_PATH := /opt/netCDF-gcc4.4.7
 OPENCV_PATH := /home/yanghy/opt/opencv
 CXXFLAGS :=
@@ -15,13 +15,6 @@ LIB += -Ldependency/googletest
 LIB += -Ldependency/googlemock
 
 LIBS := -lgmock -lgtest
-#%.o: %.c
-#processing_unit_mgt.cxx delaunay_grid_decomposition_mgt.cxx delaunay_voronoi_2D.cxx ccpl_utils.cxx opencv_utils.cxx netcdf_utils.cxx component.cxx unittest/*.cxx dependency/googlemock/libgmock.a dependency/googletest/libgtest.a -o run_all_test
-
-COMMON_FLAGS := -fopenmp -pthread
-COMMON_FLAGS += $(INC)
-COMMON_FLAGS += $(LIB)
-COMMON_FLAGS += $(LIBS)
 
 core_objs = ccpl_utils.o \
             component.o \
@@ -40,8 +33,10 @@ test_objs = DelaunayVoronoi2D.o \
 			GridDecomposition_SmallRegion.o \
 			ProcessingResourceTest.o
 
+COMMON_FLAGS := -fopenmp -pthread
+
 ifeq ($(PDLN_USE_NETCDF),true)
-	COMMON_FLAGS += -DOPENCV
+	COMMON_FLAGS += -DNETCDF
 	INC += -isystem $(NETCDF_PATH)/include
 	LIB += -L$(NETCDF_PATH)/lib 
 	LIBS += -lnetcdf
@@ -58,6 +53,10 @@ endif
 ifeq ($(PDLN_DEBUG),true)
 	COMMON_FLAGS += -DDEBUG -g
 endif
+
+COMMON_FLAGS += $(INC)
+COMMON_FLAGS += $(LIB)
+COMMON_FLAGS += $(LIBS)
 
 VPATH = ./ ./unittest
 %.o: %.cxx %.h
