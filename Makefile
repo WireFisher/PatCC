@@ -22,9 +22,6 @@ core_objs = ccpl_utils.o \
 			delaunay_grid_decomposition_mgt.o \
 			delaunay_voronoi_2D.o
 
-plot_objs = opencv_utils.o \
-			netcdf_utils.o
-
 test_objs = DelaunayVoronoi2D.o \
 			FullProcess.o \
 			GridDecomposition.o \
@@ -40,14 +37,15 @@ ifeq ($(PDLN_USE_NETCDF),true)
 	INC += -isystem $(NETCDF_PATH)/include
 	LIB += -L$(NETCDF_PATH)/lib 
 	LIBS += -lnetcdf
+	core_objs += netcdf_utils.o
 endif
 
 ifeq ($(PDLN_USE_OPENCV),true)
 	COMMON_FLAGS += -DOPENCV
 	INC += -isystem $(OPENCV_PATH)/include
 	LIB += -L$(OPENCV_PATH)/lib64
-	LIBS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
-	core_objs += $(plot_objs)
+	LIBS += -lopencv_core -lopencv_imgproc -lopencv_highgui
+	core_objs += opencv_utils.o
 endif
 
 ifeq ($(PDLN_DEBUG),true)
@@ -59,6 +57,11 @@ COMMON_FLAGS += $(LIB)
 COMMON_FLAGS += $(LIBS)
 
 VPATH = ./ ./unittest
+
+component.o: delaunay_grid_decomposition_mgt.o processing_unit_mgt.o
+delaunay_grid_decomposition_mgt.o: processing_unit_mgt.o delaunay_voronoi_2D.o ccpl_utils.o #netcdf_utils.o opencv_utils.o
+delaunay_voronoi_2D.o: merge_sort.h #opencv_utils.o
+
 %.o: %.cxx %.h
 	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
 %.o: %.cxx

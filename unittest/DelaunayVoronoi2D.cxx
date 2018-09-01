@@ -24,7 +24,7 @@ void draw_point(cv::Mat img, double x, double y, cv::Scalar scalar)
 void draw_line(cv::Mat img, Edge *e, double min_x, double max_x, double min_y, double max_y, cv::Scalar scalar)
 {
     int thickness = 2;
-    int line_type = cv::LINE_8;
+    //int line_type = cv::LINE_8;
 
     /*
     if(e->head->x < min_x + (max_x - min_x) * 0.1 &&
@@ -34,7 +34,7 @@ void draw_line(cv::Mat img, Edge *e, double min_x, double max_x, double min_y, d
         cv::line(img, cv::Point(e->head->x * 100, e->head->y * 100), cv::Point(e->tail->x * 100, e->tail->y * 100), scalar, thickness, line_type);
         */
 
-    cv::line(img, cv::Point(e->head->x * 10, e->head->y * 10), cv::Point(e->tail->x * 10, e->tail->y * 10), scalar, thickness, line_type);
+    cv::line(img, cv::Point(e->head->x * 10, e->head->y * 10), cv::Point(e->tail->x * 10, e->tail->y * 10), scalar, thickness, 8);
 }
 
 

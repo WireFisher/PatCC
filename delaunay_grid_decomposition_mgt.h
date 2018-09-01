@@ -204,7 +204,7 @@ public:
     /* debug */
     void print_whole_search_tree_info();
     void merge_all_triangles();
-#ifdef NETCDF
+#ifdef OPENCV
     void plot_grid_decomposition(const char*);
     void plot_local_triangles(const char*);
 #endif
