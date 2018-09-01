@@ -1967,11 +1967,14 @@ void sort_cells(Cell *cells, int num_cells)
 void Delaunay_Voronoi::save_original_points_into_file()
 {
     Cell *tmp_cells;
-    tmp_cells = new Cell[num_cells];
 
+#ifdef CHECK_PARALLEL_CONSISTENCY
+    tmp_cells = new Cell[num_cells];
     memcpy(tmp_cells, cells, num_cells*sizeof(Cell));
-    
     sort_cells(tmp_cells, num_cells);
+#else
+    tmp_cells = cells;
+#endif
 
     FILE *fp;
     fp = fopen("log/original_points.txt", "w");
@@ -1980,7 +1983,9 @@ void Delaunay_Voronoi::save_original_points_into_file()
             fprintf(fp, "%.20lf, %.20lf\n", tmp_cells[i].center->x, tmp_cells[i].center->y);
     fclose(fp);
 
+#ifdef CHECK_PARALLEL_CONSISTENCY
     delete [] tmp_cells;
+#endif
 }
 
 
