@@ -18,24 +18,16 @@
  *         /
  *     V1 o -----> o V2
  */
-double compute_three_2D_points_cross_product(double center_coord1_value,
-                                             double center_coord2_value,
-                                             double vertex1_coord1_value,
-                                             double vertex1_coord2_value,
-                                             double vertex2_coord1_value,
-                                             double vertex2_coord2_value)
+double compute_three_2D_points_cross_product(double center_x, double center_y,
+                                             double v1_x, double v1_y,
+                                             double v2_x, double v2_y)
 {
-    double vertexes_coord1_value_diff, vertexes_coord2_value_diff;
-    double center_vertex_coord1_value_diff, center_vertex_coord2_value_diff;
-    
-    
-    vertexes_coord1_value_diff = vertex2_coord1_value - vertex1_coord1_value;
-    vertexes_coord2_value_diff = vertex2_coord2_value - vertex1_coord2_value;
-    center_vertex_coord1_value_diff = center_coord1_value - vertex1_coord1_value;
-    center_vertex_coord2_value_diff = center_coord2_value - vertex1_coord2_value;
-    
+    double delta1_x = v2_x - v1_x;
+    double delta1_y = v2_y - v1_y;
+    double delta2_x = center_x - v1_x;
+    double delta2_y = center_y - v1_y;
 
-    return vertexes_coord1_value_diff*center_vertex_coord2_value_diff - center_vertex_coord1_value_diff*vertexes_coord2_value_diff;
+    return delta1_x*delta2_y - delta2_x*delta1_y;
 }
 
 
@@ -804,9 +796,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         Edge *e_can_v2 = generate_twins_edge(e_v2_can);
         Edge *e_v3_can = allocate_edge(triangle->v[2], best_candidate_point);
         Edge *e_can_v3 = generate_twins_edge(e_v3_can);
-        //Triangle *t_v1_v2_can = allocate_Triangle(triangle->edge[0], e_v2_can, e_can_v1);
-        //Triangle *t_v2_v3_can = allocate_Triangle(triangle->edge[1], e_v3_can, e_can_v2);
-        //Triangle *t_v3_v1_can = allocate_Triangle(triangle->edge[2], e_v1_can, e_can_v3);
         Triangle *t_can_v1_v2 = allocate_Triangle(e_can_v1, triangle->edge[0], e_v2_can);
         Triangle *t_can_v2_v3 = allocate_Triangle(e_can_v2, triangle->edge[1], e_v3_can);
         Triangle *t_can_v3_v1 = allocate_Triangle(e_can_v3, triangle->edge[2], e_v1_can);
@@ -814,9 +803,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         leaf_triangles.push_back(t_can_v1_v2);
         leaf_triangles.push_back(t_can_v2_v3);
         leaf_triangles.push_back(t_can_v3_v1);
-        //legalize_triangles(best_candidate_point, triangle->edge[0], &leaf_triangles);
-        //legalize_triangles(best_candidate_point, triangle->edge[1], &leaf_triangles);
-        //legalize_triangles(best_candidate_point, triangle->edge[2], &leaf_triangles);
         
         /* t_can_v1_v2->v[0] is best_candidate_point, actually */
         legalize_triangles(t_can_v1_v2->v[0], t_can_v1_v2->edge[1], &leaf_triangles);
@@ -865,8 +851,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
             elj = eil->next_edge_in_triangle;
             vl = elj->head;
         }
-        //Edge *eri = allocate_edge(best_candidate_point, vi);
-        //Edge *eir = generate_twins_edge(eri);
         Edge *eir = allocate_edge(vi, best_candidate_point);
         Edge *erk = allocate_edge(best_candidate_point, vk);
         Edge *ekr = generate_twins_edge(erk);
