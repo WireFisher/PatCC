@@ -2472,26 +2472,27 @@ void delete_redundent_triangles(Triangle_Transport *&all_triangles, int &num)
 }
 
 
-void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Transport *&triangles, int num_triangles)
+void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_Transport *&triangles, int num_triangles, bool sort)
 {
-#ifdef CHECK_PARALLEL_CONSISTENCY
-    sort_points_in_triangle(triangles, num_triangles);
-    sort_triangles(triangles, num_triangles);
-    int i, j;
-    for(i = 0, j = 1; j < num_triangles; j++) {
-        if(triangles[i].v[0].id == triangles[j].v[0].id &&
-           triangles[i].v[1].id == triangles[j].v[1].id &&
-           triangles[i].v[2].id == triangles[j].v[2].id) {
-            continue;
+    int num_different_triangles;
+    if (sort) {
+        sort_points_in_triangle(triangles, num_triangles);
+        sort_triangles(triangles, num_triangles);
+        int i, j;
+        for(i = 0, j = 1; j < num_triangles; j++) {
+            if(triangles[i].v[0].id == triangles[j].v[0].id &&
+               triangles[i].v[1].id == triangles[j].v[1].id &&
+               triangles[i].v[2].id == triangles[j].v[2].id) {
+                continue;
+            }
+            else
+                triangles[++i] = triangles[j];
         }
-        else
-            triangles[++i] = triangles[j];
+        num_different_triangles = i + 1;
+    } else {
+        delete_redundent_triangles(triangles, num_triangles);
+        num_different_triangles = num_triangles;
     }
-    int num_different_triangles = i + 1;
-#else
-    delete_redundent_triangles(triangles, num_triangles);
-    int num_different_triangles = num_triangles;
-#endif
     
     char file_fmt[] = "log/global_triangles_%d";
     char filename[64];
@@ -2513,7 +2514,7 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
 
 
 #define PDLN_MERGE_TAG_MASK 0x0200
-void Delaunay_grid_decomposition::merge_all_triangles()
+void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
 {
     /* Let n be the number of points, if there are b vertices on the convex hull,
      * then any triangulation of the points has at most 2n − 2 − b triangles,
@@ -2570,7 +2571,7 @@ void Delaunay_grid_decomposition::merge_all_triangles()
         }
         assert(count == remote_buf_len);
         memcpy(remote_triangles + remote_buf_len, local_triangles, num_local_triangles * sizeof(Triangle_Transport));
-        save_ordered_triangles_into_file(remote_triangles, remote_buf_len + num_local_triangles);
+        save_unique_triangles_into_file(remote_triangles, remote_buf_len + num_local_triangles, sort);
         delete[] remote_triangles;
         delete[] num_remote_triangles;
     }

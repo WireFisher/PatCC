@@ -187,7 +187,7 @@ private:
 
     /* debug */
     void print_tree_node_info_recursively(Search_tree_node*);
-    void save_ordered_triangles_into_file(Triangle_Transport *&, int);
+    void save_unique_triangles_into_file(Triangle_Transport *&, int, bool);
 
 public:
     Delaunay_grid_decomposition(int, Processing_resource*, int);
@@ -203,7 +203,7 @@ public:
 
     /* debug */
     void print_whole_search_tree_info();
-    void merge_all_triangles();
+    void merge_all_triangles(bool);
 #ifdef OPENCV
     void plot_grid_decomposition(const char*);
     void plot_local_triangles(const char*);

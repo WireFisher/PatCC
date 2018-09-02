@@ -15,7 +15,7 @@ public:
     int get_grid_id(){ return grid_id; };
     int generate_delaunay_trianglulation(Processing_resource*);
     bool have_delaunay_trianglulation(){return delaunay_triangulation != NULL; };
-    void merge_all_triangles();
+    void merge_all_triangles(bool);
 #ifdef OPENCV
     void plot_triangles_into_file();
 #endif
@@ -34,7 +34,7 @@ public:
     Component(int id);
     ~Component();
     void register_grid(Grid* grid){this->grids.push_back(grid); };
-    int generate_delaunay_trianglulation(int);
+    int generate_delaunay_trianglulation(int, bool=false);
 };
 
 #endif

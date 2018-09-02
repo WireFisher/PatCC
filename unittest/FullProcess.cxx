@@ -291,7 +291,7 @@ TEST_F(FullProcess, Basic) {
     Component* comp;
     comp = new Component(0);
     comp->register_grid(new Grid(1));
-    comp->generate_delaunay_trianglulation(1);
+    comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
@@ -306,7 +306,7 @@ TEST_F(FullProcess, Basic) {
 
         comp = new Component(1);
         comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1);
+        comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
@@ -359,7 +359,7 @@ TEST_F(FullProcess, LatLonGrid) {
     Component* comp;
     comp = new Component(0);
     comp->register_grid(new Grid(1));
-    comp->generate_delaunay_trianglulation(1);
+    comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
@@ -374,7 +374,7 @@ TEST_F(FullProcess, LatLonGrid) {
 
         comp = new Component(1);
         comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1);
+        comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
@@ -426,7 +426,7 @@ TEST_F(FullProcess, LatLonSinglePolar) {
     Component* comp;
     comp = new Component(0);
     comp->register_grid(new Grid(1));
-    comp->generate_delaunay_trianglulation(1);
+    comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
@@ -441,7 +441,7 @@ TEST_F(FullProcess, LatLonSinglePolar) {
 
         comp = new Component(1);
         comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1);
+        comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
@@ -494,7 +494,7 @@ TEST_F(FullProcess, LatLonMutiPolars) {
     Component* comp;
     comp = new Component(0);
     comp->register_grid(new Grid(1));
-    comp->generate_delaunay_trianglulation(1);
+    comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
@@ -509,7 +509,7 @@ TEST_F(FullProcess, LatLonMutiPolars) {
 
         comp = new Component(1);
         comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1);
+        comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
@@ -561,7 +561,7 @@ TEST_F(FullProcess, ThreePolar) {
     Component* comp;
     comp = new Component(0);
     comp->register_grid(new Grid(1));
-    comp->generate_delaunay_trianglulation(1);
+    comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
@@ -576,7 +576,7 @@ TEST_F(FullProcess, ThreePolar) {
 
         comp = new Component(1);
         comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1);
+        comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
@@ -807,7 +807,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
         Component* comp;
         comp = new Component(0);
         comp->register_grid(new Grid(1));
-        int ret = comp->generate_delaunay_trianglulation(1);
+        int ret = comp->generate_delaunay_trianglulation(1, true);
         EXPECT_EQ(ret, 0);
         delete comp;
 
@@ -819,7 +819,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
             comp = new Component(1);
             comp->register_grid(new Grid(1));
-            int ret = comp->generate_delaunay_trianglulation(1);
+            int ret = comp->generate_delaunay_trianglulation(1, true);
             EXPECT_EQ(ret, 0);
 
             delete comp;

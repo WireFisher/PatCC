@@ -89,9 +89,9 @@ void Grid::plot_triangles_into_file()
 #endif
 
 
-void Grid::merge_all_triangles()
+void Grid::merge_all_triangles(bool sort)
 {
-    delaunay_triangulation->merge_all_triangles();
+    delaunay_triangulation->merge_all_triangles(sort);
 }
 
 
@@ -176,7 +176,7 @@ Component::~Component()
 }
 
 
-int Component::generate_delaunay_trianglulation(int grid_id)
+int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
 {
     Grid *operating_grid;
     operating_grid = this->search_grid_by_id(grid_id);
@@ -201,6 +201,6 @@ int Component::generate_delaunay_trianglulation(int grid_id)
 #ifdef OPENCV
     operating_grid->plot_triangles_into_file();
 #endif
-    operating_grid->merge_all_triangles();
+    operating_grid->merge_all_triangles(sort);
     return 0;
 }
