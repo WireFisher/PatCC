@@ -1599,7 +1599,7 @@ unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_Transport *tria
         return PDLN_CHECKSUM_FALSE;
 
     sort_points_in_triangle(triangles, num_triangles);
-    sort_triangles(triangles, num_triangles);
+    //sort_triangles(triangles, num_triangles);
 
     int checksum = hash_triangle_by_id(triangles[0]);
     for(int i = 1; i < num_triangles; i ++)
