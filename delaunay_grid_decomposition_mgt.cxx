@@ -311,7 +311,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 {
     delete triangulation;
 
-    //plot_points_into_file(filename, points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points);
+    //char filename[64];
+    //snprintf(filename, 64, "log/original_input_points_%d.png", region_id);
+    //plot_points_into_file(filename, points_coord[PDLN_LON], points_coord[PDLN_LAT], num_kernel_points + num_expanded_points, PDLN_PLOT_GLOBAL);
     if(rotated_expanded_boundry != NULL) {
             //calculate_stereographic_projection(global_p_lon[0], global_p_lat[0], center[PDLN_LON], center[PDLN_LAT], global_p_lon[0], global_p_lat[0]);
             //calculate_stereographic_projection(global_p_lon[1], global_p_lat[1], center[PDLN_LON], center[PDLN_LAT], global_p_lon[1], global_p_lat[1]);
@@ -2472,6 +2474,7 @@ void delete_redundent_triangles(Triangle_Transport *&all_triangles, int &num)
 
 void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Transport *&triangles, int num_triangles)
 {
+#ifdef CHECK_PARALLEL_CONSISTENCY
     sort_points_in_triangle(triangles, num_triangles);
     sort_triangles(triangles, num_triangles);
     int i, j;
@@ -2485,10 +2488,10 @@ void Delaunay_grid_decomposition::save_ordered_triangles_into_file(Triangle_Tran
             triangles[++i] = triangles[j];
     }
     int num_different_triangles = i + 1;
-    /*
+#else
     delete_redundent_triangles(triangles, num_triangles);
     int num_different_triangles = num_triangles;
-    */
+#endif
     
     char file_fmt[] = "log/global_triangles_%d";
     char filename[64];
