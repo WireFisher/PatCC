@@ -742,9 +742,9 @@ void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, ve
     bool find_triangle;
 
 
-    for (unsigned int i = 0; i < pnts->size(); i ++) {
+    for (unsigned i = 0; i < pnts->size(); i ++) {
         find_triangle = false;
-        for (unsigned int j = 0; j < triangles->size(); j ++) {
+        for (unsigned j = 0; j < triangles->size(); j ++) {
             if (!((*triangles)[j])->is_leaf)
                 continue;
             if ((*pnts)[i]->position_to_triangle(((*triangles)[j])) >= 0) {
@@ -774,10 +774,12 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
     Point *best_candidate_point;
     vector<Triangle *> leaf_triangles;
 
-    if (!triangle->is_leaf) {
+#ifdef DEBUG
+    assert(triangle->is_leaf);
+#endif
+    if(!triangle->is_leaf)
         return;
-    }
-        
+
     if (triangle->remained_points_in_triangle.size() == 0) {
         result_leaf_triangles.push_back(triangle);
         return;
@@ -880,12 +882,12 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         }
     }
 
-    for (unsigned int i = 0; i < leaf_triangles.size(); i ++) {
+    for (unsigned i = 0; i < leaf_triangles.size(); i ++) {
         if (leaf_triangles[i]->is_leaf)
             //EXECUTION_REPORT(REPORT_ERROR, -1, leaf_triangles[i]->remained_points_in_triangle.size() == 0, "remap software error1 in triangularization_process");
             assert(leaf_triangles[i]->remained_points_in_triangle.size() == 0);
     }
-    for (unsigned int i = 0; i < leaf_triangles.size(); i ++) {
+    for (unsigned i = 0; i < leaf_triangles.size(); i ++) {
         if (leaf_triangles[i]->is_leaf)
             continue;
         distribute_points_into_triangles(&(leaf_triangles[i]->remained_points_in_triangle), &leaf_triangles);
@@ -895,10 +897,11 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         //snprintf(filename, 64, "log/single_step/step_%d.png", triangulate_count++);
         //plot_current_step_into_file(filename);
         //printf("plot step %d\n", triangulate_count);
-        triangulate_count++;
+        //triangulate_count++;
 
-    for (unsigned int i = 0; i < leaf_triangles.size(); i ++)
-        triangularization_process(leaf_triangles[i]);
+    for (unsigned i = 0; i < leaf_triangles.size(); i ++)
+        if(leaf_triangles[i]->is_leaf)
+            triangularization_process(leaf_triangles[i]);
 
 }
 
@@ -1075,10 +1078,10 @@ Delaunay_Voronoi::~Delaunay_Voronoi()
         delete cells[i].center;
     delete [] cells;
     /*
-    for (unsigned int i = 0; i < edge_pool.size(); i ++)
+    for (unsigned i = 0; i < edge_pool.size(); i ++)
         delete edge_pool[i];
         //edge_allocator.deleteElement(edge_pool[i]);
-    for (unsigned int i = 0; i < triangle_pool.size(); i ++)
+    for (unsigned i = 0; i < triangle_pool.size(); i ++)
         delete triangle_pool[i];
         //triangle_allocator.deleteElement(triangle_pool[i]);
     */
@@ -1207,7 +1210,7 @@ vector<Edge*> Delaunay_Voronoi::get_all_delaunay_edge()
 {
     vector<Edge*> all_edges;
 
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i ++)
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i ++)
         if(result_leaf_triangles[i]->is_leaf) {
             all_edges.push_back(result_leaf_triangles[i]->edge[0]);
             all_edges.push_back(result_leaf_triangles[i]->edge[1]);
@@ -1222,7 +1225,7 @@ vector<Edge*> Delaunay_Voronoi::get_all_legal_delaunay_edge()
 {
     vector<Edge*> all_edges;
 
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i ++)
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i ++)
         if(result_leaf_triangles[i]->is_leaf)
             if(is_triangle_legal(result_leaf_triangles[i])) {
                 all_edges.push_back(result_leaf_triangles[i]->edge[0]);
@@ -1236,7 +1239,7 @@ vector<Edge*> Delaunay_Voronoi::get_all_legal_delaunay_edge()
 
 bool Delaunay_Voronoi::check_if_all_outer_edge_out_of_region(double min_x, double max_x, double min_y, double max_y)
 {
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
 
@@ -1353,7 +1356,7 @@ std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segmen
 
 void Delaunay_Voronoi::remove_triangles_on_segment(Point head, Point tail)
 {
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
 
@@ -1514,7 +1517,7 @@ inline void Delaunay_Voronoi::remove_leaf_triangle(Triangle* t)
 
 void Delaunay_Voronoi::relegalize_all_triangles()
 {
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if (!result_leaf_triangles[i]->is_leaf)
             continue;
 
@@ -1544,7 +1547,7 @@ void Delaunay_Voronoi::relegalize_all_triangles()
 
 void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, double max_x, double min_y, double max_y)
 {
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++)
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
         if(result_leaf_triangles[i]->is_leaf) {
             if (result_leaf_triangles[i]->v[0]->is_in_region(min_x, max_x, min_y, max_y) ||
                 result_leaf_triangles[i]->v[1]->is_in_region(min_x, max_x, min_y, max_y) ||
@@ -1626,7 +1629,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
     int num_triangles = 0;
 
     //printf("result_leaf_triangles.size: %lu\n", result_leaf_triangles.size());
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
 
@@ -1661,7 +1664,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
 
 void Delaunay_Voronoi::update_virtual_polar_info()
 {
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
         if(result_leaf_triangles[i]->contain_vertex(cells[vpolar_local_index].center))
@@ -1674,7 +1677,7 @@ void Delaunay_Voronoi::remove_triangles_only_containing_virtual_polar()
 {
     double common_lat = cells[vpolar_local_index].center->y;
 
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
         if(result_leaf_triangles[i]->v[0]->y == common_lat &&
@@ -1687,7 +1690,7 @@ void Delaunay_Voronoi::remove_triangles_only_containing_virtual_polar()
 
 void Delaunay_Voronoi::remove_triangles_till(int max_global_index)
 {
-    for(unsigned int i = 0; i < result_leaf_triangles.size(); i++) {
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
         if((global_index[result_leaf_triangles[i]->v[0]->id] < max_global_index && global_index[result_leaf_triangles[i]->v[0]->id] >= 0) ||
@@ -1885,7 +1888,7 @@ void plot_triangles_into_file(const char *prefix, Triangle_Transport *t, int num
 
 void plot_triangles_into_file(const char *prefix, std::vector<Triangle*> t)
 {
-    unsigned int num = t.size();
+    unsigned num = t.size();
     int num_edges;
     double *head_coord[2], *tail_coord[2];
     char filename[128];
