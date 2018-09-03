@@ -789,7 +789,10 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
     
     best_candidate_point_id = triangle->find_best_candidate_point();
     best_candidate_point = triangle->remained_points_in_triangle[best_candidate_point_id];
-    triangle->remained_points_in_triangle.erase(triangle->remained_points_in_triangle.begin()+best_candidate_point_id); //TODO: erase is slow
+
+    unsigned end_id = triangle->remained_points_in_triangle.size()-1;
+    std::swap(triangle->remained_points_in_triangle[best_candidate_point_id], triangle->remained_points_in_triangle[end_id]);
+    triangle->remained_points_in_triangle.pop_back(); //TODO: erase is slow
 
     if (best_candidate_point->position_to_triangle(triangle) == 0) { //inside
         Edge *e_v1_can = allocate_edge(triangle->v[0], best_candidate_point);
