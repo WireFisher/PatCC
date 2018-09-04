@@ -30,7 +30,7 @@ test_objs = DelaunayVoronoi2D.o \
 			GridDecomposition_SmallRegion.o \
 			ProcessingResourceTest.o
 
-COMMON_FLAGS := -fopenmp -pthread
+COMMON_FLAGS := -g -O3 -fopenmp -pthread
 
 ifeq ($(PDLN_USE_NETCDF),true)
 	COMMON_FLAGS += -DNETCDF
