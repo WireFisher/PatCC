@@ -436,36 +436,36 @@ void Search_tree_node::reset_polars()
 
 
 void Search_tree_node::count_points(double *coord[2], int *idx, int offset, int num, Midline midline,
-                                    //double *child_points_coord[4], int *child_points_idx[2],
-                                    int child_num_points[2])
+                                    //double *c_points_coord[4], int *child_points_idx[2],
+                                    int c_num_points[2])
 {
-    child_num_points[0] = 0;
-    child_num_points[1] = 0;
+    c_num_points[0] = 0;
+    c_num_points[1] = 0;
 
     #pragma omp parallel for
     for(int i = offset; i < offset+num; i ++) {
         if(coord[midline.type][i] < midline.value) {
-            //child_coord[midline.type][child_num_points[0]] = coord[midline.type][i];
-            //child_coord[(midline.type+1)%2][child_num_points[0]] = coord[(midline.type+1)%2][i];
-            //child_points_idx[0][child_num_points[0]] = idx[i];
+            //child_coord[midline.type][c_num_points[0]] = coord[midline.type][i];
+            //child_coord[(midline.type+1)%2][c_num_points[0]] = coord[(midline.type+1)%2][i];
+            //child_points_idx[0][c_num_points[0]] = idx[i];
             #pragma omp critical
-            child_num_points[0]++;
+            c_num_points[0]++;
         }
         else {
-            //child_coord[2+midline.type][child_num_points[1]] = coord[midline.type][i];
-            //child_coord[2+(midline.type+1)%2][child_num_points[1]] = coord[(midline.type+1)%2][i];
-            //child_points_idx[1][child_num_points[1]] = idx[i];
+            //child_coord[2+midline.type][c_num_points[1]] = coord[midline.type][i];
+            //child_coord[2+(midline.type+1)%2][c_num_points[1]] = coord[(midline.type+1)%2][i];
+            //child_points_idx[1][c_num_points[1]] = idx[i];
             #pragma omp critical
-            child_num_points[1]++;
+            c_num_points[1]++;
         }
     }
 }
 
 
-void Search_tree_node::split_local_points(Midline midline, double *child_points_coord[4], int *child_points_idx[2], int child_num_points[2])
+void Search_tree_node::split_local_points(Midline midline, double *c_points_coord[4], int *child_points_idx[2], int c_num_points[2])
 {
-    child_num_points[0] = 0;
-    child_num_points[1] = 0;
+    c_num_points[0] = 0;
+    c_num_points[1] = 0;
 
     if(non_monotonic && midline.type == PDLN_LON)
         assert(false);
@@ -473,24 +473,24 @@ void Search_tree_node::split_local_points(Midline midline, double *child_points_
         #pragma omp parallel for
         for(int i = 0; i < num_kernel_points; i ++) {
             if(points_coord[midline.type][i] < midline.value) {
-                child_points_coord[midline.type][child_num_points[0]] = points_coord[midline.type][i];
-                child_points_coord[(midline.type+1)%2][child_num_points[0]] = points_coord[(midline.type+1)%2][i];
+                c_points_coord[midline.type][c_num_points[0]] = points_coord[midline.type][i];
+                c_points_coord[(midline.type+1)%2][c_num_points[0]] = points_coord[(midline.type+1)%2][i];
                 #pragma omp critical
-                child_points_idx[0][child_num_points[0]++] = points_global_index[i];
+                child_points_idx[0][c_num_points[0]++] = points_global_index[i];
             }
             else {
-                child_points_coord[2+midline.type][child_num_points[1]] = points_coord[midline.type][i];
-                child_points_coord[2+(midline.type+1)%2][child_num_points[1]] = points_coord[(midline.type+1)%2][i];
+                c_points_coord[2+midline.type][c_num_points[1]] = points_coord[midline.type][i];
+                c_points_coord[2+(midline.type+1)%2][c_num_points[1]] = points_coord[(midline.type+1)%2][i];
                 #pragma omp critical 
-                child_points_idx[1][child_num_points[1]++] = points_global_index[i];
+                child_points_idx[1][c_num_points[1]++] = points_global_index[i];
             }
         }
     }
 }
 
 
-void Search_tree_node::decompose_by_processing_units_number(double *workloads, double *child_points_coord[4], int *child_points_idx[2], int child_num_points[2],
-                                   Boundry child_boundry[2], vector<int> child_proc_units_id[2], int mode, int *c_intervals[2], int c_num_intervals[2])
+void Search_tree_node::decompose_by_processing_units_number(double *workloads, double *c_points_coord[4], int *child_points_idx[2], int c_num_points[2],
+                                   Boundry c_boundry[2], vector<int> child_proc_units_id[2], int mode, int *c_intervals[2], int c_num_intervals[2])
 {
     double length[2], boundry_values[4], child_total_workload[2];
     Midline midline;
@@ -576,49 +576,49 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
             child_total_workload[1] += workloads[child_proc_units_id[1][i]];
 
         midline.value = boundry_values[midline.type] + length[midline.type] * child_total_workload[0] / (child_total_workload[0] + child_total_workload[1]);
-        split_local_points(midline, child_points_coord, child_points_idx, child_num_points);
+        split_local_points(midline, c_points_coord, child_points_idx, c_num_points);
 
         iteration_count = 1;
-        while (child_num_points[0] == 0 || child_num_points[1] == 0 ||
-               fabs(child_num_points[0]/child_num_points[1] - child_total_workload[0]/child_total_workload[1]) > PDLN_TOLERABLE_ERROR) {
+        while (c_num_points[0] == 0 || c_num_points[1] == 0 ||
+               fabs(c_num_points[0]/c_num_points[1] - child_total_workload[0]/child_total_workload[1]) > PDLN_TOLERABLE_ERROR) {
 
             if(iteration_count++ > PDLN_MAX_ITER_COUNT)
                 break;
 
-            if(child_num_points[0] < child_total_workload[0]) {
+            if(c_num_points[0] < child_total_workload[0]) {
 #ifdef DEBUG
-                assert(child_num_points[1] >= child_total_workload[1] || fabs(child_total_workload[1] - child_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
+                assert(c_num_points[1] >= child_total_workload[1] || fabs(child_total_workload[1] - c_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
 #endif
-                midline.value += (boundry_values[2+midline.type] - midline.value) * (child_num_points[1] - child_total_workload[1]) / child_num_points[1];
+                midline.value += (boundry_values[2+midline.type] - midline.value) * (c_num_points[1] - child_total_workload[1]) / c_num_points[1];
             }
             else {
 #ifdef DEBUG
-                assert(child_num_points[1] <= child_total_workload[1] || fabs(child_total_workload[1] - child_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
+                assert(c_num_points[1] <= child_total_workload[1] || fabs(child_total_workload[1] - c_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
 #endif
-                midline.value -= (midline.value - boundry_values[midline.type]) * (child_num_points[0] - child_total_workload[0]) / child_num_points[0];
+                midline.value -= (midline.value - boundry_values[midline.type]) * (c_num_points[0] - child_total_workload[0]) / c_num_points[0];
             }
             assert(midline.value > boundry_values[midline.type]);
             assert(midline.value < boundry_values[2+midline.type]);
             /* TODO: Search only half of the whole points, but not the whole points */
-            split_local_points(midline, child_points_coord, child_points_idx, child_num_points);
+            split_local_points(midline, c_points_coord, child_points_idx, c_num_points);
         }
     }
     else
         midline.value = boundry_values[2+midline.type];
 
     if(midline.type == PDLN_LON) {
-        child_boundry[0].min_lat = child_boundry[1].min_lat = kernel_boundry->min_lat;
-        child_boundry[0].max_lat = child_boundry[1].max_lat = kernel_boundry->max_lat;
-        child_boundry[0].min_lon = kernel_boundry->min_lon;
-        child_boundry[0].max_lon = child_boundry[1].min_lon = midline.value;
-        child_boundry[1].max_lon = kernel_boundry->max_lon;
+        c_boundry[0].min_lat = c_boundry[1].min_lat = kernel_boundry->min_lat;
+        c_boundry[0].max_lat = c_boundry[1].max_lat = kernel_boundry->max_lat;
+        c_boundry[0].min_lon = kernel_boundry->min_lon;
+        c_boundry[0].max_lon = c_boundry[1].min_lon = midline.value;
+        c_boundry[1].max_lon = kernel_boundry->max_lon;
     }
     else if(midline.type == PDLN_LAT) {
-        child_boundry[0].min_lon = child_boundry[1].min_lon = kernel_boundry->min_lon;
-        child_boundry[0].max_lon = child_boundry[1].max_lon = kernel_boundry->max_lon;
-        child_boundry[0].min_lat = kernel_boundry->min_lat;
-        child_boundry[0].max_lat = child_boundry[1].min_lat = midline.value;
-        child_boundry[1].max_lat = kernel_boundry->max_lat;
+        c_boundry[0].min_lon = c_boundry[1].min_lon = kernel_boundry->min_lon;
+        c_boundry[0].max_lon = c_boundry[1].max_lon = kernel_boundry->max_lon;
+        c_boundry[0].min_lat = kernel_boundry->min_lat;
+        c_boundry[0].max_lat = c_boundry[1].min_lat = midline.value;
+        c_boundry[1].max_lat = kernel_boundry->max_lat;
     }
     else
         assert(false);
@@ -626,8 +626,8 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
 }
 
 
-void Search_tree_node::decompose_by_fixed_longitude(double fixed_lon, double *workloads, double *child_points_coord[4], int *child_points_idx[2], int child_num_points[2],
-                                                    Boundry child_boundry[2], vector<int> child_proc_units_id[2])
+void Search_tree_node::decompose_by_fixed_longitude(double fixed_lon, double *workloads, double *c_points_coord[4], int *child_points_idx[2], int c_num_points[2],
+                                                    Boundry c_boundry[2], vector<int> child_proc_units_id[2])
 {
     Midline midline;
 
@@ -637,14 +637,14 @@ void Search_tree_node::decompose_by_fixed_longitude(double fixed_lon, double *wo
     midline.type = PDLN_LON;
     midline.value = fixed_lon;
 
-    split_local_points(midline, child_points_coord, child_points_idx, child_num_points);
+    split_local_points(midline, c_points_coord, child_points_idx, c_num_points);
 
-    split_processing_units_by_points_number(workloads, child_num_points[0], child_num_points[1], region_ids, child_proc_units_id);
+    split_processing_units_by_points_number(workloads, c_num_points[0], c_num_points[1], region_ids, child_proc_units_id);
 
     assert(child_proc_units_id[0].size() + child_proc_units_id[1].size() == region_ids.size());
 
-    child_boundry[0] = child_boundry[1] = *kernel_boundry;
-    child_boundry[0].max_lon = child_boundry[1].min_lon = fixed_lon;
+    c_boundry[0] = c_boundry[1] = *kernel_boundry;
+    c_boundry[0].max_lon = c_boundry[1].min_lon = fixed_lon;
 }
 
 
@@ -1010,43 +1010,48 @@ int Delaunay_grid_decomposition::insert_virtual_points(double *coord_values[2], 
 
 void Delaunay_grid_decomposition::initialze_workload()
 {
-    std::vector<int> active_processing_common_id;
-    int max_num_punits      = (num_points + min_points_per_chunk - 1) / min_points_per_chunk;
-    int total_units         = processing_info->get_num_total_processing_units();
-    int num_regions         = std::max(std::min(total_units, max_num_punits), 4);
+    int max_punits   = (num_points + min_points_per_chunk - 1) / min_points_per_chunk;
+    int total_punits = processing_info->get_num_total_processing_units();
+    num_regions      = std::max(std::min(total_punits, max_punits), 4);
     average_workload = (double)num_points / num_regions;
+    std::vector<int> all_regions_id;
 
     assert(min_points_per_chunk > 0);
     delete[] regionID_to_unitID;
     delete[] workloads;
-    regionID_to_unitID = new int[num_regions];
-    workloads          = new double[num_regions];
 
-    for(int i = 0; i < num_regions; i++) {
-        active_processing_common_id.push_back(i);
+    /* +2: space for extra regions of polars' processes */
+    regionID_to_unitID = new int[num_regions+2];
+    workloads          = new double[num_regions+2];
+
+    /* the first and the last ID(0 and num_regions+1) are preserved, for the same purpose */
+    for(int i = 1; i < num_regions+1; i++) {
+        all_regions_id.push_back(i);
         workloads[i] = average_workload;
     }
 
     processing_info->pick_out_active_processing_units(num_regions, active_processing_units_flag);
 
-    int regionID = 0;
-    for(int i = 0; i < processing_info->get_num_total_processing_units(); i++)
-        if(active_processing_units_flag[i]) {
-            regionID_to_unitID[regionID++] = i;
-        }
-
-    if(regionID == 1)
-        regionID_to_unitID[1] = regionID_to_unitID[2] = regionID_to_unitID[3] = regionID_to_unitID[0];
-    else if(regionID == 2) {
-        regionID_to_unitID[2] = regionID_to_unitID[0];
-        regionID_to_unitID[3] = regionID_to_unitID[1];
+    /* offset for the same purpose above */
+    const int offset = 1;
+    if(total_punits > 3) {
+        for(int i = 0, regionID = 1; i < total_punits; i++)
+            if(active_processing_units_flag[i])
+                regionID_to_unitID[regionID++] = i;
     }
-    else if(regionID == 3) {
-        regionID_to_unitID[3] = regionID_to_unitID[2];
-        regionID_to_unitID[2] = regionID_to_unitID[1];
+    else if(total_punits == 1)
+        regionID_to_unitID[0+offset] = regionID_to_unitID[1+offset] = regionID_to_unitID[2+offset] = regionID_to_unitID[3+offset] = 0;
+    else if(total_punits == 2) {
+        regionID_to_unitID[0+offset] = regionID_to_unitID[1+offset] = 0;
+        regionID_to_unitID[2+offset] = regionID_to_unitID[3+offset] = 1;
+    }
+    else if(total_punits == 3) {
+        regionID_to_unitID[0+offset] = 0;
+        regionID_to_unitID[1+offset] = regionID_to_unitID[2+offset] = 1;
+        regionID_to_unitID[3+offset] = 2;
     }
 
-    search_tree_root->update_region_ids(active_processing_common_id);
+    search_tree_root->update_region_ids(all_regions_id);
     assert(search_tree_root->region_ids.size() > 0);
 }
 
@@ -1091,13 +1096,13 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
 /* "common_node" means non-polar node */
 void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_node *node, bool lazy_mode)
 {
-    double *child_points_coord[4];
-    int *child_points_index[2];
-    int child_num_points[2];
-    Boundry child_boundry[2];
-    vector<int> child_proc_id[2];
-    int *children_intervals[2];
-    int children_num_intervals[2];
+    double *c_points_coord[4];
+    int *c_points_index[2];
+    int c_num_points[2];
+    Boundry c_boundry[2];
+    vector<int> c_regions_id[2];
+    int *c_intervals[2];
+    int c_num_intervals[2];
 
     assert(node->region_ids.size() > 0);
     if(node->region_ids.size() == 1) {
@@ -1108,24 +1113,24 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     }
     
     for(int i = 0; i < 4; i++)
-        child_points_coord[i] = new double[node->num_kernel_points];
-    child_points_index[0] = new int[node->num_kernel_points];
-    child_points_index[1] = new int[node->num_kernel_points];
+        c_points_coord[i] = new double[node->num_kernel_points];
+    c_points_index[0] = new int[node->num_kernel_points];
+    c_points_index[1] = new int[node->num_kernel_points];
     
-    node->decompose_by_processing_units_number(workloads, child_points_coord, child_points_index, 
-                                               child_num_points, child_boundry, child_proc_id, 
-                                               PDLN_DECOMPOSE_COMMON_MODE, children_intervals, 
-                                               children_num_intervals);
+    node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, 
+                                               c_num_points, c_boundry, c_regions_id, 
+                                               PDLN_DECOMPOSE_COMMON_MODE, c_intervals, 
+                                               c_num_intervals);
 
-    node->children[0] = alloc_search_tree_node(node, child_points_coord,   child_points_index[0], child_num_points[0], child_boundry[0], child_proc_id[0], PDLN_NODE_TYPE_COMMON);
-    node->children[2] = alloc_search_tree_node(node, child_points_coord+2, child_points_index[1], child_num_points[1], child_boundry[1], child_proc_id[1], PDLN_NODE_TYPE_COMMON);
+    node->children[0] = alloc_search_tree_node(node, c_points_coord,   c_points_index[0], c_num_points[0], c_boundry[0], c_regions_id[0], PDLN_NODE_TYPE_COMMON);
+    node->children[2] = alloc_search_tree_node(node, c_points_coord+2, c_points_index[1], c_num_points[1], c_boundry[1], c_regions_id[1], PDLN_NODE_TYPE_COMMON);
 
-    node->children[0]->set_groups(children_intervals[0], children_num_intervals[0]);
-    node->children[2]->set_groups(children_intervals[1], children_num_intervals[1]);
+    node->children[0]->set_groups(c_intervals[0], c_num_intervals[0]);
+    node->children[2]->set_groups(c_intervals[1], c_num_intervals[1]);
     for(int i = 0; i < 4; i++)
-        delete[] child_points_coord[i];
-    delete[] child_points_index[0];
-    delete[] child_points_index[1];
+        delete[] c_points_coord[i];
+    delete[] c_points_index[0];
+    delete[] c_points_index[1];
     //TODO: optimize new delete
     
     //int rank;
@@ -1429,53 +1434,45 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
 
 int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool assign_north_polar)
 {
-    double*     child_points_coord[4];
-    int*        child_points_index[2];
-    Boundry     child_boundry[2];
-    int         child_num_points[2];
-    vector<int> child_proc_id[2];
+    double*     c_points_coord[4];
+    int*        c_points_index[2];
+    Boundry     c_boundry[2];
+    int         c_num_points[2];
+    vector<int> c_regions_id[2];
     Midline     midline;
 
     if(!assign_south_polar && !assign_north_polar)
         return 0;
     
     for(int i = 0; i < 4; i++)
-        child_points_coord[i] = new double[search_tree_root->num_kernel_points];
-    child_points_index[0] = new int[search_tree_root->num_kernel_points];
-    child_points_index[1] = new int[search_tree_root->num_kernel_points];
+        c_points_coord[i] = new double[search_tree_root->num_kernel_points];
+    c_points_index[0] = new int[search_tree_root->num_kernel_points];
+    c_points_index[1] = new int[search_tree_root->num_kernel_points];
 
     if(assign_south_polar) {
         //printf("South polar need rotating.\n");
-        if(current_tree_node->region_ids.size() == 1) {
-            child_boundry[0] = child_boundry[1] = *current_tree_node->kernel_boundry;
-            child_proc_id[0].push_back(current_tree_node->region_ids[0]);
-            child_proc_id[1].clear();
-        }
-        else
-            current_tree_node->decompose_by_processing_units_number(workloads, child_points_coord, child_points_index, child_num_points, child_boundry, child_proc_id, PDLN_DECOMPOSE_SPOLAR_MODE);
-        if(current_tree_node->region_ids.size() == 1 || child_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT) {
+        current_tree_node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, c_num_points, c_boundry, c_regions_id, PDLN_DECOMPOSE_SPOLAR_MODE);
+        if(c_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT) {
             midline.type = PDLN_LAT;
             midline.value = PDLN_SPOLAR_MAX_LAT;
-            search_tree_root->split_local_points(midline, child_points_coord, child_points_index, child_num_points);
+            search_tree_root->split_local_points(midline, c_points_coord, c_points_index, c_num_points);
 
-            if(child_num_points[0] < min_points_per_chunk) {
-                for(int i = 0; i < 4; i++)
-                    delete[] child_points_coord[i];
-                delete[] child_points_index[0];
-                delete[] child_points_index[1];
-                printf("assign polars fault, %d vs %d\n", child_num_points[0], min_points_per_chunk);
-                return 1;
-            }
-            child_boundry[0].max_lat = PDLN_SPOLAR_MAX_LAT;
-            child_boundry[1].min_lat = PDLN_SPOLAR_MAX_LAT;
-            workloads[search_tree_root->region_ids[0]] -= child_num_points[0];
-            child_proc_id[1].insert(child_proc_id[1].begin(), search_tree_root->region_ids[0]);
+            if(c_num_points[0] < min_points_per_chunk)
+                goto fail;
+
+            c_boundry[0].max_lat = PDLN_SPOLAR_MAX_LAT;
+            c_boundry[1].min_lat = PDLN_SPOLAR_MAX_LAT;
+
+            /* 0 is preserved for this situation */
+            c_regions_id[0].clear();
+            c_regions_id[0].push_back(0);
+            workloads[1] -= c_num_points[0];
+            c_regions_id[1].insert(c_regions_id[1].begin(), 1);
         }
-        search_tree_root->children[0] = alloc_search_tree_node(search_tree_root, child_points_coord,   child_points_index[0], child_num_points[0],
-                                                               child_boundry[0], child_proc_id[0], PDLN_NODE_TYPE_SPOLAR);
-
-        search_tree_root->children[1] = alloc_search_tree_node(search_tree_root, child_points_coord+2, child_points_index[1], child_num_points[1],
-                                                               child_boundry[1], child_proc_id[1], PDLN_NODE_TYPE_COMMON);
+        search_tree_root->children[0] = alloc_search_tree_node(search_tree_root, c_points_coord,   c_points_index[0], c_num_points[0],
+                                                               c_boundry[0], c_regions_id[0], PDLN_NODE_TYPE_SPOLAR);
+        search_tree_root->children[1] = alloc_search_tree_node(search_tree_root, c_points_coord+2, c_points_index[1], c_num_points[1],
+                                                               c_boundry[1], c_regions_id[1], PDLN_NODE_TYPE_COMMON);
 
         current_tree_node = search_tree_root->children[1];
         
@@ -1491,39 +1488,32 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
     
     if(assign_north_polar) {
         //printf("Nouth polar need rotating.\n");
-        if(current_tree_node->region_ids.size() == 1) {
-            child_boundry[0] = child_boundry[1] = *current_tree_node->kernel_boundry;
-            child_proc_id[0].clear();
-            child_proc_id[1].push_back(current_tree_node->region_ids[0]);
-        }
-        else
-            current_tree_node->decompose_by_processing_units_number(workloads, child_points_coord, child_points_index, child_num_points, child_boundry, child_proc_id, PDLN_DECOMPOSE_NPOLAR_MODE);
-        if(current_tree_node->region_ids.size() == 1 || child_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT) {
+        current_tree_node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, c_num_points, c_boundry, c_regions_id, PDLN_DECOMPOSE_NPOLAR_MODE);
+        if(c_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT) {
             midline.type = PDLN_LAT;
             midline.value = PDLN_NPOLAR_MIN_LAT;
-            current_tree_node->split_local_points(midline, child_points_coord, child_points_index, child_num_points);
+            current_tree_node->split_local_points(midline, c_points_coord, c_points_index, c_num_points);
 
-            if(child_num_points[1] < min_points_per_chunk) {
-                for(int i = 0; i < 4; i++)
-                    delete[] child_points_coord[i];
-                delete[] child_points_index[0];
-                delete[] child_points_index[1];
-                printf("assign polars fault, %d vs %d\n", child_num_points[1], min_points_per_chunk);
-                return 1;
-            }
-            child_boundry[0].max_lat = PDLN_NPOLAR_MIN_LAT;
-            child_boundry[1].min_lat = PDLN_NPOLAR_MIN_LAT;
-            workloads[search_tree_root->region_ids.back()] -= child_num_points[1];
-            child_proc_id[0].push_back(search_tree_root->region_ids.back());
+            if(c_num_points[1] < min_points_per_chunk)
+                goto fail;
+
+            c_boundry[0].max_lat = PDLN_NPOLAR_MIN_LAT;
+            c_boundry[1].min_lat = PDLN_NPOLAR_MIN_LAT;
+
+            /* num_regions+1 is preserved for this situation */
+            c_regions_id[1].clear();
+            c_regions_id[1].push_back(num_regions+1);
+            workloads[num_regions] -= c_num_points[1];
+            c_regions_id[0].push_back(num_regions);
         }
         if(search_tree_root->children[1] != NULL)
             delete search_tree_root->children[1];
 
-        search_tree_root->children[2] = alloc_search_tree_node(search_tree_root, child_points_coord+2, child_points_index[1], child_num_points[1], child_boundry[1],
-                                                               child_proc_id[1], PDLN_NODE_TYPE_NPOLAR);
+        search_tree_root->children[2] = alloc_search_tree_node(search_tree_root, c_points_coord+2, c_points_index[1], c_num_points[1], c_boundry[1],
+                                                               c_regions_id[1], PDLN_NODE_TYPE_NPOLAR);
 
-        search_tree_root->children[1] = alloc_search_tree_node(search_tree_root, child_points_coord,   child_points_index[0], child_num_points[0], child_boundry[0],
-                                                               child_proc_id[0], PDLN_NODE_TYPE_COMMON);
+        search_tree_root->children[1] = alloc_search_tree_node(search_tree_root, c_points_coord,   c_points_index[0], c_num_points[0], c_boundry[0],
+                                                               c_regions_id[0], PDLN_NODE_TYPE_COMMON);
 
         current_tree_node = search_tree_root->children[1];
 
@@ -1537,78 +1527,46 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
     }
 
     for(int i = 0; i < 4; i++)
-        delete[] child_points_coord[i];
-    delete[] child_points_index[0];
-    delete[] child_points_index[1];
+        delete[] c_points_coord[i];
+    delete[] c_points_index[0];
+    delete[] c_points_index[1];
     return 0;
-}
 
-
-void Delaunay_grid_decomposition::assign_cyclic_grid_for_single_processing_unit()
-{
-    double*     child_points_coord[4];
-    int*        child_points_index[2];
-    Boundry     child_boundry[2];
-    int         child_num_points[2];
-    vector<int> child_proc_id[2];
-    Midline     midline;
-
+fail:
     for(int i = 0; i < 4; i++)
-        child_points_coord[i] = new double[current_tree_node->num_kernel_points];
-    child_points_index[0] = new int[search_tree_root->num_kernel_points];
-    child_points_index[1] = new int[search_tree_root->num_kernel_points];
-
-    assert(current_tree_node->region_ids.size() == 1);
-    midline.type = PDLN_LON;
-    midline.value = 180.0;
-    child_boundry[0] = child_boundry[1] = *current_tree_node->kernel_boundry;
-    child_boundry[0].max_lon = child_boundry[1].min_lon = 180.0;
-    child_proc_id[0] = child_proc_id[1] = current_tree_node->region_ids;
-    current_tree_node->split_local_points(midline, child_points_coord, child_points_index, child_num_points);
-    workloads[current_tree_node->region_ids[0]] -= child_num_points[0] + child_num_points[1];
-
-    current_tree_node->children[0] = alloc_search_tree_node(current_tree_node, child_points_coord,   child_points_index[0], child_num_points[0], child_boundry[0],
-                                                                  child_proc_id[0], PDLN_NODE_TYPE_COMMON);
-
-    current_tree_node->children[2] = alloc_search_tree_node(current_tree_node, child_points_coord+2, child_points_index[1], child_num_points[1], child_boundry[1],
-                                                                  child_proc_id[1], PDLN_NODE_TYPE_COMMON);
-
-    assert(have_local_region_ids(child_proc_id[0]));
-    local_leaf_nodes.push_back(current_tree_node->children[0]);
-    local_leaf_nodes.push_back(current_tree_node->children[2]);
-
-    for(int i = 0; i < 4; i++)
-        delete[] child_points_coord[i];
-    delete[] child_points_index[0];
-    delete[] child_points_index[1];
+        delete[] c_points_coord[i];
+    delete[] c_points_index[0];
+    delete[] c_points_index[1];
+    printf("assign polars fault, %d, %d vs %d\n", c_num_points[0], c_num_points[1], min_points_per_chunk);
+    return 1;
 }
 
 
 void Delaunay_grid_decomposition::decompose_with_fixed_longitude(double fixed_lon)
 {
-    double*     child_points_coord[4];
-    int*        child_points_index[2];
-    Boundry     child_boundry[2];
-    int         child_num_points[2];
-    vector<int> child_proc_id[2];
+    double*     c_points_coord[4];
+    int*        c_points_index[2];
+    Boundry     c_boundry[2];
+    int         c_num_points[2];
+    vector<int> c_regions_id[2];
 
     for(int i = 0; i < 4; i++)
-        child_points_coord[i] = new double[current_tree_node->num_kernel_points];
-    child_points_index[0] = new int[search_tree_root->num_kernel_points];
-    child_points_index[1] = new int[search_tree_root->num_kernel_points];
+        c_points_coord[i] = new double[current_tree_node->num_kernel_points];
+    c_points_index[0] = new int[search_tree_root->num_kernel_points];
+    c_points_index[1] = new int[search_tree_root->num_kernel_points];
 
-    current_tree_node->decompose_by_fixed_longitude(fixed_lon, workloads, child_points_coord, child_points_index, child_num_points, child_boundry, child_proc_id);
+    current_tree_node->decompose_by_fixed_longitude(fixed_lon, workloads, c_points_coord, c_points_index, c_num_points, c_boundry, c_regions_id);
 
-    current_tree_node->children[0] = alloc_search_tree_node(current_tree_node, child_points_coord,   child_points_index[0], child_num_points[0], child_boundry[0],
-                                                            child_proc_id[0], PDLN_NODE_TYPE_COMMON);
+    current_tree_node->children[0] = alloc_search_tree_node(current_tree_node, c_points_coord,   c_points_index[0], c_num_points[0], c_boundry[0],
+                                                            c_regions_id[0], PDLN_NODE_TYPE_COMMON);
 
-    current_tree_node->children[2] = alloc_search_tree_node(current_tree_node, child_points_coord+2, child_points_index[1], child_num_points[1], child_boundry[1],
-                                                            child_proc_id[1], PDLN_NODE_TYPE_COMMON);
+    current_tree_node->children[2] = alloc_search_tree_node(current_tree_node, c_points_coord+2, c_points_index[1], c_num_points[1], c_boundry[1],
+                                                            c_regions_id[1], PDLN_NODE_TYPE_COMMON);
 
     for(int i = 0; i < 4; i++)
-        delete[] child_points_coord[i];
-    delete[] child_points_index[0];
-    delete[] child_points_index[1];
+        delete[] c_points_coord[i];
+    delete[] c_points_index[0];
+    delete[] c_points_index[1];
 }
 
 
@@ -1923,7 +1881,7 @@ int Delaunay_grid_decomposition::classify_points(double *coord[2], int *index, i
 double Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double *coord[2], int *idx, int offset,
                                                         int num, Boundry *bound, int linetype, int save_option)
 {
-    int child_num_points[2];
+    int c_num_points[2];
     double length[2], boundry_values[4];
     Midline midline;
 
@@ -1945,46 +1903,46 @@ double Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, doub
     //printf("l: %lf, r: %lf, total: %d, [%lf, %lf],[%lf, %lf]\n", l, r, num, boundry_values[PDLN_LON], boundry_values[PDLN_LON+2], boundry_values[PDLN_LAT], boundry_values[PDLN_LAT+2]);
     midline.type = linetype;
     midline.value = boundry_values[midline.type] + length[midline.type] * l / (l + r);
-    Search_tree_node::count_points(coord, idx, offset, num, midline, child_num_points);
-    //printf("midline.value: %lf, (%d, %d)\n", midline.value, child_num_points[0], child_num_points[1]);
+    Search_tree_node::count_points(coord, idx, offset, num, midline, c_num_points);
+    //printf("midline.value: %lf, (%d, %d)\n", midline.value, c_num_points[0], c_num_points[1]);
 
     int iteration_count = 1;
-    while (child_num_points[0] == 0 || child_num_points[1] == 0 ||
-           fabs(child_num_points[0]/child_num_points[1] - l/r) > PDLN_TOLERABLE_ERROR) {
+    while (c_num_points[0] == 0 || c_num_points[1] == 0 ||
+           fabs(c_num_points[0]/c_num_points[1] - l/r) > PDLN_TOLERABLE_ERROR) {
         //printf("loop: %d\n", iteration_count);
 
         if (save_option == PDLN_SAVE_L) {
-            if(iteration_count++ > PDLN_MAX_ITER_COUNT && child_num_points[0] > 0)
+            if(iteration_count++ > PDLN_MAX_ITER_COUNT && c_num_points[0] > 0)
                 break;
         } else {
-            if(iteration_count++ > PDLN_MAX_ITER_COUNT && child_num_points[1] > 0)
+            if(iteration_count++ > PDLN_MAX_ITER_COUNT && c_num_points[1] > 0)
                 break;
         }
 
-        if(child_num_points[0] < l) {
+        if(c_num_points[0] < l) {
 #ifdef DEBUG
-            assert(child_num_points[1] >= r || fabs(r - child_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
+            assert(c_num_points[1] >= r || fabs(r - c_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
 #endif
-            midline.value += (boundry_values[2+midline.type] - midline.value) * (child_num_points[1] - r) / child_num_points[1];
+            midline.value += (boundry_values[2+midline.type] - midline.value) * (c_num_points[1] - r) / c_num_points[1];
         }
         else {
 #ifdef DEBUG
-            assert(child_num_points[1] <= r || fabs(r - child_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
+            assert(c_num_points[1] <= r || fabs(r - c_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
 #endif
-            midline.value -= (midline.value - boundry_values[midline.type]) * (child_num_points[0] - l) / child_num_points[0];
+            midline.value -= (midline.value - boundry_values[midline.type]) * (c_num_points[0] - l) / c_num_points[0];
         }
-        //printf("midline.value: %lf, (%d, %d)\n", midline.value, child_num_points[0], child_num_points[1]);
+        //printf("midline.value: %lf, (%d, %d)\n", midline.value, c_num_points[0], c_num_points[1]);
         assert(midline.value > boundry_values[midline.type]);
         assert(midline.value < boundry_values[2+midline.type]);
         /* TODO: Search only half of the whole points, but not the whole points */
-        Search_tree_node::count_points(coord, idx, offset, num, midline, child_num_points);
+        Search_tree_node::count_points(coord, idx, offset, num, midline, c_num_points);
     }
     if (save_option == PDLN_SAVE_L) {
-        assert(child_num_points[0] > 0);
+        assert(c_num_points[0] > 0);
         if (linetype == PDLN_LON) bound->max_lon = midline.value;
         else bound->max_lat = midline.value;
     } else {
-        assert(child_num_points[1] > 0);
+        assert(c_num_points[1] > 0);
         if (linetype == PDLN_LON) bound->min_lon = midline.value;
         else bound->min_lat = midline.value;
     }
@@ -2078,13 +2036,13 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
                                                                  double *coord_values[2], int *global_idx,
                                                                  int *num_found)
 {
-    double*     child_points_coord[4];
-    int*        child_points_index[2];
-    int         child_num_points[2];
-    Boundry     child_boundry[2];
-    vector<int> child_proc_id[2];
-    int*        children_intervals[2];
-    int         children_num_intervals[2];
+    double*     c_points_coord[4];
+    int*        c_points_index[2];
+    int         c_num_points[2];
+    Boundry     c_boundry[2];
+    vector<int> c_regions_id[2];
+    int*        c_intervals[2];
+    int         c_num_intervals[2];
 
     assert(node->region_ids.size() > 0);
 
@@ -2102,31 +2060,31 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
 
     if(node->children[0] == NULL && node->children[1] == NULL && node->children[2] == NULL) {
         for(int i = 0; i < 4; i++)
-            child_points_coord[i] = new double[node->num_kernel_points];
-        child_points_index[0] = new int[node->num_kernel_points];
-        child_points_index[1] = new int[node->num_kernel_points];
+            c_points_coord[i] = new double[node->num_kernel_points];
+        c_points_index[0] = new int[node->num_kernel_points];
+        c_points_index[1] = new int[node->num_kernel_points];
         
-        node->decompose_by_processing_units_number(workloads, child_points_coord, child_points_index, 
-                                                   child_num_points, child_boundry, child_proc_id, 
-                                                   PDLN_DECOMPOSE_COMMON_MODE, children_intervals,
-                                                   children_num_intervals);
-        assert(child_proc_id[0].size() > 0);
+        node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, 
+                                                   c_num_points, c_boundry, c_regions_id, 
+                                                   PDLN_DECOMPOSE_COMMON_MODE, c_intervals,
+                                                   c_num_intervals);
+        assert(c_regions_id[0].size() > 0);
 
-        node->children[0] = alloc_search_tree_node(node, child_points_coord,   child_points_index[0], child_num_points[0],
-                                                   child_boundry[0], child_proc_id[0], PDLN_NODE_TYPE_COMMON);
+        node->children[0] = alloc_search_tree_node(node, c_points_coord,   c_points_index[0], c_num_points[0],
+                                                   c_boundry[0], c_regions_id[0], PDLN_NODE_TYPE_COMMON);
 
-        node->children[2] = alloc_search_tree_node(node, child_points_coord+2, child_points_index[1], child_num_points[1],
-                                                   child_boundry[1], child_proc_id[1], PDLN_NODE_TYPE_COMMON);
-        node->children[0]->set_groups(children_intervals[0], children_num_intervals[0]);
-        node->children[2]->set_groups(children_intervals[1], children_num_intervals[1]);
+        node->children[2] = alloc_search_tree_node(node, c_points_coord+2, c_points_index[1], c_num_points[1],
+                                                   c_boundry[1], c_regions_id[1], PDLN_NODE_TYPE_COMMON);
+        node->children[0]->set_groups(c_intervals[0], c_num_intervals[0]);
+        node->children[2]->set_groups(c_intervals[1], c_num_intervals[1]);
 
         assert(node->children[0]->region_ids.size() > 0);
         assert(node->children[2]->region_ids.size() > 0);
 
         for(int i = 0; i < 4; i++)
-            delete[] child_points_coord[i];
-        delete[] child_points_index[0];
-        delete[] child_points_index[1];
+            delete[] c_points_coord[i];
+        delete[] c_points_index[0];
+        delete[] c_points_index[1];
         //TODO: optimize new delete
     }
 

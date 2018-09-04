@@ -130,11 +130,12 @@ public:
 
 class Delaunay_grid_decomposition {
 private:
+    /* search tree info */
     Search_tree_node*         search_tree_root;
     Search_tree_node*         current_tree_node;
     vector<Search_tree_node*> all_leaf_nodes;
     vector<Search_tree_node*> local_leaf_nodes;
-    int min_points_per_chunk;
+    int  min_points_per_chunk;
 
     /* grid info */
     int  original_grid;
@@ -144,6 +145,7 @@ private:
 
     /* proc info */
     Processing_resource* processing_info;
+    int       num_regions;
     bool*     active_processing_units_flag;
     double*   workloads;
     double    average_workload;
