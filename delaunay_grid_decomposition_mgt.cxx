@@ -275,6 +275,7 @@ void Search_tree_node::fix_view_point()
 void Search_tree_node::update_region_ids(int num)
 {
     region_ids.clear();
+    region_ids.reserve(num);
     for(int i = 0; i < num; i ++)
         region_ids.push_back(i);
 }
@@ -905,6 +906,9 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
         delete coord_values[1];
     }
     delete global_index;
+
+    c_points_coord[0] = c_points_coord[1] = c_points_coord[2] = c_points_coord[3] = NULL;
+    c_points_index[0] = c_points_index[1] = NULL;
 }
 
 
@@ -915,6 +919,11 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
         delete[] workloads; 
     delete[] active_processing_units_flag;
     delete[] all_group_intervals;
+
+    for(int i = 0; i < 4; i++)
+        delete[] c_points_coord[i];
+    delete[] c_points_index[0];
+    delete[] c_points_index[1];
 }
 
 
@@ -1093,14 +1102,27 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, vector<in
 }
 
 
+void Delaunay_grid_decomposition::initialze_buffer()
+{
+    for(int i = 0; i < 4; i++)
+        delete[] c_points_coord[i];
+    delete[] c_points_index[0];
+    delete[] c_points_index[1];
+
+    c_regions_id[0].reserve(num_regions+2);
+    c_regions_id[1].reserve(num_regions+2);
+    for(int i = 0; i < 4; i++)
+        c_points_coord[i] = new double[search_tree_root->num_kernel_points];
+    c_points_index[0] = new int[search_tree_root->num_kernel_points];
+    c_points_index[1] = new int[search_tree_root->num_kernel_points];
+}
+
+
 /* "common_node" means non-polar node */
 void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_node *node, bool lazy_mode)
 {
-    double *c_points_coord[4];
-    int *c_points_index[2];
     int c_num_points[2];
     Boundry c_boundry[2];
-    vector<int> c_regions_id[2];
     int *c_intervals[2];
     int c_num_intervals[2];
 
@@ -1111,12 +1133,7 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
         all_leaf_nodes.push_back(node);
         return;
     }
-    
-    for(int i = 0; i < 4; i++)
-        c_points_coord[i] = new double[node->num_kernel_points];
-    c_points_index[0] = new int[node->num_kernel_points];
-    c_points_index[1] = new int[node->num_kernel_points];
-    
+
     node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, 
                                                c_num_points, c_boundry, c_regions_id, 
                                                PDLN_DECOMPOSE_COMMON_MODE, c_intervals, 
@@ -1127,12 +1144,6 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
 
     node->children[0]->set_groups(c_intervals[0], c_num_intervals[0]);
     node->children[2]->set_groups(c_intervals[1], c_num_intervals[1]);
-    for(int i = 0; i < 4; i++)
-        delete[] c_points_coord[i];
-    delete[] c_points_index[0];
-    delete[] c_points_index[1];
-    //TODO: optimize new delete
-    
     //int rank;
     //MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
     //printf("[Rank%d]x[ST-INFO-PRE] p: %p, first: %p, third: %p\n", rank, node, node->children[0], node->children[2]);
@@ -1383,10 +1394,13 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
         local_checksums[i] = set_boundry_type(local_checksums[i], boundry_type);
 
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE || cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            waiting_list->push_back(new MPI_Request);
+            MPI_Request *req = new MPI_Request;
+#ifdef DEBUG
+            waiting_list->push_back(req);
+#endif
             MPI_Isend(&local_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(regionID_to_unitID[leaf_node->neighbors[i].first->region_ids[0]])->process_id,
                       PDLN_SET_TAG(leaf_node->region_id, leaf_node->neighbors[i].first->region_id, iter),
-                      processing_info->get_mpi_comm(), waiting_list->back()); 
+                      processing_info->get_mpi_comm(), req); 
 
             waiting_list->push_back(new MPI_Request);
             MPI_Irecv(&remote_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(regionID_to_unitID[leaf_node->neighbors[i].first->region_ids[0]])->process_id,
@@ -1585,6 +1599,7 @@ bool Delaunay_grid_decomposition::have_local_region_ids(vector<int> chunk_id)
 int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
 {
     initialze_workload();
+    initialze_buffer();
     current_tree_node = search_tree_root;
 
     double min_lon, max_lon, min_lat, max_lat;

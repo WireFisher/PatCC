@@ -153,7 +153,13 @@ private:
     unsigned* regionID_to_checksum;
     int*      all_group_intervals;
 
+    /* temp buffer */
+    vector<int> c_regions_id[2];
+    double*   c_points_coord[4];
+    int*      c_points_index[2];
+
     void initialze_workload();
+    void initialze_buffer();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*, bool =true);
     void decompose_with_fixed_longitude(double);
