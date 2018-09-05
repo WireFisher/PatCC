@@ -549,6 +549,16 @@ Triangle::~Triangle()
 }
 
 
+double Triangle::area()
+{
+    double a = v[0]->calculate_distance(v[1]);
+    double b = v[1]->calculate_distance(v[2]);
+    double c = v[2]->calculate_distance(v[0]);
+    double p = (a + b + c) * 0.5;
+    return sqrt(p*(p-a)*(p-b)*(p-c));
+}
+
+
 void Triangle::check_and_set_twin_edge_relationship(Triangle *another_triangle)
 {
     for (int i = 0; i < 3; i ++)
@@ -741,7 +751,6 @@ void Delaunay_Voronoi::distribute_points_into_triangles(vector<Point*> *pnts, ve
 {
     bool find_triangle;
 
-
     for (unsigned i = 0; i < pnts->size(); i ++) {
         find_triangle = false;
         for (unsigned j = 0; j < triangles->size(); j ++) {
@@ -786,13 +795,13 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
     }
 
     triangle->is_leaf = false;
-    
+
     best_candidate_point_id = triangle->find_best_candidate_point();
     best_candidate_point = triangle->remained_points_in_triangle[best_candidate_point_id];
 
     unsigned end_id = triangle->remained_points_in_triangle.size()-1;
     std::swap(triangle->remained_points_in_triangle[best_candidate_point_id], triangle->remained_points_in_triangle[end_id]);
-    triangle->remained_points_in_triangle.pop_back(); //TODO: erase is slow
+    triangle->remained_points_in_triangle.pop_back();
 
     if (best_candidate_point->position_to_triangle(triangle) == 0) { //inside
         Edge *e_v1_can = allocate_edge(triangle->v[0], best_candidate_point);
@@ -845,7 +854,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         //EXECUTION_REPORT(REPORT_ERROR, -1, best_candidate_point->position_to_edge(vi, vj) == 0, "point, which should be on the edge, is not on the edge");
         assert(best_candidate_point->position_to_edge(vi, vj) == 0);
         if (eij->twin_edge != NULL)
-            //EXECUTION_REPORT(REPORT_ERROR, -1, eij->twin_edge->triangle->is_leaf, "remap software error3 in triangularization_process");
             assert(eij->twin_edge->triangle->is_leaf);
         ejk = eij->next_edge_in_triangle;
         eki = ejk->next_edge_in_triangle;
@@ -885,11 +893,27 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
         }
     }
 
+#ifdef DEBUG
     for (unsigned i = 0; i < leaf_triangles.size(); i ++) {
         if (leaf_triangles[i]->is_leaf)
-            //EXECUTION_REPORT(REPORT_ERROR, -1, leaf_triangles[i]->remained_points_in_triangle.size() == 0, "remap software error1 in triangularization_process");
             assert(leaf_triangles[i]->remained_points_in_triangle.size() == 0);
     }
+#endif
+    int    num_leaf = 0;
+    int    total_points = 0;
+    double total_area = 0;
+    for (unsigned i = 0; i < leaf_triangles.size(); i ++)
+        if (leaf_triangles[i]->is_leaf) {
+            total_area += leaf_triangles[i]->area();
+        }
+        else 
+            total_points += leaf_triangles[i]->remained_points_in_triangle.size();
+
+    for (unsigned i = 0; i < leaf_triangles.size(); i ++)
+        if (leaf_triangles[i]->is_leaf) {
+            leaf_triangles[i]->remained_points_in_triangle.reserve((int)(total_points*leaf_triangles[i]->area()/total_area));
+        }
+
     for (unsigned i = 0; i < leaf_triangles.size(); i ++) {
         if (leaf_triangles[i]->is_leaf)
             continue;
@@ -917,7 +941,6 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
     double minX, maxX, minY, maxY;
     double dx, dy, deltaMax;
     vector<Triangle *> virtual_triangles;
-    vector<Point*> pnts;
 
 
     assert(x != NULL);
@@ -993,6 +1016,8 @@ vector<Triangle*> Delaunay_Voronoi::generate_initial_triangles(int num_points, d
     for (int i = 0; i < num_points; i ++)
         cells[i].center = new Point(x[i], y[i], i);
 
+    vector<Point*> pnts;
+    pnts.reserve(num_points);
     for (int i = 0; i < num_points; i ++)
         if (redundant_cell_mark == NULL || !redundant_cell_mark[i])
             pnts.push_back(cells[i].center);
@@ -1042,6 +1067,9 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 #ifdef DEBUG
     assert(have_redundent_points(x_values, y_values, num_points) == false);
 #endif
+    int triangles_count_estimate = 2*num_points;
+    triangle_pool.reserve(triangles_count_estimate);
+    edge_pool.reserve(triangles_count_estimate*3);
 
     gettimeofday(&start, NULL);
 

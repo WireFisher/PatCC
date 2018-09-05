@@ -83,7 +83,6 @@ class Edge
         Edge(Point *head, Point *tail);
         ~Edge();
         Edge *generate_twins_edge();
-
 };
 
 
@@ -99,7 +98,6 @@ class Triangle
         bool is_leaf;
         bool is_cyclic;
         vector<Point*> remained_points_in_triangle;
-        vector<Triangle*> children;
         double circum_center[2];
         double circum_radius;
         int circum_circle_contains(Point*, double tolerance=FLOAT_ERROR);
@@ -113,6 +111,7 @@ class Triangle
         Triangle(Point*, Point*, Point*);
         Triangle(Edge*, Edge*, Edge*);
         ~Triangle();
+        double area();
         void get_center_coordinates();
         int find_best_candidate_point();
         void check_and_set_twin_edge_relationship(Triangle*);
