@@ -753,9 +753,13 @@ void Delaunay_Voronoi::swap_link_node(int idx1, int idx2)
     double tmp_y  = all_points[idx1].y;
     double tmp_id = all_points[idx1].id;
 
-    all_points[idx1].x  =;
-    all_points[idx1].y  =;
-    all_points[idx1].id =;
+    all_points[idx1].x  = all_points[idx2].x;
+    all_points[idx1].y  = all_points[idx2].y;
+    all_points[idx1].id = all_points[idx2].id;
+
+    all_points[idx2].x  = tmp_x;
+    all_points[idx2].y  = tmp_y;
+    all_points[idx2].id = tmp_id;
 }
 
 
@@ -764,13 +768,13 @@ void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, vect
     if (num_pnts < 1)
         return;
 
-    unsigned start = head;
+    int start = head;
     for (unsigned i = 0; i < triangles->size(); i++) {
         if (!(*triangles)[i]->is_leaf)
             continue;
 
-        unsigned end = tail;
-        for (unsigned j = start; j != -1;) {
+        int end = tail;
+        for (int j = start; j <= end;) {
             if (all_points[j] && all_points[j]->position_to_triangle((*triangles)[i]) >= 0) {
                 j = all_points[j].next;
             } else {
@@ -778,7 +782,7 @@ void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, vect
                 end = all_points[end].prev;
             }
         }
-        (*triangles)[i]->set_remained_points(&pnts[start], end - start + 1);
+        (*triangles)[i]->set_remained_points(start, end);
         start = end + 1;
     }
 
