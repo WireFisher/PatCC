@@ -49,8 +49,9 @@ class Point
     public:
         double x;    
         double y;
-        int id;
-        Triangle *current_triangle;
+        int    id;
+        int    next;
+        int    prev;
 
     public:
         Point();
@@ -97,9 +98,11 @@ class Triangle
         Edge *edge[3];
         bool is_leaf;
         bool is_cyclic;
-        vector<Point*> remained_points_in_triangle;
+        Point** remained_points;
+        int num_remained_points;
         double circum_center[2];
         double circum_radius;
+
         int circum_circle_contains(Point*, double tolerance=FLOAT_ERROR);
         bool really_on_circum_circle(Point *, double);
         bool contain_virtual_polar;
@@ -117,7 +120,8 @@ class Triangle
         void check_and_set_twin_edge_relationship(Triangle*);
         bool contain_vertex(Point*);
         void calulate_circum_circle();
-
+        
+        inline void set_remained_points(Point** buf, int num) {remained_points = buf; num_remained_points = num; };
 };
 
 
@@ -138,6 +142,7 @@ class Delaunay_Voronoi
         vector<Triangle*> result_leaf_triangles;
         vector<Triangle*> triangle_pool;
         vector<Edge*> edge_pool;
+        Point* all_points;
         MemoryPool<Triangle, 0x10000*sizeof(Triangle), Edge*, Edge*, Edge*> triangle_allocator;
         MemoryPool<Edge, 0x10000*sizeof(Edge)> edge_allocator;
         bool is_global_grid;
@@ -154,7 +159,10 @@ class Delaunay_Voronoi
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         void triangularization_process(Triangle*);
-        void distribute_points_into_triangles(vector<Point*>*, vector<Triangle*>*);
+
+        void distribute_points_into_triangles(Point**, int, vector<Triangle*>*);
+        void merge_buffer(vector<Triangle*> *, Point***, int*);
+
         vector<Triangle*> generate_initial_triangles(int, double*, double*, bool*);
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);
