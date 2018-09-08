@@ -68,11 +68,6 @@ class Point
 class Edge
 {
     private:
-#ifdef OPENCV 
-        friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
-#endif
-        friend class Triangle;
-        friend class Delaunay_Voronoi;
         Point *head;
         Point *tail;    /* the tail of this edge, constant */
         Edge *twin_edge;            /* the twin_edge edge, whose tail is the head of this edge and head is the tail of this edge */
@@ -84,22 +79,24 @@ class Edge
         Edge(Point *head, Point *tail);
         ~Edge();
         Edge *generate_twins_edge();
+
+#ifdef OPENCV 
+        friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
+#endif
+        friend class Triangle;
+        friend class Delaunay_Voronoi;
 };
 
 
 class Triangle
 {
     private:
-        friend class Delaunay_Voronoi;
-        friend class Point;
-        friend void plot_triangles_into_file(const char *filename, std::vector<Triangle*>);
         Point *v[3];    /* vertexes of triangle */
-        //Point center;    /* circumcenter */
         Edge *edge[3];
         bool is_leaf;
         bool is_cyclic;
-        Point** remained_points;
-        int num_remained_points;
+        int remained_points_head;
+        int remained_points_tail;
         double circum_center[2];
         double circum_radius;
 
@@ -122,6 +119,10 @@ class Triangle
         void calulate_circum_circle();
         
         inline void set_remained_points(Point** buf, int num) {remained_points = buf; num_remained_points = num; };
+
+        friend class Delaunay_Voronoi;
+        friend class Point;
+        friend void plot_triangles_into_file(const char *filename, std::vector<Triangle*>);
 };
 
 
@@ -138,7 +139,6 @@ void delete_redundent_points(double *&x, double *&y, int &num);
 class Delaunay_Voronoi
 {
     private:
-        Cell *cells;
         vector<Triangle*> result_leaf_triangles;
         vector<Triangle*> triangle_pool;
         vector<Edge*> edge_pool;
@@ -146,7 +146,8 @@ class Delaunay_Voronoi
         MemoryPool<Triangle, 0x10000*sizeof(Triangle), Edge*, Edge*, Edge*> triangle_allocator;
         MemoryPool<Edge, 0x10000*sizeof(Edge)> edge_allocator;
         bool is_global_grid;
-        int num_cells;
+        int num_points;
+        int* point_idx_to_buf_idx;
         Point *virtual_point[4];
         vector<Point*> extra_virtual_point;
         int *global_index;
