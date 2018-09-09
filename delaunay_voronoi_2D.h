@@ -113,12 +113,14 @@ class Triangle
         ~Triangle();
         double area();
         void get_center_coordinates();
-        int find_best_candidate_point();
+        int find_best_candidate_point(Point*) const;
         void check_and_set_twin_edge_relationship(Triangle*);
         bool contain_vertex(Point*);
         void calulate_circum_circle();
         
-        inline void set_remained_points(Point** buf, int num) {remained_points = buf; num_remained_points = num; };
+        int find_dividing_point(Point*);
+        void set_remained_points(int, int);
+        Point* pop_tail(Point*);
 
         friend class Delaunay_Voronoi;
         friend class Point;
@@ -157,14 +159,18 @@ class Delaunay_Voronoi
         double tolerance;
         const double *x_ref;
         const double *y_ref;
+        double* x_store;
+        double* y_store;
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         void triangularization_process(Triangle*);
+        void map_buffer_index_to_point_index();
 
-        void distribute_points_into_triangles(Point**, int, vector<Triangle*>*);
-        void merge_buffer(vector<Triangle*> *, Point***, int*);
+        void distribute_points_into_triangles(int, int, vector<Triangle*>*);
+        void link_remained_list(vector<Triangle*> *, int*, int*);
+        void swap_points(int, int);
 
-        vector<Triangle*> generate_initial_triangles(int, double*, double*, bool*);
+        vector<Triangle*> generate_initial_triangles(int, double*, double*);
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);
         bool is_angle_ambiguous(const Point *pt, const Edge *edge);
@@ -182,8 +188,8 @@ class Delaunay_Voronoi
         void update_virtual_polar_info();
 
     public:
-        Delaunay_Voronoi(int, double*, double*, const double*, const double*, int*, bool, double, double, double, double, bool*, int virtual_polar_local_index=-1);
-        ~Delaunay_Voronoi( );
+        Delaunay_Voronoi(int, double*, double*, const double*, const double*, int*, bool, double, double, double, double, int virtual_polar_local_index=-1);
+        ~Delaunay_Voronoi();
         void legalize_triangles(Point *pt, Edge *edge, vector<Triangle*>*);
         Edge *allocate_edge(Point *head, Point *tail);
         Triangle *allocate_Triangle(Edge*, Edge*, Edge*);

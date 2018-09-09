@@ -324,7 +324,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
                                              projected_coord[PDLN_LON], projected_coord[PDLN_LAT], points_coord[PDLN_LON], points_coord[PDLN_LAT],
                                              points_global_index, false,
                                              rotated_expanded_boundry->min_lon, rotated_expanded_boundry->max_lon,
-                                             rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, NULL, virtual_point_local_index);
+                                             rotated_expanded_boundry->min_lat, rotated_expanded_boundry->max_lat, virtual_point_local_index);
 
         if(node_type != PDLN_NODE_TYPE_COMMON) {
             //triangulation->plot_original_points_into_file(filename);
@@ -416,7 +416,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         triangulation = new Delaunay_Voronoi(num_kernel_points + num_expanded_points,
                                              points_coord[PDLN_LON], points_coord[PDLN_LAT], NULL, NULL, points_global_index, false,
                                              expanded_boundry->min_lon, expanded_boundry->max_lon,
-                                             expanded_boundry->min_lat, expanded_boundry->max_lat, NULL, virtual_point_local_index);
+                                             expanded_boundry->min_lat, expanded_boundry->max_lat, virtual_point_local_index);
         triangulation->uncyclic_all_points();
         triangulation->recognize_cyclic_triangles();
         if(num_inserted > 0)
