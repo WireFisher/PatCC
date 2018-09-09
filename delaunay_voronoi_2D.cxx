@@ -452,10 +452,6 @@ bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
 
 void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, vector<Triangle*> *leaf_triangles)
 {
-    //int rank;
-    //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    //if(triangulate_count == 261 && rank == 79)
-    //    printf("(%lf, %lf)->(%lf, %lf)-(%lf, %lf): %d\n", vr->x, vr->y, edge->head->x, edge->head->y, edge->tail->x, edge->tail->y, is_triangle_legal(vr, edge));
     if (is_triangle_legal(vr, edge))
         return;
 
@@ -765,7 +761,6 @@ void Delaunay_Voronoi::swap_points(int idx1, int idx2)
 void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, vector<Triangle*> *triangles)
 {
     int start = head;
-    //printf("distributing: %d, %d\n", head, tail);
     if (tail == -1)
         return;
     assert(head != -1);
@@ -787,9 +782,6 @@ void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, vect
         if (j > -1 && all_points[end].position_to_triangle((*triangles)[i]) < 0) // Case "j == end"
             end = all_points[end].prev;
         (*triangles)[i]->set_remained_points(start, end);
-        //printf("start: %d\n", start);
-        //printf("end  : %d\n", end);
-        //printf("divided: %d, %d\n", (*triangles)[i]->remained_points_head, (*triangles)[i]->remained_points_tail);
         if (end > -1) {
             start = all_points[end].next;
             all_points[end].next = -1;
@@ -799,7 +791,6 @@ void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, vect
                 break;
         }
     }
-    //printf("start: %d\n", start);
     assert(start == -1);
 }
 
@@ -834,13 +825,6 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
 {
     vector<Triangle *> leaf_triangles;
 
-    //if(triangle->remained_points_head == 451 && triangle->remained_points_tail == 441)
-    //    for (int i = 451; i != -1; i = all_points[i].next)
-    //        printf("%d->", i);
-    //printf("\n");
-    //printf("thead, ttail: %d, %d\n", triangle->remained_points_head, triangle->remained_points_tail);
-    if(!triangle->is_leaf)
-        printf("assert false\n");
 #ifdef DEBUG
     assert(triangle->is_leaf);
 #endif
@@ -951,12 +935,8 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle)
             assert(leaf_triangles[i]->remained_points_head == -1 && leaf_triangles[i]->remained_points_tail == -1);
 #endif
 
-    //for (unsigned i = 0; i < leaf_triangles.size(); i ++)
-    //    if (!leaf_triangles[i]->is_leaf)
-    //        printf("before merge %d: %d, %d\n", i, leaf_triangles[i]->remained_points_head, leaf_triangles[i]->remained_points_tail);
     int list_head, list_tail;
     link_remained_list(&leaf_triangles, &list_head, &list_tail);
-    //printf("merged: %d, %d\n", list_head, list_tail);
 
     distribute_points_into_triangles(list_head, list_tail, &leaf_triangles);
 
@@ -1011,17 +991,10 @@ void Delaunay_Voronoi::link_remained_list(vector<Triangle*> *ts, int* head, int*
     unsigned point_count = 0;
     if (count > 0) {
         merge_sort(head_tail, count, sizeof(int)*2, compare_node_index);
-        for (unsigned i = 0; i < count; i++) {
+        for (unsigned i = 0; i < count; i++)
             for (int j = head_tail[i*2]; j > -1; j = all_points[j].next)
                 point_count++;
-        //    printf("before head_tail: %5d, %5d: ", head_tail[i*2], head_tail[i*2+1]);
-        //    printf("%d\n", point_count);
-        }
-        //if (head_tail[0] == 11 && head_tail[1] == 214) {
-        //    for (int ii = 11; ii > -1; ii = all_points[ii].next)
-        //        printf("%d->", ii);
-        //    printf("\n");
-        //}
+
         for (unsigned i = 0; i < count - 1; i++) {
             int cur_tail_id = head_tail[i*2+1];
             int nxt_head_id = head_tail[i*2+2];
@@ -1034,24 +1007,10 @@ void Delaunay_Voronoi::link_remained_list(vector<Triangle*> *ts, int* head, int*
         *head = -1;
         *tail = -1;
     }
-    //if (head_tail[0] == 11 && head_tail[1] == 214) {
-    //    for (int ii = 11; ii > -1; ii = all_points[ii].next)
-    //        printf("%d->", ii);
-    //    printf("\n");
-    //}
 #ifdef DEBUG
     unsigned point_count2 = 0;
-    //unsigned pcount = 0;
-    for (int i = *head; i > -1; i = all_points[i].next) {
+    for (int i = *head; i > -1; i = all_points[i].next)
         point_count2++;
-        //if(head_tail[0] == 11 && head_tail[1] == 214 && pcount < 2)
-        //    printf("single step: %d\n", i);
-        //if (i == head_tail[pcount*2+1]) {
-        //    printf("after  head_tail: %5d, %5d: %d\n", head_tail[pcount*2], head_tail[pcount*2+1], point_count2);
-        //    pcount++;
-        //}
-    }
-    //printf("1: %d, 2: %d\n", point_count, point_count2);
     assert(point_count == point_count2);
 #endif
 }
@@ -1204,9 +1163,6 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 
     //generate_Voronoi_diagram();
     //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
-
-    //if(!is_all_leaf_triangle_legal())
-    //    printf("warning: illegal\n");
 
     gettimeofday(&end, NULL);
 }
@@ -1376,32 +1332,6 @@ vector<Edge*> Delaunay_Voronoi::get_all_legal_delaunay_edge()
             }
 
     return all_edges;
-}
-
-
-bool Delaunay_Voronoi::check_if_all_outer_edge_out_of_region(double min_x, double max_x, double min_y, double max_y)
-{
-    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
-        if(!result_leaf_triangles[i]->is_leaf)
-            continue;
-
-        for(int j = 0; j < 3; j++)
-            if(result_leaf_triangles[i]->edge[j]->twin_edge == NULL || result_leaf_triangles[i]->edge[j]->twin_edge->triangle == NULL)
-                if((result_leaf_triangles[i]->edge[j]->head->x >= min_x && result_leaf_triangles[i]->edge[j]->head->x <= max_x &&
-                    result_leaf_triangles[i]->edge[j]->head->y >= min_y && result_leaf_triangles[i]->edge[j]->head->y <= max_y) ||
-                   (result_leaf_triangles[i]->edge[j]->tail->x >= min_x && result_leaf_triangles[i]->edge[j]->tail->x <= max_x &&
-                    result_leaf_triangles[i]->edge[j]->tail->y >= min_y && result_leaf_triangles[i]->edge[j]->tail->y <= max_y)) {
-                    printf("check_if_all_outer_edge_out_of_region: false (%lf, %lf) (%lf, %lf) (%lf, %lf)\n", result_leaf_triangles[i]->v[0]->x,
-                                                                                                              result_leaf_triangles[i]->v[0]->y,
-                                                                                                              result_leaf_triangles[i]->v[1]->x,
-                                                                                                              result_leaf_triangles[i]->v[1]->y,
-                                                                                                              result_leaf_triangles[i]->v[2]->x,
-                                                                                                              result_leaf_triangles[i]->v[2]->y);
-                    return false;
-                }
-    }
-    //printf("check_if_all_outer_edge_out_of_region: true\n");
-    return true;
 }
 
 
@@ -1615,9 +1545,6 @@ void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_tr
             }
             
             /* Change cyclic triangles directly into left triangles */
-            //int rank;
-            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-            //printf("[%d] (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", rank, el[0]->head->x, el[0]->head->y, el[1]->head->x, el[1]->head->y, el[2]->head->x, el[2]->head->y);
             cyclic_triangles[i]->initialize_triangle_with_edges(el[0], el[1], el[2]);
 
             /* Alloc new triangles for right triangles */
@@ -1663,23 +1590,7 @@ void Delaunay_Voronoi::relegalize_all_triangles()
         if (!result_leaf_triangles[i]->is_leaf)
             continue;
 
-        //int rank;
-        //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-        
-        //printf("legalizing %d: (%lf, %lf) (%lf, %lf) (%lf, %lf)\n", i, result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, result_leaf_triangles[i]->v[1]->x,
-                                                    //result_leaf_triangles[i]->v[1]->y, result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y);
         for(unsigned j = 0; j < 3; j++) {
-            //printf("[%d] legalizing: (%lf, %lf) vs (%lf, %lf)--(%lf, %lf)\n", rank, result_leaf_triangles[i]->v[j]->x, result_leaf_triangles[i]->v[j]->y,
-            //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->head->x, result_leaf_triangles[i]->edge[(j+1)%3]->head->y,
-            //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->tail->x, result_leaf_triangles[i]->edge[(j+1)%3]->tail->y);
-            //if(result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge && result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle)
-            //    printf("twin: (%lf, %lf)-(%lf, %lf)-(%lf, %lf) is_leaf: %d\n", result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->v[0]->x,
-            //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->v[0]->y,
-            //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->v[1]->x,
-            //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->v[1]->y,
-            //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->v[2]->x,
-            //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->v[2]->y,
-            //                                                             result_leaf_triangles[i]->edge[(j+1)%3]->twin_edge->triangle->is_leaf);
             relegalize_triangles(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->edge[(j+1)%3]/*, &result_leaf_triangles*/);
             //legalize_triangles(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->edge[(j+1)%3], &result_leaf_triangles);
         }
@@ -1770,7 +1681,6 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
     int current = 0;
     int num_triangles = 0;
 
-    //printf("result_leaf_triangles.size: %lu\n", result_leaf_triangles.size());
     for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
         if(!result_leaf_triangles[i]->is_leaf)
             continue;
@@ -1787,11 +1697,9 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
             output_triangles[current++] = Triangle_Transport(Point(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, global_index[result_leaf_triangles[i]->v[0]->id]),
                                                              Point(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, global_index[result_leaf_triangles[i]->v[1]->id]),
                                                              Point(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, global_index[result_leaf_triangles[i]->v[2]->id]));
-            //printf("inner: %d, %d, %d\n", result_leaf_triangles[i]->v[0]->id, result_leaf_triangles[i]->v[1]->id, result_leaf_triangles[i]->v[2]->id);
         }
     }
     assert(current < buf_len);
-    //printf("kernel: %d, buf_len: %d\n", current, buf_len);
 
     get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
     current += num_triangles;

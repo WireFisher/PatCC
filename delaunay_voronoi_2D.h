@@ -196,7 +196,6 @@ class Delaunay_Voronoi
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
         bool is_all_leaf_triangle_legal();
-        bool check_if_all_outer_edge_out_of_region(double, double, double, double);
         void get_triangles_in_region(double, double, double, double, Triangle_Transport *, int *, int);
         void update_all_points_coord(double *, double *, int);
         std::vector<Triangle*> search_cyclic_triangles_for_rotated_grid(Point, Point);
