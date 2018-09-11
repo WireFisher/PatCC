@@ -141,36 +141,45 @@ void delete_redundent_points(double *&x, double *&y, int &num);
 class Delaunay_Voronoi
 {
     private:
+        /* storage */
         vector<Triangle*> result_leaf_triangles;
         vector<Triangle*> triangle_pool;
-        vector<Edge*> edge_pool;
-        Point* all_points;
+        vector<Edge*>     edge_pool;
+        Point*            all_points;
+
+        /* memory management */
         MemoryPool<Triangle, 0x10000*sizeof(Triangle), Edge*, Edge*, Edge*> triangle_allocator;
         MemoryPool<Edge, 0x10000*sizeof(Edge)> edge_allocator;
+        Triangle** triangle_stack;
+        unsigned   stack_size;
+
+        /* property */
         bool is_global_grid;
+        double tolerance;
+
         int num_points;
         int* point_idx_to_buf_idx;
         Point *virtual_point[4];
         vector<Point*> extra_virtual_point;
         int *global_index;
         vector<Triangle*> triangles_containing_vpolar;
-        double lat_nearest_vpolar;
         int vpolar_local_index;
-        double tolerance;
+
         const double *x_ref;
         const double *y_ref;
         double* x_store;
         double* y_store;
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
-        void triangularization_process(Triangle*);
+        void triangularization_process(Triangle*, unsigned);
         void map_buffer_index_to_point_index();
+        void push(unsigned *, Triangle*);
 
-        void distribute_points_into_triangles(int, int, vector<Triangle*>*);
-        void link_remained_list(vector<Triangle*> *, int*, int*);
+        void distribute_points_into_triangles(int, int, unsigned, unsigned);
+        void link_remained_list(unsigned, unsigned, int*, int*);
         void swap_points(int, int);
 
-        vector<Triangle*> generate_initial_triangles(int, double*, double*);
+        unsigned generate_initial_triangles(int, double*, double*);
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);
         bool is_angle_ambiguous(const Point *pt, const Edge *edge);
@@ -190,7 +199,7 @@ class Delaunay_Voronoi
     public:
         Delaunay_Voronoi(int, double*, double*, const double*, const double*, int*, bool, double, double, double, double, int virtual_polar_local_index=-1);
         ~Delaunay_Voronoi();
-        void legalize_triangles(Point *pt, Edge *edge, vector<Triangle*>*);
+        void legalize_triangles(Point *pt, Edge *edge, unsigned*);
         Edge *allocate_edge(Point *head, Point *tail);
         Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
         vector<Edge*> get_all_delaunay_edge();
