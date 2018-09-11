@@ -25,9 +25,6 @@ core_objs = ccpl_utils.o \
 test_objs = DelaunayVoronoi2D.o \
 			FullProcess.o \
 			GridDecomposition.o \
-			GridDecomposition_GlobalManyDifferent.o \
-			GridDecomposition_GlobalMiddle.o \
-			GridDecomposition_SmallRegion.o \
 			ProcessingResourceTest.o
 
 COMMON_FLAGS := -g -O3 -fopenmp -pthread

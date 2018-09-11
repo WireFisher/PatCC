@@ -56,19 +56,21 @@ private:
     int region_id;
 
     Boundry* kernel_boundry;
-    Boundry* expanded_boundry;
+    Boundry* expand_boundry;
     Boundry* rotated_kernel_boundry;
-    Boundry* rotated_expanded_boundry;
+    Boundry* rotated_expand_boundry;
     Boundry* real_boundry;
 
     double  center[2];
-    double* points_coord[2]; //(clean after having children)
+    double* kernel_coord[2];
+    double* expand_coord[2];
+    int*    kernel_index;
+    int*    expand_index;
     double* projected_coord[2];
-    int*    points_global_index;
 
-    int     len_expanded_points_coord_buf;
+    int     len_expand_coord_buf;
     int     num_kernel_points;
-    int     num_expanded_points;
+    int     num_expand_points;
     int     num_projected_points; /* number of points already been projected, kernel + part of expanded */
     bool    non_monotonic;
     Midline midline;
@@ -88,11 +90,10 @@ private:
     int num_neighbors_on_boundry[4];
     int edge_expanding_count[4];
 
-    friend class Delaunay_grid_decomposition;
-
+    void sort_by_line(Midline, int*, int*);
     void fix_view_point();
     void calculate_real_boundary();
-    void fix_expanded_boundry(int index, int count);
+    void fix_expand_boundry(int index, int count);
     double load_polars_info();
     void reset_polars();
 
@@ -100,15 +101,13 @@ public:
     Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type);
     ~Search_tree_node();
     void decompose_by_processing_units_number(double*, double**, int**, int*, Boundry*, vector<int>*, int, int** =NULL, int* =NULL);
-    void decompose_by_fixed_longitude(double, double*, double**, int**, int*, Boundry*, vector<int>*);
     void split_local_points(Midline, double**, int**, int*);
-    void split_processing_units_by_points_number(double*, int, int, vector<int>, vector<int>*);
     void update_region_ids(int);
     void update_region_ids(vector<int>);
     void generate_local_triangulation(bool, int);
     void project_grid();
-    void add_expanded_points(double *, double *, int*, int);
-    void add_expanded_points(double **, int*, int);
+    void add_expand_points(double *, double *, int*, int);
+    void add_expand_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
     void init_num_neighbors_on_boundry(int);
     bool expanding_success(Boundry *, Boundry *, bool);
@@ -124,8 +123,7 @@ public:
     static bool is_coordinate_in_halo(double x, double y, const Boundry *inner, const Boundry *outer);
     static void count_points(double**, int*, int, int, Midline, int*);
 
-    int get_num_kernel_points(){return num_kernel_points; };
-    double** get_points_coord(){return points_coord; };
+    friend class Delaunay_grid_decomposition;
 };
 
 class Delaunay_grid_decomposition {
@@ -138,10 +136,12 @@ private:
     int  min_points_per_chunk;
 
     /* grid info */
-    int  original_grid;
-    bool is_cyclic;
-    int  num_points;
-    int  num_inserted;
+    int     original_grid;
+    bool    is_cyclic;
+    double* coord_values[2];
+    int*    global_index;
+    int     num_points;
+    int     num_inserted;
 
     /* proc info */
     Processing_resource* processing_info;
@@ -155,21 +155,18 @@ private:
 
     /* temp buffer */
     vector<int> c_regions_id[2];
-    double*   c_points_coord[4];
-    int*      c_points_index[2];
 
     void initialze_workload();
     void initialze_buffer();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*, bool =true);
-    void decompose_with_fixed_longitude(double);
     void assign_cyclic_grid_for_single_processing_unit();
     bool have_local_region_ids(vector<int>);
     void update_workloads(int, vector<int>&);
     int expand_tree_node_boundry(Search_tree_node*, double);
     bool do_two_regions_overlap(Boundry, Boundry);
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, vector<int> &, int);
-    int insert_virtual_points(double *coord_values[2], Boundry *boundry, int num_points);
+    int dup_inserted_points(double *coord_values[2], Boundry *boundry, int num_points);
     vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double, double**, int*, int*);
     //void search_halo_points();
     static double adjust_subrectangle(double, double, double**, int*, int, int, Boundry*, int, int);

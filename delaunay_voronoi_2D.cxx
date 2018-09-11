@@ -1133,6 +1133,9 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     assert(have_redundent_points(x_values, y_values, num_points) == false);
     x_store = x_values;
     y_store = y_values;
+
+    for(int i = 0; i < num_points; i++)
+        assert(x_values[i] >= min_lon && x_values[i] <= max_lon && y_values[i] >= min_lat && y_values[i] <= max_lat);
 #endif
     int triangles_count_estimate = 2*num_points;
     triangle_pool.reserve(triangles_count_estimate);
