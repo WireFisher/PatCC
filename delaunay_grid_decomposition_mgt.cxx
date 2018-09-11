@@ -91,48 +91,6 @@ Boundry& Boundry::operator* (double ratio)
 }
 
 
-void Boundry::squeeze(const Boundry *inner, double area_ratio)
-{
-    double area_outter = (max_lat - min_lat) * (max_lon - min_lon);
-    double area_inner  = (inner->max_lat - inner->min_lat) * (inner->max_lon - inner->min_lon);
-    double edge_ratio  = sqrt(area_ratio * area_outter / (area_outter + (area_ratio-1) * area_inner));
-    printf("edge_ratio %lf\n", edge_ratio);
-    assert(edge_ratio >= 1);
-
-#ifdef DEBUG
-    assert(*inner <= *this);
-    //assert((max_lat - min_lat) * edge_ratio * (inner->min_lat - min_lat) / (max_lat - min_lat - inner->max_lat + inner->min_lat) >= 0);
-    //assert((max_lat - min_lat) * edge_ratio * (max_lat - inner->max_lat) / (max_lat - min_lat - inner->max_lat + inner->min_lat) >= 0);
-    //assert((max_lon - min_lon) * edge_ratio * (inner->min_lon - min_lon) / (max_lon - min_lon - inner->max_lon + inner->min_lon) >= 0);
-    //assert((max_lon - min_lon) * edge_ratio * (max_lon - inner->max_lon) / (max_lon - min_lon - inner->max_lon + inner->min_lon) >= 0);
-#endif
-    
-    printf("old [%lf, %lf], [%lf, %lf]\n", min_lon, max_lon, min_lat, max_lat);
-    //double delta = (1 - edge_ratio) / edge_ratio;
-    double delta = (edge_ratio - 1) / edge_ratio;
-    double lef_rate = (inner->min_lon - min_lon) / (max_lon - min_lon - inner->max_lon + inner->min_lon);
-    double rit_rate = (max_lon - inner->max_lon) / (max_lon - min_lon - inner->max_lon + inner->min_lon);
-    double bot_rate = (inner->min_lat - min_lat) / (max_lat - min_lat - inner->max_lat + inner->min_lat);
-    double top_rate = (max_lat - inner->max_lat) / (max_lat - min_lat - inner->max_lat + inner->min_lat);
-    printf("delta: %lf\n", delta);
-    if(fabs(max_lon - min_lon - inner->max_lon + inner->min_lon) < FLOAT_ERROR)
-        lef_rate = rit_rate = 0;
-    if(fabs(max_lat - min_lat - inner->max_lat + inner->min_lat) < FLOAT_ERROR)
-        bot_rate = top_rate = 0;
-
-    assert(delta >= 0);
-    min_lon += (max_lon - min_lon) * delta * lef_rate;
-    max_lon -= (max_lon - min_lon) * delta * rit_rate;
-    min_lat += (max_lat - min_lat) * delta * bot_rate;
-    max_lat -= (max_lat - min_lat) * delta * top_rate;
-    printf("new [%lf, %lf], [%lf, %lf]\n", min_lon, max_lon, min_lat, max_lat);
-    printf("ref [%lf, %lf], [%lf, %lf]\n", inner->min_lon, inner->max_lon, inner->min_lat, inner->max_lat);
-
-    max(*inner);
-    printf("max [%lf, %lf], [%lf, %lf]\n", min_lon, max_lon, min_lat, max_lat);
-}
-
-
 void Boundry::legalize(const Boundry *outer_boundry, bool is_cyclic)
 {
     min_lat = std::max(min_lat, outer_boundry->min_lat);
@@ -1603,7 +1561,6 @@ double Search_tree_node::load_polars_info()
         }
 
         if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() != 1) {
-            printf("inserting\n");
             /* Note: only polar nodes' coord value is changed, search tree root's coord value is unchanged */
             for(unsigned i = 0; i < polars_local_index->size(); i++)
                 kernel_coord[PDLN_LAT][(*polars_local_index)[i]] = (90.0 + nearest_point_lat) * 0.5;
@@ -1632,7 +1589,6 @@ double Search_tree_node::load_polars_info()
         }
 
         if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() != 1) {
-            printf("inserting\n");
             for(unsigned i = 0; i < polars_local_index->size(); i++)
                 kernel_coord[PDLN_LAT][(*polars_local_index)[i]] = (-90.0 + nearest_point_lat) * 0.5;
 
@@ -2569,7 +2525,6 @@ void Grid_info_manager::gen_three_polar_grid()
         }
 
     delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
-    //printf("num points: %d\n", num_points);
     assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
 
     if(squeeze) {
@@ -2578,7 +2533,6 @@ void Grid_info_manager::gen_three_polar_grid()
             coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
         }
         num_points /= 100;
-        //printf("num points: %d\n", num_points);
     }
 
     min_lon =   0.0;

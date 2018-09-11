@@ -41,7 +41,6 @@ public:
     void legalize(const Boundry*, bool);
     void max(double, double, double, double);
     void max(const Boundry);
-    void squeeze(const Boundry*, double);
     void move_close(double**, int, int);
 };
 
