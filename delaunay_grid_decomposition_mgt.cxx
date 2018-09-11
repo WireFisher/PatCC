@@ -2231,19 +2231,19 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         iter++;
     }
 
-    delete [] is_local_leaf_node_finished;
+    delete[] is_local_leaf_node_finished;
 
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
-        delete [] local_leaf_checksums[i];
-        delete [] remote_leaf_checksums[i];
+        delete[] local_leaf_checksums[i];
+        delete[] remote_leaf_checksums[i];
         local_leaf_checksums[i] = NULL;
         remote_leaf_checksums[i] = NULL;
     }
 
-    delete [] local_leaf_checksums;
-    delete [] remote_leaf_checksums;
+    delete[] local_leaf_checksums;
+    delete[] remote_leaf_checksums;
 
-    delete [] waiting_lists;
+    delete[] waiting_lists;
     
     if(all_finished)
         return 0;
