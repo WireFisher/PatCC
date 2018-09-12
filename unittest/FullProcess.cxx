@@ -625,7 +625,7 @@ const char dim1_grid_name[][64] = {
     "ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK | md5sum wrong: virtual p
     "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
     /*
-    "thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", ncfile float don't match double
+    "thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", //ncfile float don't match double
     "tos_Omon_MPI-ESM-LR_historical_r1i1p1_185001-200512.nc",
     "tos_Omon_inmcm4_historical_r1i1p1_185001-200512.nc",
     */
@@ -857,9 +857,15 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 #endif
 
 
-const int scvt_grid_size[] = { 500000,
+const int scvt_grid_size[] = {
+                               500000,
+                               //5000000,
+                               //50000000,
                              };
-const char scvt_grid_name[][64] = { "500000.dat", 
+const char scvt_grid_name[][64] = { 
+                                    "500000.dat", 
+                                    //"5000000.dat",
+                                    //"50000000.dat",
                                   };
 const char scvt_grid_path[] = "gridfile/scvt_grid/%s";
 void prepare_scvt_grid(const char grid_name[], int grid_size)
@@ -932,6 +938,7 @@ void prepare_scvt_grid(const char grid_name[], int grid_size)
     MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+
     assert(sizeof(bool) == 1);
 #ifdef TIME_PERF
     printf("[ - ] Total points: %d\n", num_points);

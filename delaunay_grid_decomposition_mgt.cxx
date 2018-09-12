@@ -2182,9 +2182,9 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 int rank;
                 MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
 #ifdef TIME_PERF
-                printf("[%3d] %dth \"generate local triangulation\": %ldms, number of points: %d\n", rank, iter,
-                                                                                    ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000,
-                                                                                    local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expand_points);
+                printf("[%3d] %dth try: %d points, %ld ms\n", rank, iter,
+                                                              local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expand_points,
+                                                              ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
 #endif
             }
         }
@@ -2372,7 +2372,8 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_Trans
         delete_redundent_triangles(triangles, num_triangles);
         num_different_triangles = num_triangles;
     }
-    
+   
+#ifndef TIME_PERF 
     char file_fmt[] = "log/global_triangles_%d";
     char filename[64];
     snprintf(filename, 64, file_fmt, processing_info->get_num_total_processing_units());
@@ -2383,6 +2384,7 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_Trans
                                                                         triangles[i].v[1].x, triangles[i].v[1].y,
                                                                         triangles[i].v[2].x, triangles[i].v[2].y);
     fclose(fp);
+#endif
 
 #ifdef OPENCV
     char file_fmt2[] = "log/image_global_triangles_%d";

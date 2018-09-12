@@ -43,10 +43,10 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         }
 
         gettimeofday(&end, NULL);
+#ifdef TIME_PERF
         int rank;
         MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-#ifdef TIME_PERF
-        printf("[%3d] Grid decomposition: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+        fprintf(stderr, "[%3d] Grid Decomposition: %ld ms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
 #endif
         //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
 
@@ -56,7 +56,9 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         int all_ret = 0;
         MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
         ret = all_ret;
-        //printf("[%3d] Trianglulation for local decomp: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#ifdef TIME_PERF
+        printf("[ - ] All Trianglulation: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
         /* Return Values: 0 - success
          *                1 - fail, normal decomp's expanded_boundry exceeded too large (expanding fail)
          *                2 - fail, polar  decomp's expanded_boundry exceeded threshold */
@@ -192,15 +194,13 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     gettimeofday(&start, NULL);
     if(operating_grid->generate_delaunay_trianglulation(this->proc_resource))
         return -1;
-    gettimeofday(&end, NULL);
-    int rank;
-    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-#ifdef TIME_PERF
-    printf("[%3d] Full process: %ldms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-#endif
 #ifdef OPENCV
     operating_grid->plot_triangles_into_file();
 #endif
     operating_grid->merge_all_triangles(sort);
+    gettimeofday(&end, NULL);
+#ifdef TIME_PERF
+    printf("[ - ] Total Time Elapsed: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
     return 0;
 }
