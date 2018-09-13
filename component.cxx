@@ -2,8 +2,17 @@
 #include "pd_assert.h"
 #include <cstdio>
 #include <sys/time.h>
+#include "timer.h"
 #define DEFAULT_MIN_NUM_POINTS 100
 #define MULTIPLICATION_COEFFICIENT 2
+
+long time_proc_mgt = 0;
+long time_pretreat = 0;
+long time_decomose = 0;
+long time_expand = 0;
+long time_local_tri = 0;
+long time_consisty_check = 0;
+long time_total = 0;
 
 Grid* Component::search_grid_by_id(int id)
 {
@@ -46,6 +55,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         gettimeofday(&end, NULL);
 #ifdef TIME_PERF
         printf("[ - ] Grid Decomposition: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+        time_decomose = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
 #endif
         //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
 
@@ -191,7 +201,8 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     MPI_Barrier(proc_resource->get_mpi_comm());
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-    printf("[ - ] Procs Resource MGR: %ld us\n", ((end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_usec - start.tv_usec)));
+    printf("[ - ] Procs Resource MGR: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_usec - start.tv_usec));
+    time_proc_mgt = (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_usec - start.tv_usec);
 #endif
 
     //proc_resource->print_all_nodes_info();
@@ -202,6 +213,7 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
     printf("[ - ] Grid Pre-treatment: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+    time_pretreat += ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
 #endif
 
     gettimeofday(&start, NULL);
@@ -215,6 +227,17 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
     printf("[ - ] Total Time Elapsed: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+    time_total = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+#endif
+
+#ifdef TIME_PERF
+    printf("%ld\n", time_proc_mgt);
+    printf("%ld\n", time_pretreat);
+    printf("%ld\n", time_decomose);
+    printf("%ld\n", time_expand);
+    printf("%ld\n", time_local_tri);
+    printf("%ld\n", time_consisty_check);
+    printf("%ld\n", time_total);
 #endif
     return 0;
 }

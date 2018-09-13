@@ -19,6 +19,7 @@
 #include "ccpl_utils.h"
 #include "netcdf_utils.h"
 #include "opencv_utils.h"
+#include "timer.h"
 
 #define PDLN_DEFAULT_EXPANGDING_RATIO (0.2)
 #define PDLN_EXPECTED_EXPANDING_LOOP_TIMES (3)
@@ -824,11 +825,13 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
 
     gettimeofday(&start, NULL);
     num_inserted = dup_inserted_points(coord_values, &boundry, num_points);
+    MPI_Barrier(processing_info->get_mpi_comm());
     gettimeofday(&end, NULL);
     num_points += num_inserted;
 
 #ifdef TIME_PERF
     printf("[ - ] Pseudo Point 3: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+    time_pretreat += ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
 #endif
 
     global_index = new int[num_points];
@@ -1456,6 +1459,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 
 #ifdef TIME_PERF
         printf("[ - ] Pseudo Point 1&2: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+        time_pretreat += ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
 #endif
     }
     
@@ -1509,6 +1513,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 
 #ifdef TIME_PERF
         printf("[ - ] Pseudo Point 1&2: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+        time_pretreat += ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
 #endif
     }
 
@@ -2191,8 +2196,10 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 #ifdef TIME_PERF
         int rank;
         MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
-        if (!all_finished)
+        if (!all_finished) {
             printf("[ - ] %dth expand: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+            time_expand = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+        }
 #endif
         if(all_ret) {
             all_finished = false;
@@ -2211,8 +2218,10 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         gettimeofday(&end, NULL);
 
 #ifdef TIME_PERF
-        if (!all_finished || iter == 0)
+        if (!all_finished || iter == 0) {
             printf("[ - ] %dth triangulize: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+            time_local_tri = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+        }
 #endif
 
         gettimeofday(&start, NULL);
@@ -2256,8 +2265,10 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 all_finished = false;
 
 #ifdef TIME_PERF
-        if (!all_finished || iter == 0)
+        if (!all_finished || iter == 0) {
             printf("[ - ] %dth check: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+            time_consisty_check = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+        }
 #endif
         if(!all_finished)
             expanding_ratio += 0.1;
