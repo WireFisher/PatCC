@@ -2173,6 +2173,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
     while(iter < 10) {
         int ret = 0;
+
         gettimeofday(&start, NULL);
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i]) {
@@ -2198,21 +2199,21 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             break;
         }
 
+        gettimeofday(&start, NULL);
         #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
 
-                gettimeofday(&start, NULL);
                 local_leaf_nodes[i]->generate_local_triangulation(is_cyclic, num_inserted);
-                gettimeofday(&end, NULL);
-
-#ifdef TIME_PERF
-                fprintf(stderr, "[%3d] %dth tri: %d points, %ld ms\n", rank, iter,
-                                                              local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expand_points,
-                                                              ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-#endif
             }
         }
+        MPI_Barrier(processing_info->get_mpi_comm());
+        gettimeofday(&end, NULL);
+
+#ifdef TIME_PERF
+        if (!all_finished || iter == 0)
+            printf("[ - ] %dth triangulize: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
 
         gettimeofday(&start, NULL);
         #pragma omp parallel for
@@ -2246,6 +2247,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
             }
         }
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
 
         all_finished = true;
@@ -2255,7 +2257,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
 #ifdef TIME_PERF
         if (!all_finished || iter == 0)
-            fprintf(stderr, "[%3d] %dth check: %ld ms\n", rank, iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+            printf("[ - ] %dth check: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
 #endif
         if(!all_finished)
             expanding_ratio += 0.1;

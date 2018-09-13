@@ -42,11 +42,10 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
             break;
         }
 
+        MPI_Barrier(proc_resource->get_mpi_comm());
         gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-        int rank;
-        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-        fprintf(stderr, "[%3d] Grid Decomposition: %ld ms\n", rank, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+        printf("[ - ] Grid Decomposition: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
 #endif
         //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
 
@@ -189,6 +188,7 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     gettimeofday(&start, NULL);
     if(proc_resource == NULL)
         proc_resource = new Processing_resource();
+    MPI_Barrier(proc_resource->get_mpi_comm());
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
     printf("[ - ] Procs Resource MGR: %ld us\n", ((end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_usec - start.tv_usec)));
@@ -198,6 +198,7 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
 
     gettimeofday(&start, NULL);
     grid_pretreatment(grid_id);
+    MPI_Barrier(proc_resource->get_mpi_comm());
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
     printf("[ - ] Grid Pre-treatment: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
@@ -210,6 +211,7 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     operating_grid->plot_triangles_into_file();
 #endif
     operating_grid->merge_all_triangles(sort);
+    MPI_Barrier(proc_resource->get_mpi_comm());
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
     printf("[ - ] Total Time Elapsed: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
