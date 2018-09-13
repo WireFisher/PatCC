@@ -8,11 +8,10 @@
 
 #include "processing_unit_mgt.h"
 #include <unistd.h>
-//#include <map>
 #include <cstdio>
 #include <cstring>
-#include <cassert>
 #include <omp.h>
+#include "pd_assert.h"
 
 #define MAX_HOSTNAME_LEN 32
 typedef std::map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
@@ -51,9 +50,9 @@ Processing_resource::Processing_resource() {
     mpi_comm = process_thread_mgr->get_mpi_comm();
     num_local_threads = process_thread_mgr->get_openmp_size();
     
-    assert(num_total_processes > 0);
+    PDASSERT(num_total_processes > 0);
     if(num_local_threads <= 0)
-        assert(false);
+        PDASSERT(false);
 
     local_proc_common_id = new int[num_local_threads];
     num_threads_per_process = new int[num_total_processes];
@@ -77,7 +76,7 @@ Processing_resource::Processing_resource() {
             if(it->second[i]->process_id == local_process_id)
                 local_proc_common_id[num_local_proc_processing_units++] = it->second[i]->common_id;
 
-    assert(num_local_proc_processing_units == num_local_threads);
+    PDASSERT(num_local_proc_processing_units == num_local_threads);
 
     delete[] num_threads_per_process;
     delete[] hostname_checksum_per_process;
@@ -153,12 +152,12 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
             num_active_units--;
         }
 #ifdef DEBUG
-        assert(num_active_units_per_node[i] >= 0);
-        assert((unsigned)num_active_units_per_node[i] <= it->second.size());
+        PDASSERT(num_active_units_per_node[i] >= 0);
+        PDASSERT((unsigned)num_active_units_per_node[i] <= it->second.size());
 #endif
     }
 
-    assert(num_active_units == num_total_active_units);
+    PDASSERT(num_active_units == num_total_active_units);
     
     for(i = 0; i < num_total_processing_units; i++)
         is_active[i] = false;

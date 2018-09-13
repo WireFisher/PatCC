@@ -1,6 +1,6 @@
 #include "ccpl_utils.h"
 #include <cmath>
-#include <cassert>
+#include "pd_assert.h"
 #include <algorithm>
 
 #define PI (3.1415926535898)
@@ -51,8 +51,8 @@ void rotate_sphere_coordinate(double lon_original, double lat_original, double &
     lon_rotated = (double) ((float) lon_rotated);
     lat_rotated = (double) ((float) lat_rotated);
 
-    assert(lon_rotated >= 0 && lon_rotated <= 360);
-    assert(lat_rotated >= -90 && lat_rotated <= 90);
+    PDASSERT(lon_rotated >= 0 && lon_rotated <= 360);
+    PDASSERT(lat_rotated >= -90 && lat_rotated <= 90);
 
     if (lon_rotated == 360)
         lon_rotated = 0;

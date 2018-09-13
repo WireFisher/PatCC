@@ -1,5 +1,5 @@
 #include "component.h"
-#include <cassert>
+#include "pd_assert.h"
 #include <cstdio>
 #include <sys/time.h>
 #define DEFAULT_MIN_NUM_POINTS 100
@@ -139,7 +139,7 @@ void Component::grid_pretreatment(int grid_id)
             //printf("coord: %lf, %lf\n", coord_values[pdln_lon][i], coord_values[pdln_lat][i]);
             //global_p_lon[count] = coord_values[pdln_lon][i];
             //global_p_lat[count++] = coord_values[pdln_lat][i];
-            //assert(count <= 4);
+            //PDASSERT(count <= 4);
     //double tmp;
     //swap(global_p_lon[2], global_p_lon[3]);
     //swap(global_p_lat[2], global_p_lat[3]);
@@ -156,8 +156,8 @@ void Component::grid_pretreatment(int grid_id)
     }
     /* deal with non-monotonic grid */
     else if(min_lon > max_lon) {
-        assert(min_lon >= 0 && min_lon <= 360);
-        assert(max_lon >= 0 && max_lon <= 360);
+        PDASSERT(min_lon >= 0 && min_lon <= 360);
+        PDASSERT(max_lon >= 0 && max_lon <= 360);
 
         double split_line = (min_lon + max_lon) * 0.5;
         for(int i = 0; i < num_points; i++) {

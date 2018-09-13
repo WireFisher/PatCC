@@ -1,7 +1,7 @@
 #include "mpi.h"
 #include "delaunay_voronoi_2D.h"
 #include "opencv_utils.h"
-#include <cassert>
+#include "pd_assert.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -91,7 +91,7 @@ static int compare_lon(const void* a, const void* b)
 
 static inline void radix_sort(Triangle_Transport *triangles, int num_triangles)
 {
-    assert(sizeof(Triangle_Transport) > sizeof(void *)/2);
+    PDASSERT(sizeof(Triangle_Transport) > sizeof(void *)/2);
     merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_lon);
     merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v2);
     merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v1);
@@ -209,9 +209,9 @@ int Point::position_to_triangle(const Triangle *triangle) const
     bool on1 = position_to_edge(triangle->v[0], triangle->v[1]) == 0;
     bool on2 = position_to_edge(triangle->v[1], triangle->v[2]) == 0;
     bool on3 = position_to_edge(triangle->v[2], triangle->v[0]) == 0;
-    assert(!(on1 && on2));
-    assert(!(on2 && on3));
-    assert(!(on3 && on1));
+    PDASSERT(!(on1 && on2));
+    PDASSERT(!(on2 && on3));
+    PDASSERT(!(on3 && on1));
 #endif
     int ret = 0;
     int pos = position_to_edge(triangle->v[0], triangle->v[1]);
@@ -267,7 +267,7 @@ Edge* Delaunay_Voronoi::generate_twins_edge(Edge *e)
 double Delaunay_Voronoi::calculate_angle(const Point *center, const Point *p1, const Point *p2)
 {
     double ax, ay, bx, by;
-    assert(center != p1 && center != p2) ;
+    PDASSERT(center != p1 && center != p2) ;
 
     ax = p1->x - center->x;
     ay = p1->y - center->y;
@@ -456,9 +456,9 @@ void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, unsigned *sp)
         return;
 
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge->triangle->is_leaf, "remap software error1 in legalize_triangles\n");
-    assert(edge->triangle->is_leaf);
+    PDASSERT(edge->triangle->is_leaf);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge->twin_edge->triangle->is_leaf, "remap software error2 in legalize_triangles %lx\n", (long)(edge->twin_edge->triangle));
-    assert(edge->twin_edge->triangle->is_leaf);
+    PDASSERT(edge->twin_edge->triangle->is_leaf);
     push(sp, edge->twin_edge->triangle);
     edge->triangle->is_leaf = false;
     edge->twin_edge->triangle->is_leaf = false;
@@ -489,9 +489,9 @@ void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
     if (edge->triangle->is_cyclic != edge->twin_edge->triangle->is_cyclic)
         return;
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge->triangle->is_leaf, "remap software error1 in legalize_triangles\n");
-    assert(edge->triangle->is_leaf);
+    PDASSERT(edge->triangle->is_leaf);
     //EXECUTION_REPORT(REPORT_ERROR, -1, edge->twin_edge->triangle->is_leaf, "remap software error2 in legalize_triangles %lx\n", (long)(edge->twin_edge->triangle));
-    assert(edge->twin_edge->triangle->is_leaf);
+    PDASSERT(edge->twin_edge->triangle->is_leaf);
 
     Triangle *triangle_origin, *triangle_twin;
     triangle_origin = edge->triangle;
@@ -610,8 +610,8 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
                                                                                                                                std::fabs(det(pt3, pt1, pt2)));
         }
 #endif
-        /* if there are unmarked redundant points, the assertion may fail */
-        assert(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI);
+        /* if there are unmarked redundant points, the PDASSERTion may fail */
+        PDASSERT(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI);
         //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
 #ifdef DEBUG
         if(!(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head)) {
@@ -621,7 +621,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
                                                                                                      edge3->head->x, edge3->head->y, edge3->tail->x, edge3->tail->y);
         }
 #endif
-        assert(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
+        PDASSERT(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
            
         v[0] = pt1;
         if (pt1->position_to_edge(pt2, pt3) == 1) {
@@ -634,15 +634,15 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
         else {
             //int rank;
             //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-            //printf("[%d] assert false\n", rank);
-            assert(false);
+            //printf("[%d] PDASSERT false\n", rank);
+            PDASSERT(false);
             v[1] = pt3;
             v[2] = pt2;
             this->edge[0] = edge3->twin_edge;
             this->edge[1] = edge2->twin_edge;
             this->edge[2] = edge1->twin_edge;
             //EXECUTION_REPORT(REPORT_ERROR, -1, edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL, "remap software error3 in new Triangle");
-            assert(edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL);
+            PDASSERT(edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL);
         }
     }
     remained_points_head = -1;
@@ -716,7 +716,7 @@ bool Triangle::really_on_circum_circle(Point *p, double tolerance)
 int Triangle::find_best_candidate_point(Point* buf) const
 {
     double min_dist=1e10, dist;
-    assert(remained_points_head != -1 || remained_points_tail != -1);
+    PDASSERT(remained_points_head != -1 || remained_points_tail != -1);
 
     double center_x = (v[0]->x+v[1]->x+v[2]->x) * 0.3333333333333333333333333333;
     double center_y = (v[0]->y+v[1]->y+v[2]->y) * 0.3333333333333333333333333333;
@@ -763,7 +763,7 @@ void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, unsi
     int start = head;
     if (tail == -1)
         return;
-    assert(head != -1);
+    PDASSERT(head != -1);
 
     for (unsigned i = base+1; i <= top; i++) {
         if (!triangle_stack[i]->is_leaf)
@@ -791,7 +791,7 @@ void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, unsi
                 break;
         }
     }
-    assert(start == -1);
+    PDASSERT(start == -1);
 }
 
 
@@ -809,7 +809,7 @@ void Triangle::set_remained_points(int head, int tail)
 
 Point* Triangle::pop_tail(Point* buf)
 {
-    assert(remained_points_tail != -1);
+    PDASSERT(remained_points_tail != -1);
     Point* old_tail = &buf[remained_points_tail];
 
     remained_points_tail = buf[remained_points_tail].prev;
@@ -842,7 +842,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle, unsigned st
     unsigned stack_top = stack_base;
 
 #ifdef DEBUG
-    assert(triangle->is_leaf);
+    PDASSERT(triangle->is_leaf);
 #endif
     if (triangle->remained_points_tail == -1) {
         result_leaf_triangles.push_back(triangle);
@@ -900,13 +900,13 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle, unsigned st
                 break;
             default:
                 //EXECUTION_REPORT(REPORT_ERROR, -1, false, "point, which should be found in triangle, is outside of triangle");
-                assert(false);
+                PDASSERT(false);
                 break;
         }
         //EXECUTION_REPORT(REPORT_ERROR, -1, dividing_point->position_to_edge(vi, vj) == 0, "point, which should be on the edge, is not on the edge");
-        assert(dividing_point->position_to_edge(vi, vj) == 0);
+        PDASSERT(dividing_point->position_to_edge(vi, vj) == 0);
         if (eij->twin_edge != NULL)
-            assert(eij->twin_edge->triangle->is_leaf);
+            PDASSERT(eij->twin_edge->triangle->is_leaf);
         ejk = eij->next_edge_in_triangle;
         eki = ejk->next_edge_in_triangle;
         if (eij->twin_edge != NULL) { 
@@ -948,7 +948,7 @@ void Delaunay_Voronoi::triangularization_process(Triangle *triangle, unsigned st
 #ifdef DEBUG
     for (unsigned i = stack_base+1; i <= stack_top; i ++)
         if (triangle_stack[i]->is_leaf)
-            assert(triangle_stack[i]->remained_points_head == -1 && triangle_stack[i]->remained_points_tail == -1);
+            PDASSERT(triangle_stack[i]->remained_points_head == -1 && triangle_stack[i]->remained_points_tail == -1);
 #endif
 
     int list_head, list_tail;
@@ -991,14 +991,14 @@ void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head
             head_tail[count * 2 + 1] = triangle_stack[i]->remained_points_tail;
             count++;
         }
-    assert(count <= max_leaf_triangles);
+    PDASSERT(count <= max_leaf_triangles);
 
 #ifdef DEBUG
     bool* map = new bool[num_points]();
     for (i = base+1; i <= top; i ++)
         if (!triangle_stack[i]->is_leaf && triangle_stack[i]->remained_points_tail > -1) {
             for (int j = triangle_stack[i]->remained_points_head; j > -1; j = all_points[j].next) {
-                assert(map[j] == false);
+                PDASSERT(map[j] == false);
                 map[j] = true;
             }
         }
@@ -1028,7 +1028,7 @@ void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head
     unsigned point_count2 = 0;
     for (int i = *head; i > -1; i = all_points[i].next)
         point_count2++;
-    assert(point_count == point_count2);
+    PDASSERT(point_count == point_count2);
 #endif
 }
 
@@ -1042,8 +1042,8 @@ unsigned Delaunay_Voronoi::generate_initial_triangles(int num_points, double *x,
     unsigned stack_base = 0;
     unsigned stack_top  = 0;
 
-    assert(x != NULL);
-    assert(y != NULL);
+    PDASSERT(x != NULL);
+    PDASSERT(y != NULL);
 
     maxX = minX = x[0];
     maxY = minY = y[0];
@@ -1096,15 +1096,15 @@ void Delaunay_Voronoi::map_buffer_index_to_point_index()
     point_idx_to_buf_idx = new int[num_points]();
     for (int i = 0; i < num_points; i++) {
 #ifdef DEBUG
-        assert(point_idx_to_buf_idx[all_points[i].id] == 0);
+        PDASSERT(point_idx_to_buf_idx[all_points[i].id] == 0);
 #endif
         point_idx_to_buf_idx[all_points[i].id] = i;
     }
 
 #ifdef DEBUG
     for (int i = 0; i < num_points; i++) {
-        assert(x_store[i] == all_points[point_idx_to_buf_idx[i]].x);
-        assert(y_store[i] == all_points[point_idx_to_buf_idx[i]].y);
+        PDASSERT(x_store[i] == all_points[point_idx_to_buf_idx[i]].x);
+        PDASSERT(y_store[i] == all_points[point_idx_to_buf_idx[i]].y);
     }
 #endif
 }
@@ -1146,14 +1146,14 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
 {
     timeval start, end;
 
-    assert((x_ref && y_ref) || (!x_ref && !x_ref));
+    PDASSERT((x_ref && y_ref) || (!x_ref && !x_ref));
 #ifdef DEBUG
-    assert(have_redundent_points(x_values, y_values, num_points) == false);
+    PDASSERT(have_redundent_points(x_values, y_values, num_points) == false);
     x_store = x_values;
     y_store = y_values;
 
     for(int i = 0; i < num_points; i++)
-        assert(x_values[i] >= min_lon && x_values[i] <= max_lon && y_values[i] >= min_lat && y_values[i] <= max_lat);
+        PDASSERT(x_values[i] >= min_lon && x_values[i] <= max_lon && y_values[i] >= min_lat && y_values[i] <= max_lat);
 #endif
     int triangles_count_estimate = 2*num_points;
     triangle_pool.reserve(triangles_count_estimate);
@@ -1648,7 +1648,7 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
                                                          Point(ts[i]->v[1]->x, ts[i]->v[1]->y, global_index[ts[i]->v[1]->id]), 
                                                          Point(ts[i]->v[2]->x, ts[i]->v[2]->y, global_index[ts[i]->v[2]->id]));
 
-    assert(current < buf_len);
+    PDASSERT(current < buf_len);
     *num_triangles = current;
 }
 
@@ -1724,7 +1724,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
                                                              Point(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, global_index[result_leaf_triangles[i]->v[2]->id]));
         }
     }
-    assert(current < buf_len);
+    PDASSERT(current < buf_len);
 
     get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
     current += num_triangles;
@@ -1803,8 +1803,8 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
                 }
         }
 
-    assert(num_edges%3 == 0);
-    assert(num_edges <= 3 * result_leaf_triangles.size());
+    PDASSERT(num_edges%3 == 0);
+    PDASSERT(num_edges <= 3 * result_leaf_triangles.size());
     plot_edge_into_file(filename, head_coord, tail_coord, num_edges, min_x, max_x, min_y, max_y);
 
     delete head_coord[0];
@@ -1835,8 +1835,8 @@ void Delaunay_Voronoi::plot_current_step_into_file(const char *filename)
                 tail_coord[1][num_edges++] = triangle_pool[i]->edge[j]->tail->y;
             }
 
-    assert(num_edges%3 == 0);
-    assert(num_edges <= 3 * triangle_pool.size());
+    PDASSERT(num_edges%3 == 0);
+    PDASSERT(num_edges <= 3 * triangle_pool.size());
     plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_DEFAULT, PDLN_PLOT_FILEMODE_NEW);
 
     delete head_coord[0];
@@ -1866,7 +1866,7 @@ void Delaunay_Voronoi::plot_projection_into_file(const char *filename, double mi
                 tail_coord[1][num_edges++] = result_leaf_triangles[i]->edge[j]->tail->y;
             }
 
-    assert(num_edges <= 3 * result_leaf_triangles.size());
+    PDASSERT(num_edges <= 3 * result_leaf_triangles.size());
     plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_DEFAULT, PDLN_PLOT_FILEMODE_NEW);
 
     num_edges = 0;
@@ -1909,7 +1909,7 @@ void Delaunay_Voronoi::plot_original_points_into_file(const char *filename, doub
         coord[1][num++] = all_points[i].y;
     }
 
-    assert(num == num_points);
+    PDASSERT(num == num_points);
     plot_points_into_file(filename, coord[0], coord[1], num_points, min_x, max_x, min_y, max_y);
 
     delete coord[0];
@@ -1949,7 +1949,7 @@ void plot_triangles_into_file(const char *prefix, Triangle_Transport *t, int num
             }
         }
 
-    assert(num_edges%3 == 0);
+    PDASSERT(num_edges%3 == 0);
     snprintf(filename, 128, "%s.png", prefix);
     plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
 
@@ -1983,7 +1983,7 @@ void plot_triangles_into_file(const char *prefix, std::vector<Triangle*> t)
             tail_coord[1][num_edges++] = t[i]->v[(j+1)%3]->y;
         }
 
-    assert(num_edges%3 == 0);
+    PDASSERT(num_edges%3 == 0);
     snprintf(filename, 128, "%s.png", prefix);
     //plot_edge_into_file(filename, head_coord, tail_coord, num_edges);
     plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_WHITE, PDLN_PLOT_FILEMODE_NEW);
@@ -2010,7 +2010,7 @@ void Delaunay_Voronoi::save_original_points_into_file()
 
 void Delaunay_Voronoi::update_all_points_coord(double *x_values, double *y_values, int num)
 {
-    assert(num == num_points);
+    PDASSERT(num == num_points);
     for(int i = 0; i < num; i++) {
         all_points[point_idx_to_buf_idx[i]].x = x_values[i];
         all_points[point_idx_to_buf_idx[i]].y = y_values[i];
@@ -2051,8 +2051,8 @@ Triangle_Transport::Triangle_Transport(Point p0, Point p1, Point p2)
 bool operator == (Triangle_Transport t1, Triangle_Transport t2)
 {
 #ifdef DEBUG
-    assert(t1.v[0] != t1.v[1] && t1.v[1] != t1.v[2] && t1.v[2] != t1.v[0]);
-    assert(t2.v[0] != t2.v[1] && t2.v[1] != t2.v[2] && t2.v[2] != t2.v[0]);
+    PDASSERT(t1.v[0] != t1.v[1] && t1.v[1] != t1.v[2] && t1.v[2] != t1.v[0]);
+    PDASSERT(t2.v[0] != t2.v[1] && t2.v[1] != t2.v[2] && t2.v[2] != t2.v[0]);
 #endif
     if(t2.v[0] != t1.v[0] && t2.v[0] != t1.v[1] && t2.v[0] != t1.v[2])
         return false;
