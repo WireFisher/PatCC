@@ -45,6 +45,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         delaunay_triangulation = new Delaunay_grid_decomposition(this->grid_id, proc_resource, min_num_points_per_chunk);
 
         timeval start, end;
+        MPI_Barrier(proc_resource->get_mpi_comm());
         gettimeofday(&start, NULL);
         if(delaunay_triangulation->generate_grid_decomposition()) {
             do_sequentially = true;
@@ -61,6 +62,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
 
         gettimeofday(&start, NULL);
         ret = delaunay_triangulation->generate_trianglulation_for_local_decomp();
+        MPI_Barrier(proc_resource->get_mpi_comm());
         gettimeofday(&end, NULL);
         int all_ret = 0;
         MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
@@ -195,6 +197,7 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     if (operating_grid == NULL)
         return -1;
 
+    MPI_Barrier(process_thread_mgr->get_mpi_comm());
     gettimeofday(&start, NULL);
     if(proc_resource == NULL)
         proc_resource = new Processing_resource();

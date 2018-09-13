@@ -823,6 +823,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     coord_values[0] = coords[0];
     coord_values[1] = coords[1];
 
+    MPI_Barrier(processing_info->get_mpi_comm());
     gettimeofday(&start, NULL);
     num_inserted = dup_inserted_points(coord_values, &boundry, num_points);
     MPI_Barrier(processing_info->get_mpi_comm());
@@ -1451,8 +1452,10 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         all_leaf_nodes.push_back(search_tree_root->children[0]);
 
         /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         double shifted_polar_lat = search_tree_root->children[0]->load_polars_info();
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->min_lat = shifted_polar_lat;
@@ -1505,8 +1508,10 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             local_leaf_nodes.push_back(search_tree_root->children[2]);
         all_leaf_nodes.push_back(search_tree_root->children[2]);
         /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         double shifted_polar_lat = search_tree_root->children[2]->load_polars_info();
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->max_lat = shifted_polar_lat;
@@ -2179,6 +2184,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     while(iter < 10) {
         int ret = 0;
 
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i]) {
@@ -2206,6 +2212,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             break;
         }
 
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
