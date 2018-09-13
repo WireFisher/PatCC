@@ -1,4 +1,5 @@
 #ifndef PD_ASSERT_H
+#define PD_ASSERT_H
 
 #include <cassert>
 
