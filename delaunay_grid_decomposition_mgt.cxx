@@ -809,6 +809,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     , regionID_to_unitID(NULL)
     , all_group_intervals(NULL)
 {
+    timeval start, end;
     double **coords;
     Boundry boundry;
 
@@ -821,8 +822,14 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     coord_values[0] = coords[0];
     coord_values[1] = coords[1];
 
+    gettimeofday(&start, NULL);
     num_inserted = dup_inserted_points(coord_values, &boundry, num_points);
+    gettimeofday(&end, NULL);
     num_points += num_inserted;
+
+#ifdef TIME_PERF
+    printf("[ - ] Pseudo Point 3: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
 
     global_index = new int[num_points];
     for(int i = 0; i < num_points; i++)
@@ -1390,6 +1397,7 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
 
 int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool assign_north_polar)
 {
+    timeval     start, end;
     double*     c_points_coord[4];
     int*        c_points_index[2];
     Boundry     c_boundry[2];
@@ -1440,9 +1448,15 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         all_leaf_nodes.push_back(search_tree_root->children[0]);
 
         /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
+        gettimeofday(&start, NULL);
         double shifted_polar_lat = search_tree_root->children[0]->load_polars_info();
+        gettimeofday(&end, NULL);
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->min_lat = shifted_polar_lat;
+
+#ifdef TIME_PERF
+        printf("[ - ] Pseudo Point 1&2: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
     }
     
     if(assign_north_polar) {
@@ -1487,9 +1501,15 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             local_leaf_nodes.push_back(search_tree_root->children[2]);
         all_leaf_nodes.push_back(search_tree_root->children[2]);
         /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
+        gettimeofday(&start, NULL);
         double shifted_polar_lat = search_tree_root->children[2]->load_polars_info();
+        gettimeofday(&end, NULL);
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->max_lat = shifted_polar_lat;
+
+#ifdef TIME_PERF
+        printf("[ - ] Pseudo Point 1&2: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
     }
 
     return 0;
@@ -2127,6 +2147,7 @@ bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
 #define PDLN_MAX_NUM_NEIGHBORS 128
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
+    timeval start, end;
     bool* is_local_leaf_node_finished = new bool[local_leaf_nodes.size()]();
     unsigned** local_leaf_checksums   = new unsigned*[local_leaf_nodes.size()];
     unsigned** remote_leaf_checksums  = new unsigned*[local_leaf_nodes.size()];
@@ -2152,6 +2173,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
     while(iter < 10) {
         int ret = 0;
+        gettimeofday(&start, NULL);
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i]) {
                 ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
@@ -2164,6 +2186,13 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
         int all_ret = 0;
         MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, processing_info->get_mpi_comm());
+        gettimeofday(&end, NULL);
+#ifdef TIME_PERF
+        int rank;
+        MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
+        if (!all_finished)
+            printf("[ - ] %dth expand: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
         if(all_ret) {
             all_finished = false;
             break;
@@ -2173,22 +2202,19 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
 
-                timeval start, end;
                 gettimeofday(&start, NULL);
-
                 local_leaf_nodes[i]->generate_local_triangulation(is_cyclic, num_inserted);
-
                 gettimeofday(&end, NULL);
-                int rank;
-                MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
+
 #ifdef TIME_PERF
-                printf("[%3d] %dth try: %d points, %ld ms\n", rank, iter,
+                fprintf(stderr, "[%3d] %dth tri: %d points, %ld ms\n", rank, iter,
                                                               local_leaf_nodes[i]->num_kernel_points + local_leaf_nodes[i]->num_expand_points,
                                                               ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
 #endif
             }
         }
 
+        gettimeofday(&start, NULL);
         #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
@@ -2220,12 +2246,17 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
             }
         }
+        gettimeofday(&end, NULL);
 
         all_finished = true;
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i])
                 all_finished = false;
 
+#ifdef TIME_PERF
+        if (!all_finished || iter == 0)
+            fprintf(stderr, "[%3d] %dth check: %ld ms\n", rank, iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
         if(!all_finished)
             expanding_ratio += 0.1;
         iter++;
@@ -2388,8 +2419,9 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_Trans
 
 #ifdef OPENCV
     char file_fmt2[] = "log/image_global_triangles_%d";
-    snprintf(filename, 64, file_fmt2, processing_info->get_num_total_processing_units());
-    plot_triangles_into_file(filename, triangles, num_different_triangles, true);
+    char filename2[64];
+    snprintf(filename2, 64, file_fmt2, processing_info->get_num_total_processing_units());
+    plot_triangles_into_file(filename2, triangles, num_different_triangles, true);
 #endif
 }
 

@@ -180,17 +180,29 @@ Component::~Component()
 
 int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
 {
-    Grid *operating_grid;
-    operating_grid = this->search_grid_by_id(grid_id);
-    assert(operating_grid);
+    timeval start, end;
 
+    Grid *operating_grid = this->search_grid_by_id(grid_id);
+    if (operating_grid == NULL)
+        return -1;
+
+    gettimeofday(&start, NULL);
     if(proc_resource == NULL)
         proc_resource = new Processing_resource();
-    //this->proc_resource->print_all_nodes_info();
+    gettimeofday(&end, NULL);
+#ifdef TIME_PERF
+    printf("[ - ] Procs Resource MGR: %ld us\n", ((end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_usec - start.tv_usec)));
+#endif
 
+    //proc_resource->print_all_nodes_info();
+
+    gettimeofday(&start, NULL);
     grid_pretreatment(grid_id);
+    gettimeofday(&end, NULL);
+#ifdef TIME_PERF
+    printf("[ - ] Grid Pre-treatment: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+#endif
 
-    timeval start, end;
     gettimeofday(&start, NULL);
     if(operating_grid->generate_delaunay_trianglulation(this->proc_resource))
         return -1;
