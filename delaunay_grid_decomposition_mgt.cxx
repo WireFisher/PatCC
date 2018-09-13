@@ -1591,9 +1591,9 @@ double Search_tree_node::load_polars_info()
             virtual_point_local_index = num_kernel_points+num_expand_points;
             add_expand_points(&vpoint_lon, &vpoint_lat, &vpoint_idx, 1);
 #ifdef DEBUG
-            assert(kernel_coord[PDLN_LON][virtual_point_local_index] == vpoint_lon);
-            assert(kernel_coord[PDLN_LAT][virtual_point_local_index] == vpoint_lat);
-            assert(kernel_index[virtual_point_local_index] == vpoint_idx);
+            assert(expand_coord[PDLN_LON][virtual_point_local_index-num_kernel_points] == vpoint_lon);
+            assert(expand_coord[PDLN_LAT][virtual_point_local_index-num_kernel_points] == vpoint_lat);
+            assert(expand_index[virtual_point_local_index-num_kernel_points] == vpoint_idx);
 #endif
             return (90.0 + nearest_point_lat) * 0.5;
         }
@@ -1618,9 +1618,9 @@ double Search_tree_node::load_polars_info()
             virtual_point_local_index = num_kernel_points+num_expand_points;
             add_expand_points(&vpoint_lon, &vpoint_lat, &vpoint_idx, 1);
 #ifdef DEBUG
-            assert(kernel_coord[PDLN_LON][virtual_point_local_index] == vpoint_lon);
-            assert(kernel_coord[PDLN_LAT][virtual_point_local_index] == vpoint_lat);
-            assert(kernel_index[virtual_point_local_index] == vpoint_idx);
+            assert(expand_coord[PDLN_LON][virtual_point_local_index-num_kernel_points] == vpoint_lon);
+            assert(expand_coord[PDLN_LAT][virtual_point_local_index-num_kernel_points] == vpoint_lat);
+            assert(expand_index[virtual_point_local_index-num_kernel_points] == vpoint_idx);
 #endif
             return (-90.0 + nearest_point_lat) * 0.5;
         }
