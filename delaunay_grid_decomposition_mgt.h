@@ -90,6 +90,8 @@ private:
     int edge_expanding_count[4];
 
     void sort_by_line(Midline, int*, int*);
+    void sort_by_line(Midline*, int, int, int*, int*);
+
     void fix_view_point();
     void calculate_real_boundary();
     void fix_expand_boundry(int index, int count);
@@ -101,6 +103,8 @@ public:
     ~Search_tree_node();
     void decompose_by_processing_units_number(double*, double**, int**, int*, Boundry*, vector<int>*, int, int** =NULL, int* =NULL);
     void split_local_points(Midline, double**, int**, int*);
+
+    void divide_local_points(double, double, double, double, int, int, int, Midline*, int*);
     void update_region_ids(int);
     void update_region_ids(vector<int>);
     void generate_local_triangulation(bool, int);

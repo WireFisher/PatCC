@@ -455,6 +455,33 @@ void Search_tree_node::sort_by_line(Midline midline, int* left_num, int* rite_nu
     *rite_num = num_kernel_points - j - 1;
 }
 
+
+void Search_tree_node::sort_by_line(Midline* midline, int start, int num, int* left_num, int* rite_num)
+{
+    int    i, j;
+    int    type = midline->type;
+    double value = midline->value;
+
+    PDASSERT(num > 0);
+    if(non_monotonic && type == PDLN_LON)
+        PDASSERT(false);
+
+    for(i = start, j = start + num - 1; i <= j;)
+        if(kernel_coord[type][i] < value) {
+            i++;
+        }
+        else {
+            std::swap(kernel_coord[type][i], kernel_coord[type][j]);
+            std::swap(kernel_coord[(type+1)%2][i], kernel_coord[(type+1)%2][j]);
+            std::swap(kernel_index[i], kernel_index[j]);
+            j--;
+        }
+
+    *left_num = j + 1 - start;
+    *rite_num = start + num - j - 1;
+}
+
+
 void Search_tree_node::split_local_points(Midline midline, double *c_points_coord[4], int *c_points_idx[2], int c_num_points[2])
 {
     sort_by_line(midline, &c_num_points[0], &c_num_points[1]);
@@ -466,6 +493,7 @@ void Search_tree_node::split_local_points(Midline midline, double *c_points_coor
     c_points_idx[0] = kernel_index;
     c_points_idx[1] = &kernel_index[c_num_points[0]];
 }
+
 
 void Search_tree_node::decompose_by_processing_units_number(double *workloads, double *c_points_coord[4], int *c_points_idx[2], int c_num_points[2],
                                    Boundry c_boundry[2], vector<int> c_proc_units_id[2], int mode, int *c_intervals[2], int c_num_intervals[2])
@@ -553,33 +581,10 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
         for(i = 0, c_total_workload[1] = 0.0; i < c_proc_units_id[1].size(); i++)
             c_total_workload[1] += workloads[c_proc_units_id[1][i]];
 
-        midline.value = boundry_values[midline.type] + length[midline.type] * c_total_workload[0] / (c_total_workload[0] + c_total_workload[1]);
-        split_local_points(midline, c_points_coord, c_points_idx, c_num_points);
-
-        iteration_count = 1;
-        while (c_num_points[0] == 0 || c_num_points[1] == 0 ||
-               fabs(c_num_points[0]/c_num_points[1] - c_total_workload[0]/c_total_workload[1]) > PDLN_TOLERABLE_ERROR) {
-
-            if(iteration_count++ > PDLN_MAX_ITER_COUNT)
-                break;
-
-            if(c_num_points[0] < c_total_workload[0]) {
-#ifdef DEBUG
-                PDASSERT(c_num_points[1] >= c_total_workload[1] || fabs(c_total_workload[1] - c_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
-#endif
-                midline.value += (boundry_values[2+midline.type] - midline.value) * (c_num_points[1] - c_total_workload[1]) / c_num_points[1];
-            }
-            else {
-#ifdef DEBUG
-                PDASSERT(c_num_points[1] <= c_total_workload[1] || fabs(c_total_workload[1] - c_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
-#endif
-                midline.value -= (midline.value - boundry_values[midline.type]) * (c_num_points[0] - c_total_workload[0]) / c_num_points[0];
-            }
-            PDASSERT(midline.value > boundry_values[midline.type]);
-            PDASSERT(midline.value < boundry_values[2+midline.type]);
-            /* TODO: Search only half of the whole points, but not the whole points */
-            split_local_points(midline, c_points_coord, c_points_idx, c_num_points);
-        }
+        c_num_points[0] = c_num_points[1] = 0;
+        divide_local_points(c_total_workload[0], c_total_workload[1], boundry_values[midline.type], boundry_values[midline.type+2],
+                            0, num_kernel_points, 0, &midline, c_num_points);
+        PDASSERT(c_num_points[0] + c_num_points[1] == num_kernel_points);
     }
     else
         midline.value = boundry_values[2+midline.type];
@@ -607,6 +612,42 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
     }
     else
         PDASSERT(false);
+}
+
+
+void Search_tree_node::divide_local_points(double left_expt, double rite_expt, double left_bound, double rite_bound, 
+                                           int offset, int num_points, int count, Midline* midline, int c_num_points[2]) {
+    int tmp_num[2];
+    midline->value = left_bound + (rite_bound - left_bound) * left_expt / (left_expt + rite_expt);
+
+    PDASSERT(num_points >= 0);
+    PDASSERT(midline->value >= left_bound);
+    PDASSERT(midline->value <= rite_bound);
+
+    sort_by_line(midline, offset, num_points, &tmp_num[0], &tmp_num[1]);
+
+    PDASSERT(tmp_num[0] >= 0);
+    PDASSERT(tmp_num[0] <= num_points);
+    PDASSERT(tmp_num[1] >= 0);
+    PDASSERT(tmp_num[1] <= num_points);
+
+    if (count > 10 || fabs(left_expt/rite_expt - (double)tmp_num[0]/tmp_num[1]) < 0.3) {
+        c_num_points[0] += tmp_num[0];
+        c_num_points[1] += tmp_num[1];
+        return;
+    }
+
+    if (tmp_num[0] > left_expt) {
+        /* moving left */
+        c_num_points[1] += tmp_num[1];
+        PDASSERT(num_points-tmp_num[1] >= 0);
+        divide_local_points(left_expt, rite_expt-tmp_num[1], left_bound, midline->value, offset, num_points-tmp_num[1], count+1, midline, c_num_points);
+    } else {
+        /* moving right */
+        c_num_points[0] += tmp_num[0];
+        PDASSERT(tmp_num[1] >= 0);
+        divide_local_points(left_expt-tmp_num[0], rite_expt, midline->value, rite_bound, offset+tmp_num[0], tmp_num[1], count+1, midline, c_num_points);
+    }
 }
 
 
