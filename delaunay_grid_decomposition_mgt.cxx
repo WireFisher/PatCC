@@ -436,44 +436,37 @@ void Search_tree_node::count_points(double *coord[2], int *idx, int offset, int 
 }
 
 
-void Search_tree_node::sort_by_line(Midline midline, int* left_num, int* rite_num)
+void Search_tree_node::sort_by_line(Midline* midline, int* left_num, int* rite_num)
 {
-    if(non_monotonic && midline.type == PDLN_LON)
-        PDASSERT(false);
-    int i, j;
-    for(i = 0, j = num_kernel_points - 1; i <= j;)
-        if(kernel_coord[midline.type][i] < midline.value) {
-            i++;
-        }
-        else {
-            std::swap(kernel_coord[midline.type][i], kernel_coord[midline.type][j]);
-            std::swap(kernel_coord[(midline.type+1)%2][i], kernel_coord[(midline.type+1)%2][j]);
-            std::swap(kernel_index[i], kernel_index[j]);
-            j--;
-        }
-    *left_num = j + 1;
-    *rite_num = num_kernel_points - j - 1;
+    sort_by_line(midline, 0, num_kernel_points, left_num, rite_num);
 }
 
 
 void Search_tree_node::sort_by_line(Midline* midline, int start, int num, int* left_num, int* rite_num)
 {
+    if(non_monotonic && midline->type == PDLN_LON)
+        PDASSERT(false);
+
+    sort_by_line(kernel_coord, kernel_index, midline, start, num, left_num, rite_num);
+}
+
+
+void Search_tree_node::sort_by_line(double* coord[2], int* index,  Midline* midline, int start, int num, int* left_num, int* rite_num)
+{
     int    i, j;
-    int    type = midline->type;
+    int    type_curt = midline->type;
+    int    type_opst = (midline->type+1)%2;
     double value = midline->value;
 
     PDASSERT(num > 0);
-    if(non_monotonic && type == PDLN_LON)
-        PDASSERT(false);
 
     for(i = start, j = start + num - 1; i <= j;)
-        if(kernel_coord[type][i] < value) {
+        if(coord[type_curt][i] < value) {
             i++;
-        }
-        else {
-            std::swap(kernel_coord[type][i], kernel_coord[type][j]);
-            std::swap(kernel_coord[(type+1)%2][i], kernel_coord[(type+1)%2][j]);
-            std::swap(kernel_index[i], kernel_index[j]);
+        } else {
+            std::swap(coord[type_curt][i], coord[type_curt][j]);
+            std::swap(coord[type_opst][i], coord[type_opst][j]);
+            std::swap(index[i], index[j]);
             j--;
         }
 
@@ -484,7 +477,7 @@ void Search_tree_node::sort_by_line(Midline* midline, int start, int num, int* l
 
 void Search_tree_node::split_local_points(Midline midline, double *c_points_coord[4], int *c_points_idx[2], int c_num_points[2])
 {
-    sort_by_line(midline, &c_num_points[0], &c_num_points[1]);
+    sort_by_line(&midline, &c_num_points[0], &c_num_points[1]);
 
     c_points_coord[PDLN_LON] = kernel_coord[PDLN_LON];
     c_points_coord[PDLN_LAT] = kernel_coord[PDLN_LAT];
@@ -617,6 +610,12 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
 
 void Search_tree_node::divide_local_points(double left_expt, double rite_expt, double left_bound, double rite_bound, 
                                            int offset, int num_points, int count, Midline* midline, int c_num_points[2]) {
+    divide_points(kernel_coord, kernel_index, left_expt, rite_expt, left_bound, rite_bound, offset, num_points, count, midline, c_num_points);
+}
+
+
+void Search_tree_node::divide_points(double* coord[2], int* index, double left_expt, double rite_expt, double left_bound, double rite_bound, 
+                                     int offset, int num_points, int count, Midline* midline, int c_num_points[2]) {
     int tmp_num[2];
     midline->value = left_bound + (rite_bound - left_bound) * left_expt / (left_expt + rite_expt);
 
@@ -624,7 +623,7 @@ void Search_tree_node::divide_local_points(double left_expt, double rite_expt, d
     PDASSERT(midline->value >= left_bound);
     PDASSERT(midline->value <= rite_bound);
 
-    sort_by_line(midline, offset, num_points, &tmp_num[0], &tmp_num[1]);
+    sort_by_line(coord, index, midline, offset, num_points, &tmp_num[0], &tmp_num[1]);
 
     PDASSERT(tmp_num[0] >= 0);
     PDASSERT(tmp_num[0] <= num_points);
@@ -641,12 +640,12 @@ void Search_tree_node::divide_local_points(double left_expt, double rite_expt, d
         /* moving left */
         c_num_points[1] += tmp_num[1];
         PDASSERT(num_points-tmp_num[1] >= 0);
-        divide_local_points(left_expt, rite_expt-tmp_num[1], left_bound, midline->value, offset, num_points-tmp_num[1], count+1, midline, c_num_points);
+        divide_points(coord, index, left_expt, rite_expt-tmp_num[1], left_bound, midline->value, offset, num_points-tmp_num[1], count+1, midline, c_num_points);
     } else {
         /* moving right */
         c_num_points[0] += tmp_num[0];
         PDASSERT(tmp_num[1] >= 0);
-        divide_local_points(left_expt-tmp_num[0], rite_expt, midline->value, rite_bound, offset+tmp_num[0], tmp_num[1], count+1, midline, c_num_points);
+        divide_points(coord, index, left_expt-tmp_num[0], rite_expt, midline->value, rite_bound, offset+tmp_num[0], tmp_num[1], count+1, midline, c_num_points);
     }
 }
 
@@ -1759,6 +1758,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     double *expanded_coord[2];
     int *expanded_index;
     int num_found;
+    vector<Search_tree_node*> leaf_nodes_found;
 
     expanded_coord[0] = new double[search_tree_root->num_kernel_points]; //FIXME: buf too large
     expanded_coord[1] = new double[search_tree_root->num_kernel_points];
@@ -1788,9 +1788,8 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         //printf("before adjust: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
 
         //printf("adjusting ID: %d\n", tree_node->region_id);
-        adjust_expanding_boundry(&old_boundry, &new_boundry, quota, expanded_coord, expanded_index, &num_found);
+        leaf_nodes_found = adjust_expanding_boundry(&old_boundry, &new_boundry, quota, expanded_coord, expanded_index, &num_found);
         //printf("after  adjust: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
-        //add_halo_points(tree_node, &old_boundry, &new_boundry);
         //printf("expanded boundry : %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
         //printf("root real boundry: %lf, %lf, %lf, %lf\n", search_tree_root->real_boundry->min_lon, search_tree_root->real_boundry->max_lon, search_tree_root->real_boundry->min_lat, search_tree_root->real_boundry->max_lat);
         if(last_boundry == *tree_node->expand_boundry)
@@ -1814,7 +1813,6 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         *tree_node->expand_boundry = new_boundry;
     }while(!tree_node->expanding_success(&old_boundry, search_tree_root->real_boundry, is_cyclic));
 
-    vector<Search_tree_node*> leaf_nodes_found = search_halo_points_from_top(&old_boundry, &new_boundry, expanded_coord, expanded_index, &num_found);
     tree_node->add_expand_points(expanded_coord, expanded_index, num_found);
     tree_node->add_neighbors(leaf_nodes_found);
 
@@ -1880,18 +1878,24 @@ int Delaunay_grid_decomposition::classify_points(double *coord[2], int *index, i
 #define PDLN_SAVE_N (0)
 #define PDLN_SAVE_L (1)
 #define PDLN_SAVE_R (2)
-double Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double *coord[2], int *idx, int offset,
-                                                        int num, Boundry *bound, int linetype, int save_option)
+void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double *coord[2], int *idx, int offset,
+                                                        int num, Boundry *bound, int linetype, int save_option,
+                                                        int* offset_picked, int* num_picked)
 {
     int c_num_points[2];
-    double length[2], boundry_values[4];
+    double boundry_values[4];
     Midline midline;
 
-    if (bound->min_lon == bound->max_lon || bound->min_lat == bound->max_lat)
-        return 0.0;
+    midline.value = 0;
+    midline.type = linetype;
 
     PDASSERT(l > 0);
     PDASSERT(r > 0);
+
+    if (bound->min_lon == bound->max_lon || bound->min_lat == bound->max_lat) {
+        *offset_picked = *num_picked = 0;
+        return;
+    }
 
     boundry_values[PDLN_LON] = bound->min_lon;
     boundry_values[PDLN_LAT] = bound->min_lat;
@@ -1900,107 +1904,91 @@ double Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, doub
 
     PDASSERT(boundry_values[PDLN_LON] != boundry_values[PDLN_LON+2]);
     PDASSERT(boundry_values[PDLN_LAT] < boundry_values[PDLN_LAT+2]);
-    length[0] = boundry_values[PDLN_LON+2] - boundry_values[PDLN_LON];
-    length[1] = boundry_values[PDLN_LAT+2] - boundry_values[PDLN_LAT];
     //printf("l: %lf, r: %lf, total: %d, [%lf, %lf],[%lf, %lf]\n", l, r, num, boundry_values[PDLN_LON], boundry_values[PDLN_LON+2], boundry_values[PDLN_LAT], boundry_values[PDLN_LAT+2]);
-    midline.type = linetype;
-    midline.value = boundry_values[midline.type] + length[midline.type] * l / (l + r);
-    Search_tree_node::count_points(coord, idx, offset, num, midline, c_num_points);
     //printf("midline.value: %lf, (%d, %d)\n", midline.value, c_num_points[0], c_num_points[1]);
 
-    int iteration_count = 1;
-    while (c_num_points[0] == 0 || c_num_points[1] == 0 ||
-           fabs(c_num_points[0]/c_num_points[1] - l/r) > PDLN_TOLERABLE_ERROR) {
-        //printf("loop: %d\n", iteration_count);
+    c_num_points[0] = c_num_points[1] = 0;
+    Search_tree_node::divide_points(coord, idx, l, r, boundry_values[linetype], boundry_values[linetype+2], offset, num, 0, &midline, c_num_points);
 
-        if (save_option == PDLN_SAVE_L) {
-            if(iteration_count++ > PDLN_MAX_ITER_COUNT && c_num_points[0] > 0)
-                break;
-        } else {
-            if(iteration_count++ > PDLN_MAX_ITER_COUNT && c_num_points[1] > 0)
-                break;
-        }
+    PDASSERT(c_num_points[0] >= 0);
+    PDASSERT(c_num_points[1] >= 0);
 
-        if(c_num_points[0] < l) {
-#ifdef DEBUG
-            PDASSERT(c_num_points[1] >= r || fabs(r - c_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
-#endif
-            midline.value += (boundry_values[2+midline.type] - midline.value) * (c_num_points[1] - r) / c_num_points[1];
-        }
-        else {
-#ifdef DEBUG
-            PDASSERT(c_num_points[1] <= r || fabs(r - c_num_points[1]) < PDLN_FLOAT_EQ_ERROR);
-#endif
-            midline.value -= (midline.value - boundry_values[midline.type]) * (c_num_points[0] - l) / c_num_points[0];
-        }
-        //printf("midline.value: %lf, (%d, %d)\n", midline.value, c_num_points[0], c_num_points[1]);
-        PDASSERT(midline.value > boundry_values[midline.type]);
-        PDASSERT(midline.value < boundry_values[2+midline.type]);
-        /* TODO: Search only half of the whole points, but not the whole points */
-        Search_tree_node::count_points(coord, idx, offset, num, midline, c_num_points);
-    }
     if (save_option == PDLN_SAVE_L) {
         PDASSERT(c_num_points[0] > 0);
-        if (linetype == PDLN_LON) bound->max_lon = midline.value;
-        else bound->max_lat = midline.value;
+        *offset_picked = offset;
+        *num_picked = c_num_points[0];
+        if (linetype == PDLN_LON)
+            bound->max_lon = midline.value;
+        else
+            bound->max_lat = midline.value;
     } else {
         PDASSERT(c_num_points[1] > 0);
-        if (linetype == PDLN_LON) bound->min_lon = midline.value;
-        else bound->min_lat = midline.value;
+        *offset_picked = offset + c_num_points[0];
+        *num_picked = c_num_points[1];
+        if (linetype == PDLN_LON)
+            bound->min_lon = midline.value;
+        else
+            bound->min_lat = midline.value;
     }
-    return midline.value;
+    return;
 }
 
 
 vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(const Boundry* inner, Boundry* outer, double quota,
-                                                           double *expanded_coord[2], int *expanded_index, int *num_found)
+                                                                                double *expanded_coord[2], int *expanded_index, int *total_num)
 {
-    vector<Search_tree_node*> leaf_nodes_found = search_halo_points_from_top(inner, outer, expanded_coord, expanded_index, num_found);
+    vector<Search_tree_node*> leaf_nodes_found = search_halo_points_from_top(inner, outer, expanded_coord, expanded_index, total_num);
     int squeeze_count = 0;
     Boundry old_outer = *outer;
     Boundry sub_rectangles[4];
+    int offset_picked[4];
+    int num_points_picked[4];
     halo_to_rectangles(*inner, *outer, sub_rectangles);
     //for (int i = 0; i < 4; i++)
     //    printf("sub rectangles%d [%lf, %lf], [%lf, %lf]\n", i, sub_rectangles[i].min_lon, sub_rectangles[i].max_lon, sub_rectangles[i].min_lat, sub_rectangles[i].max_lat);
     int sorted = 0;
     for (int i = 0; i < 4; i++) {
-        int num = classify_points(expanded_coord, expanded_index, *num_found, sub_rectangles[i], sorted);
+        int num = classify_points(expanded_coord, expanded_index, *total_num, sub_rectangles[i], sorted);
+        offset_picked[i] = sorted;
+        num_points_picked[i] = num;
         if (num <= 0 && sub_rectangles[i].min_lat != sub_rectangles[i].max_lat && sub_rectangles[i].min_lon != sub_rectangles[i].max_lon)
             PDASSERT(false);
-        if (num <= 0 || num <= quota)
-            continue;
-        int linetype = i%2 ? PDLN_LAT : PDLN_LON;
-        double l_num = i<2 ? num - quota : quota;
-        double r_num = i<2 ? quota : num - quota;
-        int savetype = i<2 ? PDLN_SAVE_R : PDLN_SAVE_L;
-        adjust_subrectangle(l_num, r_num, expanded_coord, expanded_index, sorted, num, &sub_rectangles[i], linetype, savetype);
+        if (num > quota) {
+            double l_num = i<2 ? num - quota : quota;
+            double r_num = i<2 ? quota : num - quota;
+            int linetype = i%2 ? PDLN_LAT : PDLN_LON;
+            int savetype = i<2 ? PDLN_SAVE_R : PDLN_SAVE_L;
+            adjust_subrectangle(l_num, r_num, expanded_coord, expanded_index, sorted, num,
+                                &sub_rectangles[i], linetype, savetype, &offset_picked[i], &num_points_picked[i]);
+        }
         sorted += num;
     }
+
+    rectangles_to_halo(sub_rectangles, outer);
+    PDASSERT(!have_redundent_points(expanded_coord[PDLN_LON], expanded_coord[PDLN_LAT], *total_num));
+    *total_num = move_together(expanded_coord, expanded_index, offset_picked, num_points_picked, *outer);
+    PDASSERT(!have_redundent_points(expanded_coord[PDLN_LON], expanded_coord[PDLN_LAT], *total_num));
     //for (int i = 0; i < 4; i++)
     //    printf("sub rectangles%d [%lf, %lf], [%lf, %lf]\n", i, sub_rectangles[i].min_lon, sub_rectangles[i].max_lon, sub_rectangles[i].min_lat, sub_rectangles[i].max_lat);
-    rectangles_to_halo(sub_rectangles, outer);
     //printf("fnl [%lf, %lf], [%lf, %lf]\n", outer->min_lon, outer->max_lon, outer->min_lat, outer->max_lat);
     return leaf_nodes_found;
 }
 
 
-void Delaunay_grid_decomposition::add_halo_points(Search_tree_node* dst_tree_node, Boundry* inner_boundary, Boundry* outer_boundary)
+int Delaunay_grid_decomposition::move_together(double* coord[2], int* index, int offset[4], int num[4], Boundry bound) 
 {
-    double *expanded_points_coord[2];
-    int *expanded_index;
-    int num_found;
+    int total_num = 0;
 
-    expanded_points_coord[0] = new double[search_tree_root->num_kernel_points]; //FIXME: buf too large
-    expanded_points_coord[1] = new double[search_tree_root->num_kernel_points];
-    expanded_index           = new int[search_tree_root->num_kernel_points];
+    for (int i = 0; i < 4; i++)
+        for (int j = offset[i]; j < offset[i]+num[i]; j++)
+            if (is_in_region(coord[PDLN_LON][j], coord[PDLN_LAT][j], bound)) {
+                coord[0][total_num] = coord[0][j];
+                coord[1][total_num] = coord[1][j];
+                index[total_num++] = index[j];
+            }
+    PDASSERT(total_num <= num[0] + num[1] + num[2] + num[3]);
 
-    vector<Search_tree_node*> leaf_nodes_found = search_halo_points_from_top(inner_boundary, outer_boundary, expanded_points_coord, expanded_index, &num_found);
-    dst_tree_node->add_expand_points(expanded_points_coord, expanded_index, num_found);
-    dst_tree_node->add_neighbors(leaf_nodes_found);
-
-    delete[] expanded_points_coord[0];
-    delete[] expanded_points_coord[1];
-    delete[] expanded_index;
+    return total_num;
 }
 
 

@@ -89,8 +89,9 @@ private:
     int num_neighbors_on_boundry[4];
     int edge_expanding_count[4];
 
-    void sort_by_line(Midline, int*, int*);
+    void sort_by_line(Midline*, int*, int*);
     void sort_by_line(Midline*, int, int, int*, int*);
+    static void sort_by_line(double**, int*, Midline*, int, int, int*, int*);
 
     void fix_view_point();
     void calculate_real_boundary();
@@ -105,6 +106,7 @@ public:
     void split_local_points(Midline, double**, int**, int*);
 
     void divide_local_points(double, double, double, double, int, int, int, Midline*, int*);
+    static void divide_points(double**, int*, double, double, double, double, int, int, int, Midline*, int*);
     void update_region_ids(int);
     void update_region_ids(vector<int>);
     void generate_local_triangulation(bool, int);
@@ -171,10 +173,10 @@ private:
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, vector<int> &, int);
     int dup_inserted_points(double *coord_values[2], Boundry *boundry, int num_points);
     vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double, double**, int*, int*);
-    //void search_halo_points();
-    static double adjust_subrectangle(double, double, double**, int*, int, int, Boundry*, int, int);
 
-    void add_halo_points(Search_tree_node*, Boundry*, Boundry*);
+    static void adjust_subrectangle(double, double, double**, int*, int, int, Boundry*, int, int, int*, int*);
+    static int move_together(double**, int*, int*, int*, Boundry);
+
     vector<Search_tree_node*> search_halo_points_from_top(const Boundry*, const Boundry*, double**, int*, int*);
     void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>&, double **, int*, int*);
     void search_halo_points_from_buf(Boundry*, Boundry*, double**, int*, int*);
