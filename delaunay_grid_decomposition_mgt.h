@@ -192,14 +192,14 @@ private:
     unsigned compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
     
     /* process thread communication */
-    int recv_triangles_from_remote(int, int, Triangle_Transport *, int, int);
-    void send_triangles_to_remote(int, int, Triangle_Transport *, int, int);
+    int recv_triangles_from_remote(int, int, Triangle_pack *, int, int);
+    void send_triangles_to_remote(int, int, Triangle_pack *, int, int);
 
     bool is_polar_node(Search_tree_node*) const;
 
     /* debug */
     void print_tree_node_info_recursively(Search_tree_node*);
-    void save_unique_triangles_into_file(Triangle_Transport *&, int, bool);
+    void save_unique_triangles_into_file(Triangle_pack *&, int, bool);
 
 public:
     Delaunay_grid_decomposition(int, Processing_resource*, int);

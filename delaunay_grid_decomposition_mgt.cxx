@@ -300,9 +300,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             */
 
             triangulation->update_all_points_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
-            //triangulation->correct_cyclic_triangles(cyclic_triangles, is_cyclic);
             triangulation->recognize_cyclic_triangles();
             triangulation->relegalize_all_triangles();
+            triangulation->make_final_triangle_pack();
 
             if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
                 reset_polars();
@@ -365,9 +365,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 
             triangulation->update_all_points_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
             triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
-            //triangulation->relegalize_all_triangles();
             triangulation->uncyclic_all_points();
             triangulation->recognize_cyclic_triangles();
+            triangulation->make_final_triangle_pack();
         }
         if(num_inserted > 0)
             triangulation->remove_triangles_till(num_inserted);
@@ -380,6 +380,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         triangulation->recognize_cyclic_triangles();
         if(num_inserted > 0)
             triangulation->remove_triangles_till(num_inserted);
+        triangulation->make_final_triangle_pack();
     }
 
     delete[] ori_lon;
@@ -1271,15 +1272,15 @@ unsigned Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *t
 
 
 /* non-block */
-void Delaunay_grid_decomposition::send_triangles_to_remote(int src_common_id, int dst_common_id, Triangle_Transport *triangles_buf, int num_triangles, int tag)
+void Delaunay_grid_decomposition::send_triangles_to_remote(int src_common_id, int dst_common_id, Triangle_pack *triangles_buf, int num_triangles, int tag)
 {
     MPI_Request request;
     if(processing_info->get_local_process_id() == processing_info->get_processing_unit(dst_common_id)->process_id)
-        processing_info->send_to_local_thread(triangles_buf, num_triangles, sizeof(Triangle_Transport),
+        processing_info->send_to_local_thread(triangles_buf, num_triangles, sizeof(Triangle_pack),
                                               processing_info->get_processing_unit(src_common_id)->thread_id,
                                               processing_info->get_processing_unit(dst_common_id)->thread_id, tag);
     else {
-        MPI_Isend(triangles_buf, num_triangles*sizeof(Triangle_Transport), MPI_CHAR,
+        MPI_Isend(triangles_buf, num_triangles*sizeof(Triangle_pack), MPI_CHAR,
                   processing_info->get_processing_unit(dst_common_id)->process_id, 
                   tag, processing_info->get_mpi_comm(), &request);
     }
@@ -1287,23 +1288,23 @@ void Delaunay_grid_decomposition::send_triangles_to_remote(int src_common_id, in
 
 
 /* block */
-int Delaunay_grid_decomposition::recv_triangles_from_remote(int src_common_id, int dst_common_id, Triangle_Transport *triangles_buf, int num_max_triangles, int tag)
+int Delaunay_grid_decomposition::recv_triangles_from_remote(int src_common_id, int dst_common_id, Triangle_pack *triangles_buf, int num_max_triangles, int tag)
 {
     if(processing_info->get_local_process_id() == processing_info->get_processing_unit(src_common_id)->process_id) {
         PDASSERT(false);
-        return processing_info->recv_from_local_thread(triangles_buf, num_max_triangles, sizeof(Triangle_Transport),
+        return processing_info->recv_from_local_thread(triangles_buf, num_max_triangles, sizeof(Triangle_pack),
                                                        processing_info->get_processing_unit(src_common_id)->thread_id,
-                                                       processing_info->get_processing_unit(dst_common_id)->thread_id, tag) / sizeof(Triangle_Transport);
+                                                       processing_info->get_processing_unit(dst_common_id)->thread_id, tag) / sizeof(Triangle_pack);
     }
     else {
         MPI_Status status;
         int count;
-        MPI_Recv(triangles_buf, num_max_triangles*sizeof(Triangle_Transport), MPI_CHAR,
+        MPI_Recv(triangles_buf, num_max_triangles*sizeof(Triangle_pack), MPI_CHAR,
                  processing_info->get_processing_unit(src_common_id)->process_id, 
                  tag, processing_info->get_mpi_comm(), &status);
         MPI_Get_count(&status, MPI_CHAR, &count);
-        PDASSERT(count%sizeof(Triangle_Transport) == 0);
-        return count/sizeof(Triangle_Transport);
+        PDASSERT(count%sizeof(Triangle_pack) == 0);
+        return count/sizeof(Triangle_pack);
     }
 }
 
@@ -1322,9 +1323,9 @@ namespace std
         };
 
         template <>  
-        struct hash<Triangle_Transport>  
+        struct hash<Triangle_pack>  
         {  
-            std::size_t operator()(const Triangle_Transport &t) const  
+            std::size_t operator()(const Triangle_pack &t) const  
             {  
                 return hash<Point>()(t.v[0]) ^ hash<Point>()(t.v[1]) ^ hash<Point>()(t.v[2]);
             }
@@ -1375,12 +1376,12 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
         
         local_checksums[i] = 0;
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            unsigned checksum = leaf_node->triangulation->calculate_triangles_intersected_checksum(common_boundary_head, common_boundary_tail, threshold);
+            unsigned checksum = leaf_node->triangulation->calculate_checksum(common_boundary_head, common_boundary_tail, threshold);
             local_checksums[i] ^= checksum;
         }
 
         if(cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            unsigned checksum = leaf_node->triangulation->calculate_triangles_intersected_checksum(cyclic_common_boundary_head, cyclic_common_boundary_tail, threshold);
+            unsigned checksum = leaf_node->triangulation->calculate_checksum(cyclic_common_boundary_head, cyclic_common_boundary_tail, threshold);
             local_checksums[i] ^= checksum;
         }
         local_checksums[i] = set_boundry_type(local_checksums[i], boundry_type);
@@ -2396,15 +2397,15 @@ void Delaunay_grid_decomposition::plot_local_triangles(const char *perfix)
 #endif
 
 
-void delete_redundent_triangles(Triangle_Transport *&all_triangles, int &num)
+void delete_redundent_triangles(Triangle_pack *&all_triangles, int &num)
 {
-    std::tr1::unordered_map<Triangle_Transport, std::list<int> > hash_table;
-    std::tr1::unordered_map<Triangle_Transport, std::list<int> >::iterator it_hash;
+    std::tr1::unordered_map<Triangle_pack, std::list<int> > hash_table;
+    std::tr1::unordered_map<Triangle_pack, std::list<int> >::iterator it_hash;
 
     if(num == 0)
         return;
 
-    Triangle_Transport *tmp_triangles = new Triangle_Transport[num];
+    Triangle_pack *tmp_triangles = new Triangle_pack[num];
 
     int count = 0;
     for(int i = 0; i < num; i++) {
@@ -2437,7 +2438,7 @@ void delete_redundent_triangles(Triangle_Transport *&all_triangles, int &num)
 }
 
 
-void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_Transport *&triangles, int num_triangles, bool sort)
+void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_pack *&triangles, int num_triangles, bool sort)
 {
     int num_different_triangles;
     if (sort) {
@@ -2491,7 +2492,7 @@ void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
         local_buf_len += local_leaf_nodes[i]->num_kernel_points * 3; 
 
-    Triangle_Transport* local_triangles = new Triangle_Transport[local_buf_len];
+    Triangle_pack* local_triangles = new Triangle_pack[local_buf_len];
     int num_local_triangles = 0;
     int num_triangles = 0;
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
@@ -2515,37 +2516,37 @@ void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
             //PDASSERT(num_remote_triangles[i] > min_points_per_chunk/2);
             remote_buf_len += num_remote_triangles[i];
         }
-        Triangle_Transport *remote_triangles = new Triangle_Transport[remote_buf_len + num_local_triangles];
+        Triangle_pack *remote_triangles = new Triangle_pack[remote_buf_len + num_local_triangles];
 
         int count = 0;
         for(int i = 1; i < processing_info->get_num_total_processes(); i++) {
-            MPI_Recv(remote_triangles + count, num_remote_triangles[i] * sizeof(Triangle_Transport), MPI_CHAR, i, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm(), &status);
+            MPI_Recv(remote_triangles + count, num_remote_triangles[i] * sizeof(Triangle_pack), MPI_CHAR, i, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm(), &status);
             int tmp_count;
             MPI_Get_count(&status, MPI_CHAR, &tmp_count);
             
             /*
             char filename[64];
             snprintf(filename, 64, "log/process_local_triangles%d", i);
-            plot_triangles_into_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_Transport));
+            plot_triangles_into_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_pack));
 
-            for(int j = 0; j < tmp_count/sizeof(Triangle_Transport); j++)
+            for(int j = 0; j < tmp_count/sizeof(Triangle_pack); j++)
                 printf("%d, %d, %d\n", (remote_triangles + count)[j].v[0].id, (remote_triangles + count)[j].v[1].id, (remote_triangles + count)[j].v[2].id);
             printf("==============\n");
             */
 #ifdef DEBUG
-            PDASSERT(tmp_count % sizeof(Triangle_Transport) == 0);
+            PDASSERT(tmp_count % sizeof(Triangle_pack) == 0);
 #endif
-            count += tmp_count / sizeof(Triangle_Transport);
+            count += tmp_count / sizeof(Triangle_pack);
         }
         PDASSERT(count == remote_buf_len);
-        memcpy(remote_triangles + remote_buf_len, local_triangles, num_local_triangles * sizeof(Triangle_Transport));
+        memcpy(remote_triangles + remote_buf_len, local_triangles, num_local_triangles * sizeof(Triangle_pack));
         save_unique_triangles_into_file(remote_triangles, remote_buf_len + num_local_triangles, sort);
         delete[] remote_triangles;
         delete[] num_remote_triangles;
     }
     else {
         MPI_Send(&num_local_triangles, 1, MPI_INT, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
-        MPI_Send(local_triangles, num_local_triangles * sizeof(Triangle_Transport), MPI_CHAR, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
+        MPI_Send(local_triangles, num_local_triangles * sizeof(Triangle_pack), MPI_CHAR, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
     }
 }
 

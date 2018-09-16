@@ -39,10 +39,10 @@ using std::vector;
 class Edge;
 class Point;
 class Triangle;
-class Triangle_Transport;
+class Triangle_pack;
 
-void sort_points_in_triangle(Triangle_Transport*, int);
-void sort_triangles(Triangle_Transport*, int);
+void sort_points_in_triangle(Triangle_pack*, int);
+void sort_triangles(Triangle_pack*, int);
 
 class Point
 {
@@ -61,6 +61,7 @@ class Point
         double calculate_distance(double, double) const;
         int position_to_edge(const Point*, const Point*) const;
         int position_to_triangle(const Triangle*) const;
+        int position_to_triangle(const Triangle_pack*) const;
         int is_in_region(double min_x, double max_x, double min_y, double max_y) const;
 };
 
@@ -142,10 +143,11 @@ class Delaunay_Voronoi
 {
     private:
         /* storage */
-        vector<Triangle*> result_leaf_triangles;
-        vector<Triangle*> triangle_pool;
-        vector<Edge*>     edge_pool;
-        Point*            all_points;
+        vector<Triangle*>     result_leaf_triangles;
+        vector<Triangle_pack> result_triangles_pack;
+        vector<Triangle*>     triangle_pool;
+        vector<Edge*>         edge_pool;
+        Point*                all_points;
 
         /* memory management */
         MemoryPool<Triangle, 0x10000*sizeof(Triangle), Edge*, Edge*, Edge*> triangle_allocator;
@@ -193,7 +195,7 @@ class Delaunay_Voronoi
         bool is_triangle_ambiguous(const Point *pt, const Edge *edge);
         void relegalize_triangles(Point*, Edge*);
         void remove_leaf_triangle(Triangle*);
-        unsigned calculate_triangles_checksum(Triangle_Transport*, int);
+        unsigned calculate_triangles_checksum(Triangle_pack*, int);
         void update_virtual_polar_info();
 
     public:
@@ -205,14 +207,14 @@ class Delaunay_Voronoi
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
         bool is_all_leaf_triangle_legal();
-        void get_triangles_in_region(double, double, double, double, Triangle_Transport *, int *, int);
+        void get_triangles_in_region(double, double, double, double, Triangle_pack *, int *, int);
         void update_all_points_coord(double *, double *, int);
         std::vector<Triangle*> search_cyclic_triangles_for_rotated_grid(Point, Point);
-        void correct_cyclic_triangles(std::vector<Triangle*>, bool);
         void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
-        unsigned calculate_triangles_intersected_checksum(Point, Point, double threshold = 0);   
-        void get_triangles_intersecting_with_segment(Point, Point, Triangle_Transport*, int*, int, double threshold = 0);
+        unsigned calculate_triangles_intersected_checksum(Point, Point, double threshold = 0);
+        unsigned calculate_checksum(Point, Point, double = 0);
+        void get_triangles_intersecting_with_segment(Point, Point, Triangle_pack*, int*, int, double threshold = 0);
         bool is_triangle_in_circle(Triangle*, Point, double);
         void remove_triangles_in_circle(Point, double);
         void remove_triangles_on_segment(Point, Point);
@@ -222,6 +224,8 @@ class Delaunay_Voronoi
         void remove_triangles_only_containing_virtual_polar();
         void uncyclic_all_points();
         void remove_triangles_till(int);
+
+        void make_final_triangle_pack();
 
         /* debug */
         void save_original_points_into_file();
@@ -233,19 +237,20 @@ class Delaunay_Voronoi
 #endif
 };
 
-class Triangle_Transport
+class Triangle_pack
 {
     public:
         Point v[3];
-        Triangle_Transport() {};
-        Triangle_Transport(Point, Point, Point);
-        friend bool operator == (Triangle_Transport, Triangle_Transport);
+        bool is_cyclic;
+        Triangle_pack() {};
+        Triangle_pack(Point, Point, Point, bool = false);
+        friend bool operator == (Triangle_pack, Triangle_pack);
 };
 
 #ifdef OPENCV
-void plot_triangles_into_file(const char *filename, Triangle_Transport *t, int num, bool plot_cyclic_triangles=true);
+void plot_triangles_into_file(const char *filename, Triangle_pack *t, int num, bool plot_cyclic_triangles=true);
 void plot_triangles_into_file(const char *filename, std::vector<Triangle*>);
 #endif
-void save_triangles_info_file(const char *filename, Triangle_Transport *t, int num);
+void save_triangles_info_file(const char *filename, Triangle_pack *t, int num);
 
 #endif

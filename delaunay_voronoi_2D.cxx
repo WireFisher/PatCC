@@ -47,8 +47,8 @@ static inline void swap(Point *p1, Point *p2)
 
 static int compare_v2(const void* a, const void* b)
 {
-    Triangle_Transport t1 = *(const Triangle_Transport*)a;
-    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+    Triangle_pack t1 = *(const Triangle_pack*)a;
+    Triangle_pack t2 = *(const Triangle_pack*)b;
 
     if(t1.v[2].id < t2.v[2].id) return -1;
     if(t1.v[2].id > t2.v[2].id) return  1;
@@ -58,8 +58,8 @@ static int compare_v2(const void* a, const void* b)
 
 static int compare_v1(const void* a, const void* b)
 {
-    Triangle_Transport t1 = *(const Triangle_Transport*)a;
-    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+    Triangle_pack t1 = *(const Triangle_pack*)a;
+    Triangle_pack t2 = *(const Triangle_pack*)b;
 
     if(t1.v[1].id < t2.v[1].id) return -1;
     if(t1.v[1].id > t2.v[1].id) return  1;
@@ -69,8 +69,8 @@ static int compare_v1(const void* a, const void* b)
 
 static int compare_v0(const void* a, const void* b)
 {
-    Triangle_Transport t1 = *(const Triangle_Transport*)a;
-    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+    Triangle_pack t1 = *(const Triangle_pack*)a;
+    Triangle_pack t2 = *(const Triangle_pack*)b;
 
     if(t1.v[0].id < t2.v[0].id) return -1;
     if(t1.v[0].id > t2.v[0].id) return  1;
@@ -80,8 +80,8 @@ static int compare_v0(const void* a, const void* b)
 
 static int compare_lon(const void* a, const void* b)
 {
-    Triangle_Transport t1 = *(const Triangle_Transport*)a;
-    Triangle_Transport t2 = *(const Triangle_Transport*)b;
+    Triangle_pack t1 = *(const Triangle_pack*)a;
+    Triangle_pack t2 = *(const Triangle_pack*)b;
 
     if(t1.v[0].x < t2.v[0].x) return -1;
     if(t1.v[0].x > t2.v[0].x) return  1;
@@ -89,17 +89,17 @@ static int compare_lon(const void* a, const void* b)
 }
 
 
-static inline void radix_sort(Triangle_Transport *triangles, int num_triangles)
+static inline void radix_sort(Triangle_pack *triangles, int num_triangles)
 {
-    PDASSERT(sizeof(Triangle_Transport) > sizeof(void *)/2);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_lon);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v2);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v1);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_Transport), compare_v0);
+    PDASSERT(sizeof(Triangle_pack) > sizeof(void *)/2);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_lon);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v2);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v1);
+    merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v0);
 }
 
 
-void sort_points_in_triangle(Triangle_Transport *triangles, int num_triangles)
+inline void sort_points_in_triangle(Triangle_pack *triangles, int num_triangles)
 {
     for(int i = 0; i < num_triangles; i++) {
         if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
@@ -109,7 +109,15 @@ void sort_points_in_triangle(Triangle_Transport *triangles, int num_triangles)
 }
 
 
-void sort_triangles(Triangle_Transport *triangles, int num_triangles)
+inline void sort_points_in_triangle(Triangle_pack& triangle)
+{
+    if(triangle.v[0].id > triangle.v[1].id) std::swap(triangle.v[0], triangle.v[1]);
+    if(triangle.v[1].id > triangle.v[2].id) std::swap(triangle.v[1], triangle.v[2]);
+    if(triangle.v[0].id > triangle.v[1].id) std::swap(triangle.v[0], triangle.v[1]);
+}
+
+
+void sort_triangles(Triangle_pack *triangles, int num_triangles)
 {
     radix_sort(triangles, num_triangles);
 }
@@ -225,6 +233,36 @@ int Point::position_to_triangle(const Triangle *triangle) const
     else if (pos == 0)
         ret = 2;
     pos = position_to_edge(triangle->v[2], triangle->v[0]);
+    if (pos == -1)
+        return -1;
+    else if (pos == 0)
+        ret = 3;
+    return ret;
+}
+
+
+int Point::position_to_triangle(const Triangle_pack *triangle) const
+{
+#ifdef DDEBUG
+    bool on1 = position_to_edge(&triangle->v[0], &triangle->v[1]) == 0;
+    bool on2 = position_to_edge(&triangle->v[1], &triangle->v[2]) == 0;
+    bool on3 = position_to_edge(&triangle->v[2], &triangle->v[0]) == 0;
+    PDASSERT(!(on1 && on2));
+    PDASSERT(!(on2 && on3));
+    PDASSERT(!(on3 && on1));
+#endif
+    int ret = 0;
+    int pos = position_to_edge(&triangle->v[0], &triangle->v[1]);
+    if (pos == -1)
+        return -1;
+    else if (pos == 0)
+        ret = 1;
+    pos = position_to_edge(&triangle->v[1], &triangle->v[2]);
+    if (pos == -1)
+        return -1;
+    else if (pos == 0)
+        ret = 2;
+    pos = position_to_edge(&triangle->v[2], &triangle->v[0]);
     if (pos == -1)
         return -1;
     else if (pos == 0)
@@ -513,8 +551,6 @@ void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
     if(force)
         triangle_origin->is_cyclic = triangle_twin->is_cyclic = true;
 
-    //relegalize_triangles(vr, eik);
-    //relegalize_triangles(vr, ekj);
 }
 
 
@@ -1155,9 +1191,11 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     for(int i = 0; i < num_points; i++)
         PDASSERT(x_values[i] >= min_lon && x_values[i] <= max_lon && y_values[i] >= min_lat && y_values[i] <= max_lat);
 #endif
-    int triangles_count_estimate = 2*num_points;
+    int triangles_count_estimate = 2*(num_points+4);
     triangle_pool.reserve(triangles_count_estimate);
     edge_pool.reserve(triangles_count_estimate*3);
+    result_leaf_triangles.reserve(triangles_count_estimate);
+    result_triangles_pack.reserve(triangles_count_estimate);
 
     stack_size = triangles_count_estimate * 2;
     triangle_stack = new Triangle*[stack_size];
@@ -1184,9 +1222,6 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     clear_triangle_containing_virtual_point();
 
     update_virtual_polar_info();
-
-    //generate_Voronoi_diagram();
-    //extract_vertex_coordinate_values(num_points, output_vertex_lon_values, output_vertex_lat_values, output_num_vertexes);
 
     gettimeofday(&end, NULL);
 }
@@ -1513,82 +1548,6 @@ void Delaunay_Voronoi::remove_triangles_in_circle(Point center, double radius)
 }
 
 
-void Delaunay_Voronoi::correct_cyclic_triangles(std::vector<Triangle*> cyclic_triangles, bool is_grid_cyclic)
-{
-    if (is_grid_cyclic) {
-        std::vector<Triangle*> right_triangles;
-        std::vector<Point*> vl_pool, vr_pool;
-        for (unsigned i = 0; i < cyclic_triangles.size(); i++) {
-            Point *vl[3], *vr[3];
-            Edge *el[3], *er[3];
-            for (unsigned j = 0; j < 3; j++) {
-                if (cyclic_triangles[i]->v[j]->x < 180.0) {
-                    vl[j] = cyclic_triangles[i]->v[j];
-
-                    /* search in the pool for the same point firstly */
-                    vr[j] = NULL;
-                    for (unsigned k = 0; k < vr_pool.size(); k++)
-                        if (vr_pool[k]->id == vl[j]->id) {
-                            vr[j] = vr_pool[k];
-                            break;
-                        }
-
-                    if(vr[j] == NULL) {
-                        vr[j] = new Point(vl[j]->x + 360.0, vl[j]->y, vl[j]->id);
-                        vr_pool.push_back(vr[j]);
-                    }
-                }
-                else {
-                    vr[j] = cyclic_triangles[i]->v[j];
-
-                    /* search in the pool for the same point firstly */
-                    vl[j] = NULL;
-                    for (unsigned k = 0; k < vl_pool.size(); k++)
-                        if (vl_pool[k]->id == vr[j]->id) {
-                            vl[j] = vl_pool[k];
-                            break;
-                        }
-
-                    if(vl[j] == NULL) {
-                        vl[j] = new Point(vr[j]->x - 360.0, vr[j]->y, vr[j]->id);
-                        vl_pool.push_back(vl[j]);
-                    }
-                }
-            }
-
-            for (unsigned j = 0; j < 3; j++) {
-                if (vl[j]->x >= 0.0 && vl[(j+1)%3]->x >= 0.0)
-                    el[j] = cyclic_triangles[i]->edge[j];
-                else
-                    el[j] = allocate_edge(vl[j], vl[(j+1)%3]);
-
-                if (vr[j]->x < 360.0 && vr[(j+1)%3]->x < 360.0)
-                    er[j] = cyclic_triangles[i]->edge[j];
-                else
-                    er[j] = allocate_edge(vr[j], vr[(j+1)%3]);
-                
-            }
-            
-            /* Change cyclic triangles directly into left triangles */
-            cyclic_triangles[i]->initialize_triangle_with_edges(el[0], el[1], el[2]);
-
-            /* Alloc new triangles for right triangles */
-            Triangle *t = allocate_Triangle(er[0], er[1], er[2]);
-            right_triangles.push_back(t);
-            result_leaf_triangles.push_back(t);
-        }
-
-        check_and_set_twin_edge_relationship(&cyclic_triangles);
-        check_and_set_twin_edge_relationship(&right_triangles);
-
-    }
-    else {
-        for (unsigned i = 0; i < cyclic_triangles.size(); i++)
-            remove_leaf_triangle(cyclic_triangles[i]);
-    }
-}
-
-
 void Delaunay_Voronoi::recognize_cyclic_triangles()
 {
     for(unsigned i = 0; i < result_leaf_triangles.size(); i++)
@@ -1616,8 +1575,7 @@ void Delaunay_Voronoi::relegalize_all_triangles()
             continue;
 
         for(unsigned j = 0; j < 3; j++) {
-            relegalize_triangles(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->edge[(j+1)%3]/*, &result_leaf_triangles*/);
-            //legalize_triangles(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->edge[(j+1)%3], &result_leaf_triangles);
+            relegalize_triangles(result_leaf_triangles[i]->v[j], result_leaf_triangles[i]->edge[(j+1)%3]);
         }
     }
 }
@@ -1637,14 +1595,14 @@ void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, doub
 }
 
 
-void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_Transport *output_triangles, int *num_triangles, int buf_len, double threshold)
+void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_pack *output_triangles, int *num_triangles, int buf_len, double threshold)
 {
     int current = 0;
 
     std::vector<Triangle*> ts = find_triangles_intersecting_with_segment(head, tail, threshold);
 
     for(unsigned i = 0; i < ts.size(); i++)
-        output_triangles[current++] = Triangle_Transport(Point(ts[i]->v[0]->x, ts[i]->v[0]->y, global_index[ts[i]->v[0]->id]),  // TODO: use global_index as id directly
+        output_triangles[current++] = Triangle_pack(Point(ts[i]->v[0]->x, ts[i]->v[0]->y, global_index[ts[i]->v[0]->id]),  // TODO: use global_index as id directly
                                                          Point(ts[i]->v[1]->x, ts[i]->v[1]->y, global_index[ts[i]->v[1]->id]), 
                                                          Point(ts[i]->v[2]->x, ts[i]->v[2]->y, global_index[ts[i]->v[2]->id]));
 
@@ -1653,12 +1611,12 @@ void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point
 }
 
 
-static inline unsigned hash_triangle_by_id(Triangle_Transport triangle)
+static inline unsigned hash_triangle_by_id(Triangle_pack triangle)
 {
     return triangle.v[0].id ^ (triangle.v[1].id << 10) ^ (triangle.v[2].id << 20);
 }
 
-unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_Transport *triangles, int num_triangles)
+unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_pack *triangles, int num_triangles)
 {
     if(num_triangles < 1)
         return PDLN_CHECKSUM_FALSE;
@@ -1679,7 +1637,7 @@ unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, 
     /* Let n be the number of points, if there are b vertices on the convex hull,
      * then any triangulation of the points has at most 2n − 2 − b triangles,
      * plus one exterior face */
-    Triangle_Transport *triangles = new Triangle_Transport[2*num_points];
+    Triangle_pack *triangles = new Triangle_pack[2*num_points];
     int num_triangles;
     unsigned checksum;
 
@@ -1698,10 +1656,89 @@ unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, 
     return checksum;
 }
 
+inline double ppoint_distence_to_line(double px, double py, double x1, double y1, double x2, double y2)
+{
+    if(x1 - x2 == 0)
+        return fabs(px - x1);
+    else if(y1 - y2 == 0)
+        return fabs(py - y1);
+    else {
+        double A=(y1-y2)/(x1-x2);
+        double B=y1-A*x1;
+        return fabs((A*px+B-py)/sqrt(A*A+1));
+    }
+}
+
+inline bool point_distence_in_threshold(Point v, Point p1, Point p2, double threshold) {
+    return ppoint_distence_to_line(v.x, v.y, p1.x, p1.y, p2.x, p2.y) <= threshold;
+}
+
+inline bool all_distence_in_threshold(Triangle_pack* triangle, Point p1, Point p2, double threshold) {
+    return point_distence_in_threshold(triangle->v[0], p1, p2, threshold) &&
+           point_distence_in_threshold(triangle->v[1], p1, p2, threshold) &&
+           point_distence_in_threshold(triangle->v[2], p1, p2, threshold);
+}
+
+inline bool vertexs_not_on_same_side(Triangle_pack* triangle, Point p1, Point p2) {
+    return triangle->v[0].position_to_edge(&p1, &p2) * triangle->v[1].position_to_edge(&p1, &p2) <= 0 ||
+           triangle->v[1].position_to_edge(&p1, &p2) * triangle->v[2].position_to_edge(&p1, &p2) <= 0;
+}
+
+inline bool is_segment_in_triangle(Triangle_pack* triangle, Point p1, Point p2) {
+    return p1.position_to_triangle(triangle) >= 0 && p2.position_to_triangle(triangle) >= 0;
+}
+
+inline bool is_segment_intersected_with_edge(Point p_e1, Point p_e2, Point p1, Point p2) {
+    return (p1.position_to_edge(&p_e1, &p_e2) * p2.position_to_edge(&p_e1, &p_e2) < 0) &&
+           (p1.position_to_edge(&p_e1, &p_e2)!=0 || p2.position_to_edge(&p_e1, &p_e2)!=0 ) &&
+           (p_e1.position_to_edge(&p1, &p2) * p_e2.position_to_edge(&p1, &p2) <= 0);
+}
+
+inline bool is_segment_intersected_with_one_of_edges(Triangle_pack* triangle, Point p1, Point p2) {
+    return is_segment_intersected_with_edge(triangle->v[0], triangle->v[1], p1, p2) ||
+           is_segment_intersected_with_edge(triangle->v[1], triangle->v[2], p1, p2) ||
+           is_segment_intersected_with_edge(triangle->v[2], triangle->v[0], p1, p2);
+}
+
+inline bool is_triangle_intersecting_with_segment(Triangle_pack* triangle, Point p1, Point p2, double threshold) {
+    return (threshold == 0 || all_distence_in_threshold(triangle, p1, p2, threshold)) &&
+           vertexs_not_on_same_side(triangle, p1, p2) &&
+           (is_segment_intersected_with_one_of_edges(triangle, p1, p2) || is_segment_in_triangle(triangle, p1, p2));
+}
+
+unsigned Delaunay_Voronoi::calculate_checksum(Point head, Point tail, double threshold)
+{
+    PDASSERT(result_triangles_pack.size() > 0);
+    Point uncyclic_head = head, uncyclic_tail = tail;
+
+    if(uncyclic_head.x == uncyclic_tail.x) {
+        while(uncyclic_head.x >= 360) uncyclic_head.x -= 360;
+        while(uncyclic_head.x < 0) uncyclic_head.x += 360;
+        while(uncyclic_tail.x >= 360) uncyclic_tail.x -= 360;
+        while(uncyclic_tail.x < 0) uncyclic_tail.x += 360;
+    }
+
+    unsigned checksum = 0;
+    for(unsigned i = 0; i < result_triangles_pack.size();) {
+        if (result_triangles_pack[i].is_cyclic) {
+            if(is_triangle_intersecting_with_segment(&result_triangles_pack[i+1], uncyclic_head, uncyclic_tail, threshold) ||
+               is_triangle_intersecting_with_segment(&result_triangles_pack[i+2], uncyclic_head, uncyclic_tail, threshold) )
+                checksum ^= hash_triangle_by_id(result_triangles_pack[i]);
+            i += 3;
+        } else {
+            if (is_triangle_intersecting_with_segment(&result_triangles_pack[i], head, tail, threshold))
+                checksum ^= hash_triangle_by_id(result_triangles_pack[i]);
+            i++;
+        }
+    }
+
+    return checksum;
+}
+
 
 /* including triangles intersecting with boundary */
 void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, double min_y, double max_y, 
-                                               Triangle_Transport *output_triangles, int *output_num_triangles, int buf_len)
+                                               Triangle_pack *output_triangles, int *output_num_triangles, int buf_len)
 {
     int current = 0;
     int num_triangles = 0;
@@ -1719,7 +1756,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
             }
 
         if(in) {
-            output_triangles[current++] = Triangle_Transport(Point(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, global_index[result_leaf_triangles[i]->v[0]->id]),
+            output_triangles[current++] = Triangle_pack(Point(result_leaf_triangles[i]->v[0]->x, result_leaf_triangles[i]->v[0]->y, global_index[result_leaf_triangles[i]->v[0]->id]),
                                                              Point(result_leaf_triangles[i]->v[1]->x, result_leaf_triangles[i]->v[1]->y, global_index[result_leaf_triangles[i]->v[1]->id]),
                                                              Point(result_leaf_triangles[i]->v[2]->x, result_leaf_triangles[i]->v[2]->y, global_index[result_leaf_triangles[i]->v[2]->id]));
         }
@@ -1744,6 +1781,47 @@ void Delaunay_Voronoi::update_virtual_polar_info()
             continue;
         if(result_leaf_triangles[i]->contain_vertex(&all_points[point_idx_to_buf_idx[vpolar_local_index]]))
             triangles_containing_vpolar.push_back(result_leaf_triangles[i]);
+    }
+}
+
+
+void Delaunay_Voronoi::make_final_triangle_pack()
+{
+    for(unsigned i = 0; i < result_leaf_triangles.size(); i++) {
+        if(!result_leaf_triangles[i]->is_leaf)
+            continue;
+
+        Point**   v = result_leaf_triangles[i]->v;
+        bool cyclic = result_leaf_triangles[i]->is_cyclic;
+        result_triangles_pack.push_back(Triangle_pack(Point(v[0]->x, v[0]->y, global_index[v[0]->id]),
+                                                      Point(v[1]->x, v[1]->y, global_index[v[1]->id]),
+                                                      Point(v[2]->x, v[2]->y, global_index[v[2]->id]),
+                                                      cyclic));
+        sort_points_in_triangle(result_triangles_pack.back());
+        if (cyclic) {
+            double tmp_x[3];
+            Triangle_pack t_cur = result_triangles_pack.back();
+            for(int j = 0; j < 3; j++) {
+                if(t_cur.v[j].x >= 180)
+                    tmp_x[j] = t_cur.v[j].x - 360;
+                else
+                    tmp_x[j] = t_cur.v[j].x;
+            }
+            result_triangles_pack.push_back(Triangle_pack(Point(tmp_x[0], t_cur.v[0].y, t_cur.v[0].id),
+                                                          Point(tmp_x[1], t_cur.v[1].y, t_cur.v[1].id),
+                                                          Point(tmp_x[2], t_cur.v[2].y, t_cur.v[2].id),
+                                                          cyclic));
+            for(int j = 0; j < 3; j++) {
+                if(t_cur.v[j].x < 180)
+                    tmp_x[j] = t_cur.v[j].x + 360;
+                else
+                    tmp_x[j] = t_cur.v[j].x;
+            }
+            result_triangles_pack.push_back(Triangle_pack(Point(tmp_x[0], t_cur.v[0].y, t_cur.v[0].id),
+                                                          Point(tmp_x[1], t_cur.v[1].y, t_cur.v[1].id),
+                                                          Point(tmp_x[2], t_cur.v[2].y, t_cur.v[2].id),
+                                                          cyclic));
+        }
     }
 }
 
@@ -1917,7 +1995,7 @@ void Delaunay_Voronoi::plot_original_points_into_file(const char *filename, doub
 }
 
 
-void plot_triangles_into_file(const char *prefix, Triangle_Transport *t, int num, bool plot_cyclic_triangles)
+void plot_triangles_into_file(const char *prefix, Triangle_pack *t, int num, bool plot_cyclic_triangles)
 {
     int num_edges;
     double *head_coord[2], *tail_coord[2];
@@ -2040,15 +2118,16 @@ void Delaunay_Voronoi::uncyclic_all_points()
     }
 }
 
-Triangle_Transport::Triangle_Transport(Point p0, Point p1, Point p2)
+Triangle_pack::Triangle_pack(Point p0, Point p1, Point p2, bool cyclic)
 {
     v[0] = p0;
     v[1] = p1;
     v[2] = p2;
+    is_cyclic = cyclic;
 }
 
 
-bool operator == (Triangle_Transport t1, Triangle_Transport t2)
+bool operator == (Triangle_pack t1, Triangle_pack t2)
 {
 #ifdef DEBUG
     PDASSERT(t1.v[0] != t1.v[1] && t1.v[1] != t1.v[2] && t1.v[2] != t1.v[0]);
@@ -2064,7 +2143,7 @@ bool operator == (Triangle_Transport t1, Triangle_Transport t2)
 }
 
 
-void save_triangles_info_file(const char *prefix, Triangle_Transport *t, int num)
+void save_triangles_info_file(const char *prefix, Triangle_pack *t, int num)
 {
     char filename[128];
     FILE* fp;
