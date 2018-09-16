@@ -113,7 +113,8 @@ TEST(GridDecompTest, Plot) {
     grid_decomp = new Delaunay_grid_decomposition(1, processing_info, 100);
     grid_decomp->generate_grid_decomposition(false);
 #ifdef OPENCV
-    grid_decomp->plot_grid_decomposition("log/grid_decomp_info.png");
+    if (mpi_rank == 0)
+        grid_decomp->plot_grid_decomposition("log/grid_decomp_info.png");
 #endif
 
     delete grid_info_mgr;

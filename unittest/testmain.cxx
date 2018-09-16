@@ -20,7 +20,9 @@ int main(int argc, char** argv) {
     snprintf(log_path, 32, "log/log.%d", rank);
     if(rank != 0)
         freopen(log_path, "w", stdout);
+#ifndef TIME_PERF
     setvbuf(stdout, 0, 2, 0);
+#endif
     result = RUN_ALL_TESTS();
     MPI_Finalize();
 
