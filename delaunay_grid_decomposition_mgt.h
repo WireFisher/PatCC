@@ -74,9 +74,10 @@ private:
     bool    non_monotonic;
     Midline midline;
 
-    vector<int> region_ids;
-    int*        group_intervals;
-    int         num_groups;
+    int  ids_start;
+    int  ids_end;
+    int* group_intervals;
+    int  num_groups;
 
     int expanding_scale[4];
     Neighbors neighbors;
@@ -102,13 +103,15 @@ private:
 public:    
     Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type);
     ~Search_tree_node();
-    void decompose_by_processing_units_number(double*, double**, int**, int*, Boundry*, vector<int>*, int, int** =NULL, int* =NULL);
+    void decompose_by_processing_units_number(double*, double**, int**, int*, Boundry*, int*, int*, int, int** =NULL, int* =NULL);
     void split_local_points(Midline, double**, int**, int*);
 
     void divide_local_points(double, double, double, double, int, int, int, Midline*, int*);
     static void divide_points(double**, int*, double, double, double, double, int, int, int, Midline*, int*);
-    void update_region_ids(int);
-    void update_region_ids(vector<int>);
+
+    void update_region_ids(int, int);
+    inline int ids_size() {return ids_end - ids_start; };
+
     void generate_local_triangulation(bool, int);
     void project_grid();
     void add_expand_points(double *, double *, int*, int);
@@ -159,18 +162,17 @@ private:
     int*      all_group_intervals;
 
     /* temp buffer */
-    vector<int> c_regions_id[2];
 
     void initialze_workload();
     void initialze_buffer();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*, bool =true);
     void assign_cyclic_grid_for_single_processing_unit();
-    bool have_local_region_ids(vector<int>);
-    void update_workloads(int, vector<int>&);
+    bool have_local_region_ids(int, int);
+    void update_workloads(int, int, int);
     int expand_tree_node_boundry(Search_tree_node*, double);
     bool do_two_regions_overlap(Boundry, Boundry);
-    Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, vector<int> &, int);
+    Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int, int, int);
     int dup_inserted_points(double *coord_values[2], Boundry *boundry, int num_points);
     vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double, double**, int*, int*);
 
