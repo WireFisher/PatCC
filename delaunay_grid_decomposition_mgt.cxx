@@ -442,6 +442,22 @@ void Search_tree_node::sort_by_line(Midline* midline, int start, int num, int* l
 }
 
 
+static inline swap(double& a, double& b)
+{
+    double tmp = a;
+    a = b;
+    b = tmp;
+}
+
+
+static inline swap(int& a, int& b)
+{
+    int tmp = a;
+    a = b;
+    b = tmp;
+}
+
+
 void Search_tree_node::sort_by_line(double* coord[2], int* index,  Midline* midline, int start, int num, int* left_num, int* rite_num)
 {
     int    i, j;

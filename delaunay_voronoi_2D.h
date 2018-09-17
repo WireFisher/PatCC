@@ -195,7 +195,6 @@ class Delaunay_Voronoi
         bool is_triangle_ambiguous(const Point *pt, const Edge *edge);
         void relegalize_triangles(Point*, Edge*);
         void remove_leaf_triangle(Triangle*);
-        unsigned calculate_triangles_checksum(Triangle_pack*, int);
         void update_virtual_polar_info();
 
     public:
@@ -212,7 +211,6 @@ class Delaunay_Voronoi
         std::vector<Triangle*> search_cyclic_triangles_for_rotated_grid(Point, Point);
         void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
-        unsigned calculate_triangles_intersected_checksum(Point, Point, double threshold = 0);
         unsigned calculate_checksum(Point, Point, double = 0);
         void get_triangles_intersecting_with_segment(Point, Point, Triangle_pack*, int*, int, double threshold = 0);
         bool is_triangle_in_circle(Triangle*, Point, double);

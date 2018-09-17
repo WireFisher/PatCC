@@ -99,7 +99,7 @@ static inline void radix_sort(Triangle_pack *triangles, int num_triangles)
 }
 
 
-inline void sort_points_in_triangle(Triangle_pack *triangles, int num_triangles)
+void sort_points_in_triangle(Triangle_pack *triangles, int num_triangles)
 {
     for(int i = 0; i < num_triangles; i++) {
         if(triangles[i].v[0].id > triangles[i].v[1].id) swap(&triangles[i].v[0], &triangles[i].v[1]);
@@ -1616,45 +1616,6 @@ static inline unsigned hash_triangle_by_id(Triangle_pack triangle)
     return triangle.v[0].id ^ (triangle.v[1].id << 10) ^ (triangle.v[2].id << 20);
 }
 
-unsigned Delaunay_Voronoi::calculate_triangles_checksum(Triangle_pack *triangles, int num_triangles)
-{
-    if(num_triangles < 1)
-        return PDLN_CHECKSUM_FALSE;
-
-    sort_points_in_triangle(triangles, num_triangles);
-    //sort_triangles(triangles, num_triangles);
-
-    int checksum = hash_triangle_by_id(triangles[0]);
-    for(int i = 1; i < num_triangles; i ++)
-        checksum = checksum ^ hash_triangle_by_id(triangles[i]);
-
-    return checksum;
-}
-
-
-unsigned Delaunay_Voronoi::calculate_triangles_intersected_checksum(Point head, Point tail, double threshold)
-{
-    /* Let n be the number of points, if there are b vertices on the convex hull,
-     * then any triangulation of the points has at most 2n − 2 − b triangles,
-     * plus one exterior face */
-    Triangle_pack *triangles = new Triangle_pack[2*num_points];
-    int num_triangles;
-    unsigned checksum;
-
-    get_triangles_intersecting_with_segment(head, tail, triangles, &num_triangles, 2*num_points, threshold);
-
-    checksum = calculate_triangles_checksum(triangles, num_triangles);
-
-    //char filename[64];
-    //int rank;
-    //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    //snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
-    //plot_triangles_into_file(filename, triangles, num_triangles);
-
-
-    delete[] triangles;
-    return checksum;
-}
 
 inline double ppoint_distence_to_line(double px, double py, double x1, double y1, double x2, double y2)
 {
