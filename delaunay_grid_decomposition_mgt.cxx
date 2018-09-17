@@ -281,11 +281,11 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             //calculate_stereographic_projection(global_p_lon[2], global_p_lat[2], center[PDLN_LON], center[PDLN_LAT], global_p_lon[2], global_p_lat[2]);
             //calculate_stereographic_projection(global_p_lon[3], global_p_lat[3], center[PDLN_LON], center[PDLN_LAT], global_p_lon[3], global_p_lat[3]);
 
-        triangulation = new Delaunay_Voronoi(num_kernel_points + num_expand_points,
-                                             projected_coord[PDLN_LON], projected_coord[PDLN_LAT],
-                                             ori_lon, ori_lat, ori_idx, false,
-                                             rotated_expand_boundry->min_lon, rotated_expand_boundry->max_lon,
-                                             rotated_expand_boundry->min_lat, rotated_expand_boundry->max_lat, virtual_point_local_index);
+        triangulation = new Delaunay_Voronoi();
+        triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], ori_idx, num_kernel_points + num_expand_points);
+        triangulation->set_virtual_polar_index(virtual_point_local_index);
+        triangulation->set_origin_coord(ori_lon, ori_lat);
+        triangulation->triangulate();
 
         if(node_type != PDLN_NODE_TYPE_COMMON) {
             //triangulation->plot_original_points_into_file(filename);
@@ -314,45 +314,45 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             calculate_real_boundary();
             //triangulation->plot_projection_into_file(filename);
 
-            if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->min_lat < 0) {
-                calculate_stereographic_projection(0, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
-                calculate_stereographic_projection(90, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[1], y[1]);
-                calculate_stereographic_projection(180, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[2], y[2]);
+            //if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->min_lat < 0) {
+            //    calculate_stereographic_projection(0, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
+            //    calculate_stereographic_projection(90, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[1], y[1]);
+            //    calculate_stereographic_projection(180, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[2], y[2]);
 
-                calculate_circle_center(x, y, &circle_center.x, &circle_center.y);
-                radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
+            //    calculate_circle_center(x, y, &circle_center.x, &circle_center.y);
+            //    radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
 
-                if(radius < 100) {
-                    //printf("[%d] + circle_center: (%lf, %lf), point: (%lf, %lf) radius: %lf\n", rank, circle_center.x, circle_center.y, x[2], y[2], radius);
-                    triangulation->remove_triangles_in_circle(circle_center, radius);
-                    double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
-                    double head_lon, head_lat, tail_lon, tail_lat;
-                    calculate_stereographic_projection(lon, -center[PDLN_LAT]-20 , center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
-                    calculate_stereographic_projection(lon, real_boundry->min_lat, center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
-                    //printf("[%d]real: (%lf, %lf, %lf, %lf), (%lf, %lf) -- (%lf, %lf)\n", rank, real_boundry->min_lon, real_boundry->max_lon,
-                    //                                                               real_boundry->min_lat, real_boundry->max_lat,
-                    //                                                             head_lon, head_lat, tail_lon, tail_lat);
-                    triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
-                }
-            }
+            //    if(radius < 100) {
+            //        //printf("[%d] + circle_center: (%lf, %lf), point: (%lf, %lf) radius: %lf\n", rank, circle_center.x, circle_center.y, x[2], y[2], radius);
+            //        triangulation->remove_triangles_in_circle(circle_center, radius);
+            //        double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
+            //        double head_lon, head_lat, tail_lon, tail_lat;
+            //        calculate_stereographic_projection(lon, -center[PDLN_LAT]-20 , center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
+            //        calculate_stereographic_projection(lon, real_boundry->min_lat, center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
+            //        //printf("[%d]real: (%lf, %lf, %lf, %lf), (%lf, %lf) -- (%lf, %lf)\n", rank, real_boundry->min_lon, real_boundry->max_lon,
+            //        //                                                               real_boundry->min_lat, real_boundry->max_lat,
+            //        //                                                             head_lon, head_lat, tail_lon, tail_lat);
+            //        triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
+            //    }
+            //}
 
-            if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->max_lat > 0) {
-                calculate_stereographic_projection(0, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
-                calculate_stereographic_projection(90, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[1], y[1]);
-                calculate_stereographic_projection(180, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[2], y[2]);
+            //if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->max_lat > 0) {
+            //    calculate_stereographic_projection(0, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
+            //    calculate_stereographic_projection(90, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[1], y[1]);
+            //    calculate_stereographic_projection(180, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[2], y[2]);
 
-                calculate_circle_center(x, y, &circle_center.x, &circle_center.y);
-                radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
+            //    calculate_circle_center(x, y, &circle_center.x, &circle_center.y);
+            //    radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
 
-                if(radius < 100) {
-                    triangulation->remove_triangles_in_circle(circle_center, radius);
-                    double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
-                    double head_lon, head_lat, tail_lon, tail_lat;
-                    calculate_stereographic_projection(lon, real_boundry->max_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
-                    calculate_stereographic_projection(lon, -center[PDLN_LAT]+20 , center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
-                    triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
-                }
-            }
+            //    if(radius < 100) {
+            //        triangulation->remove_triangles_in_circle(circle_center, radius);
+            //        double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
+            //        double head_lon, head_lat, tail_lon, tail_lat;
+            //        calculate_stereographic_projection(lon, real_boundry->max_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
+            //        calculate_stereographic_projection(lon, -center[PDLN_LAT]+20 , center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
+            //        triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
+            //    }
+            //}
 
             /*
             char filename[64];
@@ -364,7 +364,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             */
 
             triangulation->update_all_points_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
-            triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
+            //triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
             triangulation->uncyclic_all_points();
             triangulation->recognize_cyclic_triangles();
             triangulation->make_final_triangle_pack();
@@ -372,10 +372,11 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         if(num_inserted > 0)
             triangulation->remove_triangles_till(num_inserted);
     } else {
-        triangulation = new Delaunay_Voronoi(num_kernel_points + num_expand_points,
-                                             ori_lon, ori_lat, NULL, NULL, ori_idx, false,
-                                             expand_boundry->min_lon, expand_boundry->max_lon,
-                                             expand_boundry->min_lat, expand_boundry->max_lat, virtual_point_local_index);
+        triangulation = new Delaunay_Voronoi();
+        triangulation->add_points(ori_lon, ori_lat, ori_idx, num_kernel_points + num_expand_points);
+        triangulation->set_virtual_polar_index(virtual_point_local_index);
+        triangulation->triangulate();
+       
         triangulation->uncyclic_all_points();
         triangulation->recognize_cyclic_triangles();
         if(num_inserted > 0)
@@ -442,7 +443,7 @@ void Search_tree_node::sort_by_line(Midline* midline, int start, int num, int* l
 }
 
 
-static inline swap(double& a, double& b)
+static inline void swap(double& a, double& b)
 {
     double tmp = a;
     a = b;
@@ -450,7 +451,7 @@ static inline swap(double& a, double& b)
 }
 
 
-static inline swap(int& a, int& b)
+static inline void swap(int& a, int& b)
 {
     int tmp = a;
     a = b;

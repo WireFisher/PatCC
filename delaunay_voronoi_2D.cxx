@@ -1016,7 +1016,7 @@ static int compare_node_index(const void* a, const void* b)
 
 void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head, int* tail)
 {
-    const unsigned max_leaf_triangles = 64;
+    const unsigned max_leaf_triangles = 128;
     unsigned count;
     unsigned i;
     int head_tail[max_leaf_triangles*2]; // [head1, tail1, head2, tail2, ...]
@@ -1071,55 +1071,39 @@ void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head
 
 #define PDLN_INSERT_EXTRA_VPOINT (false)
 #define PDLN_VPOINT_DENSITY  (20)
-unsigned Delaunay_Voronoi::generate_initial_triangles(int num_points, double *x, double *y)
+unsigned Delaunay_Voronoi::generate_initial_triangles()
 {
     double minX, maxX, minY, maxY;
-    double dx, dy, deltaMax;
     unsigned stack_base = 0;
     unsigned stack_top  = 0;
 
-    PDASSERT(x != NULL);
-    PDASSERT(y != NULL);
-
-    maxX = minX = x[0];
-    maxY = minY = y[0];
-    for(int i = 0; i < num_points; i++) 
-    {
-        if (x[i] < minX) minX = x[i];
-        if (x[i] > maxX) maxX = x[i];
-        if (y[i] < minY) minY = y[i];
-        if (y[i] > maxY) maxY = y[i];
+    maxX = maxY = -1e10;
+    minX = minY =  1e10;
+    for(int i = 0; i < num_points; i++) {
+        if (all_points[i].x < minX) minX = all_points[i].x;
+        if (all_points[i].x > maxX) maxX = all_points[i].x;
+        if (all_points[i].y < minY) minY = all_points[i].y;
+        if (all_points[i].y > maxY) maxY = all_points[i].y;
     }
     
-    dx = maxX - minX;
-    dy = maxY - minY;
-    deltaMax = std::max(dx, dy);
+    double dx = maxX - minX;
+    double dy = maxY - minY;
+    double deltaMax = std::max(dx, dy);
 
-    double ratio  = 0.1;
+    const double ratio  = 0.1;
     virtual_point[0] = new Point(minX-deltaMax*ratio, minY-deltaMax*ratio, -1);
     virtual_point[1] = new Point(minX-deltaMax*ratio, maxY+deltaMax*ratio, -1);
     virtual_point[2] = new Point(maxX+deltaMax*ratio, minY-deltaMax*ratio, -1);
     virtual_point[3] = new Point(maxX+deltaMax*ratio, maxY+deltaMax*ratio, -1);
 
     push(&stack_top, allocate_Triangle(allocate_edge(virtual_point[0], virtual_point[2]),
-                                                  allocate_edge(virtual_point[2], virtual_point[1]),
-                                                  allocate_edge(virtual_point[1], virtual_point[0])));
+                                       allocate_edge(virtual_point[2], virtual_point[1]),
+                                       allocate_edge(virtual_point[1], virtual_point[0])));
     push(&stack_top, allocate_Triangle(allocate_edge(virtual_point[3], virtual_point[1]),
-                                                  allocate_edge(virtual_point[1], virtual_point[2]),
-                                                  allocate_edge(virtual_point[2], virtual_point[3])));
+                                       allocate_edge(virtual_point[1], virtual_point[2]),
+                                       allocate_edge(virtual_point[2], virtual_point[3])));
     triangle_stack[stack_top-1]->edge[1]->twin_edge = triangle_stack[stack_top]->edge[1];
     triangle_stack[stack_top]->edge[1]->twin_edge = triangle_stack[stack_top-1]->edge[1];
-
-    all_points = new Point[num_points];
-
-    for (int i = 0; i < num_points; i ++) {
-        all_points[i].x    = x[i];
-        all_points[i].y    = y[i];
-        all_points[i].id   = i;
-        all_points[i].next = i + 1;
-        all_points[i].prev = i - 1;
-    }
-    all_points[0].prev = all_points[num_points-1].next = -1;
 
     distribute_points_into_triangles(0, num_points-1, stack_base, stack_top);
 
@@ -1172,26 +1156,72 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 }
 
 
-Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_values, const double *x_origin, const double *y_origin,
-                                   int *global_idx, bool is_global_grid, double min_lon, double max_lon, 
-                                   double min_lat, double max_lat, int virtual_polar_local_index)
-    : num_points(num_points)
+Delaunay_Voronoi::Delaunay_Voronoi()
+    : triangle_stack(NULL)
+    , stack_size(0)
     , tolerance(FLOAT_ERROR)
-    , x_ref(x_origin)
-    , y_ref(y_origin)
+    , num_points(0)
+    , point_idx_to_buf_idx(NULL)
+    , global_index(NULL)
+    , vpolar_local_index(-1)
+    , x_ref(NULL)
+    , y_ref(NULL)
 {
-    timeval start, end;
+}
 
-    PDASSERT((x_ref && y_ref) || (!x_ref && !x_ref));
+
+void Delaunay_Voronoi::add_points(const double* x, const double* y, const int* global_idx, int num)
+{
 #ifdef DEBUG
-    PDASSERT(have_redundent_points(x_values, y_values, num_points) == false);
-    x_store = x_values;
-    y_store = y_values;
-
-    for(int i = 0; i < num_points; i++)
-        PDASSERT(x_values[i] >= min_lon && x_values[i] <= max_lon && y_values[i] >= min_lat && y_values[i] <= max_lat);
+    PDASSERT(have_redundent_points(x, y, num) == false);
 #endif
+    PDASSERT(x != NULL);
+    PDASSERT(y != NULL);
+
+    num_points = num;
+    all_points = new Point[num_points];
+
+    for (int i = 0; i < num_points; i ++) {
+        all_points[i].x    = x[i];
+        all_points[i].y    = y[i];
+        all_points[i].id   = i;
+        all_points[i].next = i + 1;
+        all_points[i].prev = i - 1;
+    }
+
+    all_points[0].prev = all_points[num_points-1].next = -1;
+
+    if(global_idx != NULL) {
+        global_index = new int[num_points];
+        memcpy(global_index, global_idx, num_points*sizeof(int));
+    }
+
+#ifdef DEBUG
+    x_store = x;
+    y_store = y;
+#endif
+}
+
+
+void Delaunay_Voronoi::set_virtual_polar_index(int idx)
+{
+    vpolar_local_index = idx;
+}
+
+
+void Delaunay_Voronoi::set_origin_coord(const double *x_origin, const double *y_origin)
+{
+    x_ref = x_origin;
+    y_ref = y_origin;
+}
+
+
+void Delaunay_Voronoi::triangulate()
+{
+    PDASSERT(num_points > 0);
+
     int triangles_count_estimate = 2*(num_points+4);
+
     triangle_pool.reserve(triangles_count_estimate);
     edge_pool.reserve(triangles_count_estimate*3);
     result_leaf_triangles.reserve(triangles_count_estimate);
@@ -1200,17 +1230,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     stack_size = triangles_count_estimate * 2;
     triangle_stack = new Triangle*[stack_size];
 
-    gettimeofday(&start, NULL);
-
-    this->is_global_grid = is_global_grid;
-
-    if(global_idx != NULL) {
-        global_index = new int[num_points];
-        memcpy(global_index, global_idx, num_points*sizeof(int));
-    }
-
-    this->vpolar_local_index = virtual_polar_local_index;
-    unsigned stack_top = generate_initial_triangles(num_points, x_values, y_values);
+    unsigned stack_top = generate_initial_triangles();
 
     //save_original_points_into_file();
 
@@ -1222,8 +1242,6 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *x_values, double *y_v
     clear_triangle_containing_virtual_point();
 
     update_virtual_polar_info();
-
-    gettimeofday(&end, NULL);
 }
 
 

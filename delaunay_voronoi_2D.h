@@ -156,7 +156,6 @@ class Delaunay_Voronoi
         unsigned   stack_size;
 
         /* property */
-        bool is_global_grid;
         double tolerance;
 
         int num_points;
@@ -167,10 +166,15 @@ class Delaunay_Voronoi
         vector<Triangle*> triangles_containing_vpolar;
         int vpolar_local_index;
 
+        double common_boundry[4];
+
         const double *x_ref;
         const double *y_ref;
-        double* x_store;
-        double* y_store;
+
+#ifdef DEBUG
+        const double* x_store;
+        const double* y_store;
+#endif
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         void triangularization_process(Triangle*, unsigned);
@@ -181,7 +185,7 @@ class Delaunay_Voronoi
         void link_remained_list(unsigned, unsigned, int*, int*);
         void swap_points(int, int);
 
-        unsigned generate_initial_triangles(int, double*, double*);
+        unsigned generate_initial_triangles();
         void clear_triangle_containing_virtual_point();
         bool is_angle_too_large(const Point *pt, const Edge *edge);
         bool is_angle_ambiguous(const Point *pt, const Edge *edge);
@@ -198,8 +202,14 @@ class Delaunay_Voronoi
         void update_virtual_polar_info();
 
     public:
-        Delaunay_Voronoi(int, double*, double*, const double*, const double*, int*, bool, double, double, double, double, int virtual_polar_local_index=-1);
+        Delaunay_Voronoi();
         ~Delaunay_Voronoi();
+
+        void add_points(const double* x, const double* y, const int* global_idx, int num);
+        void set_virtual_polar_index(int idx);
+        void set_origin_coord(const double *x_origin, const double *y_origin);
+        void triangulate();
+
         void legalize_triangles(Point *pt, Edge *edge, unsigned*);
         Edge *allocate_edge(Point *head, Point *tail);
         Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
