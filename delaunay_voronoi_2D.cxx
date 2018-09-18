@@ -941,7 +941,48 @@ inline bool is_segment_intersected_with_one_of_edges(Triangle_pack* triangle, Po
            is_segment_intersected_with_edge(triangle->v[2], triangle->v[0], p1, p2);
 }
 
+inline void get_bounding_box(Triangle_pack* t, double& x_min, double& x_max, double& y_min, double& y_max) {
+    Point* v = t->v;
+    x_min = v[0].x;
+    x_max = v[0].x;
+    y_min = v[0].y;
+    y_max = v[0].y;
+    for (int i = 1; i < 3; i++) {
+        if (v[i].x < x_min) x_min = v[i].x;
+        if (v[i].x > x_max) x_max = v[i].x;
+        if (v[i].y < y_min) y_min = v[i].y;
+        if (v[i].y > y_max) y_max = v[i].y;
+    }
+}
+
 inline bool is_triangle_intersecting_with_segment(Triangle_pack* triangle, Point p1, Point p2, double threshold) {
+    double x_min, x_max, y_min, y_max;
+    get_bounding_box(triangle, x_min, x_max, y_min, y_max);
+
+    double seg_min, seg_max;
+    if (p1.x == p2.x) {
+        if (p1.y > p2.y) {
+            seg_min = p2.y;
+            seg_max = p1.y;
+        } else {
+            seg_min = p1.y;
+            seg_max = p2.y;
+        }
+
+        if(!(x_min <= p1.x && x_max >= p1.x && !(y_max < seg_min || y_min > seg_max)))
+            return false;
+    } else if (p1.y == p2.y) {
+        if (p1.x > p2.x) {
+            seg_min = p2.x;
+            seg_max = p1.x;
+        } else {
+            seg_min = p1.x;
+            seg_max = p2.x;
+        }
+
+        if(!(y_min <= p1.y && y_max >= p1.y && !(x_max < seg_min || x_min > seg_max)))
+            return false;
+    }
     return (threshold == 0 || all_distence_in_threshold(triangle, p1, p2, threshold)) &&
            vertexs_not_on_same_side(triangle, p1, p2) &&
            (is_segment_intersected_with_one_of_edges(triangle, p1, p2) || is_segment_in_triangle(triangle, p1, p2));
