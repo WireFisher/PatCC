@@ -920,22 +920,16 @@ inline bool all_distence_in_threshold(Triangle_pack* triangle, Point p1, Point p
            point_distence_in_threshold(triangle->v[2], p1, p2, threshold);
 }
 
-inline bool vertexs_not_on_same_side(Triangle_pack* triangle, Point p1, Point p2) {
-    return triangle->v[0].position_to_edge(&p1, &p2) * triangle->v[1].position_to_edge(&p1, &p2) <= 0 ||
-           triangle->v[1].position_to_edge(&p1, &p2) * triangle->v[2].position_to_edge(&p1, &p2) <= 0;
-}
-
 inline bool is_segment_in_triangle(Triangle_pack* triangle, Point p1, Point p2) {
     return p1.position_to_triangle(triangle) >= 0 && p2.position_to_triangle(triangle) >= 0;
 }
 
 inline bool is_segment_intersected_with_edge(Point p_e1, Point p_e2, Point p1, Point p2) {
     return (p1.position_to_edge(&p_e1, &p_e2) * p2.position_to_edge(&p_e1, &p_e2) < 0) &&
-           (p1.position_to_edge(&p_e1, &p_e2)!=0 || p2.position_to_edge(&p_e1, &p_e2)!=0 ) &&
            (p_e1.position_to_edge(&p1, &p2) * p_e2.position_to_edge(&p1, &p2) <= 0);
 }
 
-inline bool is_segment_intersected_with_one_of_edges(Triangle_pack* triangle, Point p1, Point p2) {
+inline bool is_segment_intersected_with_any_edges(Triangle_pack* triangle, Point p1, Point p2) {
     return is_segment_intersected_with_edge(triangle->v[0], triangle->v[1], p1, p2) ||
            is_segment_intersected_with_edge(triangle->v[1], triangle->v[2], p1, p2) ||
            is_segment_intersected_with_edge(triangle->v[2], triangle->v[0], p1, p2);
@@ -956,8 +950,7 @@ inline void get_bounding_box(Triangle_pack* t, double& x_min, double& x_max, dou
 }
 
 inline bool is_triangle_intersecting_with_segment(Triangle_pack* triangle, Point p1, Point p2, double threshold) {
-    /*
-    */
+    PDASSERT(p1.x == p2.x || p1.y == p2.y);
     double x_min, x_max, y_min, y_max;
     get_bounding_box(triangle, x_min, x_max, y_min, y_max);
 
@@ -973,7 +966,7 @@ inline bool is_triangle_intersecting_with_segment(Triangle_pack* triangle, Point
 
         if(!(x_min <= p1.x && x_max >= p1.x && !(y_max < seg_min || y_min > seg_max)))
             return false;
-    } else if (p1.y == p2.y) {
+    } else {
         if (p1.x > p2.x) {
             seg_min = p2.x;
             seg_max = p1.x;
@@ -986,8 +979,7 @@ inline bool is_triangle_intersecting_with_segment(Triangle_pack* triangle, Point
             return false;
     }
     return (threshold == 0 || all_distence_in_threshold(triangle, p1, p2, threshold)) &&
-           //vertexs_not_on_same_side(triangle, p1, p2) &&
-           (is_segment_intersected_with_one_of_edges(triangle, p1, p2) || is_segment_in_triangle(triangle, p1, p2));
+           (is_segment_intersected_with_any_edges(triangle, p1, p2) || is_segment_in_triangle(triangle, p1, p2));
 }
 
 void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_base)
@@ -1566,132 +1558,6 @@ static inline double point_distence_to_line(double px, double py, double x1, dou
 }
 
 
-inline bool Delaunay_Voronoi::Point_distence_in_threshold(Point* v, Point p1, Point p2, double threshold) {
-    return point_distence_to_line(v->x, v->y, p1.x, p1.y, p2.x, p2.y) <= threshold;
-}
-
-inline bool Delaunay_Voronoi::All_distence_in_threshold(Triangle* triangle, Point p1, Point p2, double threshold) {
-    return Point_distence_in_threshold(triangle->v[0], p1, p2, threshold) &&
-           Point_distence_in_threshold(triangle->v[1], p1, p2, threshold) &&
-           Point_distence_in_threshold(triangle->v[2], p1, p2, threshold);
-}
-
-inline bool Delaunay_Voronoi::Vertexs_not_on_same_side(Triangle* triangle, Point p1, Point p2) {
-    return triangle->v[0]->position_to_edge(&p1, &p2) * triangle->v[1]->position_to_edge(&p1, &p2) <= 0 ||
-           triangle->v[1]->position_to_edge(&p1, &p2) * triangle->v[2]->position_to_edge(&p1, &p2) <= 0;
-}
-
-inline bool Delaunay_Voronoi::Is_segment_in_triangle(Triangle* triangle, Point p1, Point p2) {
-    return p1.position_to_triangle(triangle) >= 0 && p2.position_to_triangle(triangle) >= 0;
-}
-
-inline bool Delaunay_Voronoi::Is_segment_intersected_with_edge(Point* p_e1, Point* p_e2, Point p1, Point p2) {
-    return (p1.position_to_edge(p_e1, p_e2) * p2.position_to_edge(p_e1, p_e2) < 0) &&
-           (p1.position_to_edge(p_e1, p_e2)!=0 || p2.position_to_edge(p_e1, p_e2)!=0) &&
-           (p_e1->position_to_edge(&p1, &p2) * p_e2->position_to_edge(&p1, &p2) <= 0);
-}
-
-inline bool Delaunay_Voronoi::Is_segment_intersected_with_one_of_edges(Triangle* triangle, Point p1, Point p2) {
-    return Is_segment_intersected_with_edge(triangle->v[0], triangle->v[1], p1, p2) ||
-           Is_segment_intersected_with_edge(triangle->v[1], triangle->v[2], p1, p2) ||
-           Is_segment_intersected_with_edge(triangle->v[2], triangle->v[0], p1, p2);
-}
-
-inline void Delaunay_Voronoi::get_bounding_box(Triangle* t, double& x_min, double& x_max, double& y_min, double& y_max) {
-    Point** v = t->v;
-    x_min = v[0]->x;
-    x_max = v[0]->x;
-    y_min = v[0]->y;
-    y_max = v[0]->y;
-    for(int i = 1; i < 3; i++) {
-        if (v[i]->x < x_min) x_min = v[i]->x;
-        if (v[i]->x > x_max) x_max = v[i]->x;
-        if (v[i]->y < y_min) y_min = v[i]->y;
-        if (v[i]->y > y_max) y_max = v[i]->y;
-    }
-}
-
-inline bool Delaunay_Voronoi::Is_triangle_intersecting_with_segment(Triangle* triangle, Point p1, Point p2, double threshold) {
-    double x_min, x_max, y_min, y_max;
-    get_bounding_box(triangle, x_min, x_max, y_min, y_max);
-
-    double seg_min, seg_max;
-    if (p1.x == p2.x) {
-        if (p1.y > p2.y) {
-            seg_min = p2.y;
-            seg_max = p1.y;
-        } else {
-            seg_min = p1.y;
-            seg_max = p2.y;
-        }
-
-        if(!(x_min <= p1.x && x_max >= p1.x && !(y_max < seg_min || y_min > seg_max)))
-            return false;
-    } else if (p1.y == p2.y) {
-        if (p1.x > p2.x) {
-            seg_min = p2.x;
-            seg_max = p1.x;
-        } else {
-            seg_min = p1.x;
-            seg_max = p2.x;
-        }
-
-        if(!(y_min <= p1.y && y_max >= p1.y && !(x_max < seg_min || x_min > seg_max)))
-            return false;
-    }
-    return (threshold == 0 || All_distence_in_threshold(triangle, p1, p2, threshold)) &&
-           Vertexs_not_on_same_side(triangle, p1, p2) &&
-           (Is_segment_intersected_with_one_of_edges(triangle, p1, p2) ||
-            Is_segment_in_triangle(triangle, p1, p2));
-}
-
-#define copy_points_value(dst, src) {   \
-    dst->v[0]->x = src->v[0]->x;        \
-    dst->v[0]->y = src->v[0]->y;        \
-    dst->v[1]->x = src->v[1]->x;        \
-    dst->v[1]->y = src->v[1]->y;        \
-    dst->v[2]->x = src->v[2]->x;        \
-    dst->v[2]->y = src->v[2]->y; }
-
-std::vector<Triangle*> Delaunay_Voronoi::find_triangles_intersecting_with_segment(Point head, Point tail, double threshold)
-{
-    std::vector<Triangle*> triangles_found;
-    Point uncyclic_head = head, uncyclic_tail = tail;
-    Triangle *triangle_l, *triangle_r;
-
-    if(uncyclic_head.x == uncyclic_tail.x) {
-        while(uncyclic_head.x >= 360) uncyclic_head.x -= 360;
-        while(uncyclic_head.x < 0) uncyclic_head.x += 360;
-        while(uncyclic_tail.x >= 360) uncyclic_tail.x -= 360;
-        while(uncyclic_tail.x < 0) uncyclic_tail.x += 360;
-    }
-
-    triangle_l = new Triangle(new Point(0, 0, -1), new Point(1, 0, -1), new Point(0, 1, -1));
-    triangle_r = new Triangle(new Point(0, 0, -1), new Point(1, 0, -1), new Point(0, 1, -1));
-
-    for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        if(!all_leaf_triangles[i]->is_leaf)
-            continue;
-
-        if(all_leaf_triangles[i]->is_cyclic) {
-            copy_points_value(triangle_l, all_leaf_triangles[i]);
-            copy_points_value(triangle_r, all_leaf_triangles[i]);
-
-            for(int j = 0; j < 3; j++) if(triangle_l->v[j]->x >= 180) triangle_l->v[j]->x -= 360;
-            for(int j = 0; j < 3; j++) if(triangle_r->v[j]->x <  180) triangle_r->v[j]->x += 360;
-
-            if(Is_triangle_intersecting_with_segment(triangle_l, uncyclic_head, uncyclic_tail, threshold) ||
-               Is_triangle_intersecting_with_segment(triangle_r, uncyclic_head, uncyclic_tail, threshold) )
-                triangles_found.push_back(all_leaf_triangles[i]);
-        } else {
-            if(Is_triangle_intersecting_with_segment(all_leaf_triangles[i], head, tail, threshold))
-                triangles_found.push_back(all_leaf_triangles[i]);
-        }
-    }
-    return triangles_found;
-}
-
-
 void Delaunay_Voronoi::remove_triangles_on_segment(Point head, Point tail)
 {
     for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
@@ -1720,12 +1586,6 @@ void Delaunay_Voronoi::remove_triangles_on_segment(Point head, Point tail)
                 break;
             }
     }
-}
-
-
-std::vector<Triangle*> Delaunay_Voronoi::search_cyclic_triangles_for_rotated_grid(Point cyclic_boundary_head, Point cyclic_bounary_tail)
-{
-    return find_triangles_intersecting_with_segment(cyclic_boundary_head, cyclic_bounary_tail, 0);
 }
 
 
@@ -1798,22 +1658,6 @@ void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, doub
 
             remove_leaf_triangle(all_leaf_triangles[i]);
         }
-}
-
-
-void Delaunay_Voronoi::get_triangles_intersecting_with_segment(Point head, Point tail, Triangle_pack *output_triangles, int *num_triangles, int buf_len, double threshold)
-{
-    int current = 0;
-
-    std::vector<Triangle*> ts = find_triangles_intersecting_with_segment(head, tail, threshold);
-
-    for(unsigned i = 0; i < ts.size(); i++)
-        output_triangles[current++] = Triangle_pack(Point(ts[i]->v[0]->x, ts[i]->v[0]->y, global_index[ts[i]->v[0]->id]),  // TODO: use global_index as id directly
-                                                         Point(ts[i]->v[1]->x, ts[i]->v[1]->y, global_index[ts[i]->v[1]->id]), 
-                                                         Point(ts[i]->v[2]->x, ts[i]->v[2]->y, global_index[ts[i]->v[2]->id]));
-
-    PDASSERT(current < buf_len);
-    *num_triangles = current;
 }
 
 
@@ -1933,7 +1777,6 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
                                                Triangle_pack *output_triangles, int *output_num_triangles, int buf_len)
 {
     int current = 0;
-    int num_triangles = 0;
 
     if(x_ref) {
         for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
@@ -1979,15 +1822,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
     for (unsigned j = 0; j < 4; j++)
         for (unsigned i = 0; i < bound_triangles[j].size(); i++)
             output_triangles[current++] = bound_triangles[j][i];
-
-    //get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
-    //current += num_triangles;
-    //get_triangles_intersecting_with_segment(Point(max_x, min_y), Point(max_x, max_y), output_triangles+current, &num_triangles, buf_len-current);
-    //current += num_triangles;
-    //get_triangles_intersecting_with_segment(Point(max_x, max_y), Point(min_x, max_y), output_triangles+current, &num_triangles, buf_len-current);
-    //current += num_triangles;
-    //get_triangles_intersecting_with_segment(Point(min_x, max_y), Point(min_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
-    *output_num_triangles = current + num_triangles;
+    *output_num_triangles = current;
 }
 
 
@@ -2058,22 +1893,7 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
 
             Triangle_pack tp = pack_triangle(all_leaf_triangles_on_boundary[i]);
 
-            //double x_min, x_max, y_min, y_max;
-            //::get_bounding_box(&tp, x_min, x_max, y_min, y_max);
-            //double x_min_inner = bound_vertexes[0].x;
-            //double y_min_inner = bound_vertexes[0].y;
-            //double x_max_inner = bound_vertexes[2].x;
-            //double y_max_inner = bound_vertexes[2].y;
-            //if(x_max < x_min_inner || x_min > x_max_inner || y_max < y_min_inner || y_min > y_max_inner ||
-            //   (x_min > x_min_inner && x_max < x_max_inner && y_min > y_min_inner && y_max < y_max_inner))
-            //    continue;
-
             sort_points_in_triangle(tp);
-            //if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold) ||
-            //    is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold) ||
-            //    is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold) ||
-            //    is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold) )
-            //        add_to_result_triangles(tp);
             if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
                 add_to_bound_triangles(tp, PDLN_DOWN);
             if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold))
@@ -2090,22 +1910,7 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
 
             Triangle_pack tp = pack_triangle(all_leaf_triangles_on_boundary[i]);
 
-            //double x_min, x_max, y_min, y_max;
-            //::get_bounding_box(&tp, x_min, x_max, y_min, y_max);
-            //double x_min_inner = bound_vertexes[0].x;
-            //double y_min_inner = bound_vertexes[0].y;
-            //double x_max_inner = bound_vertexes[2].x;
-            //double y_max_inner = bound_vertexes[2].y;
-            //if(x_max < x_min_inner || x_min > x_max_inner || y_max < y_min_inner || y_min > y_max_inner ||
-            //   (x_min > x_min_inner && x_max < x_max_inner && y_min > y_min_inner && y_max < y_max_inner))
-            //    continue;
-
             sort_points_in_triangle(tp);
-            //if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold) ||
-            //    is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold) ||
-            //    is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold) ||
-            //    is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold) )
-            //    result_triangles_pack.push_back(tp);
             if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
                 bound_triangles[PDLN_DOWN].push_back(tp);
             if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold))
