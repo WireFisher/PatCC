@@ -148,7 +148,8 @@ class Delaunay_Voronoi
 {
     private:
         /* storage */
-        vector<Triangle*>     result_leaf_triangles;
+        vector<Triangle*>     all_leaf_triangles;
+        vector<Triangle*>     all_leaf_triangles_on_boundary;
         vector<Triangle_pack> result_triangles_pack;
         vector<Triangle*>     triangle_pool;
         vector<Edge*>         edge_pool;
@@ -220,6 +221,7 @@ class Delaunay_Voronoi
         void get_bounding_box(Triangle*, double&, double&, double&, double&);
         bool Is_triangle_intersecting_with_segment(Triangle*, Point, Point, double);
         void add_to_bound_triangles(Triangle_pack&, unsigned);
+        void add_to_result_triangles(Triangle_pack& t);
 
     public:
         Delaunay_Voronoi();
