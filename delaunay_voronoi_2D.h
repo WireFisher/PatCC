@@ -150,7 +150,6 @@ class Delaunay_Voronoi
         /* storage */
         vector<Triangle*>     all_leaf_triangles;
         vector<Triangle*>     all_leaf_triangles_on_boundary;
-        vector<Triangle_pack> result_triangles_pack;
         vector<Triangle*>     triangle_pool;
         vector<Edge*>         edge_pool;
         Point*                all_points;

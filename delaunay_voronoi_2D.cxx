@@ -1262,7 +1262,6 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
                         (*t)->edge[j]->twin_edge->twin_edge = NULL;
                 }
                 (*t)->is_leaf = false;
-                all_leaf_triangles.erase(t); //TODO: erase is slow
                 contain = true;
                 break;
             }
@@ -1284,8 +1283,7 @@ Delaunay_Voronoi::Delaunay_Voronoi()
     , y_ref(NULL)
     , have_bound(false)
     , polar_mode(false)
-{
-}
+{}
 
 
 void Delaunay_Voronoi::add_points(const double* x, const double* y, const int* global_idx, int num)
@@ -1344,7 +1342,6 @@ void Delaunay_Voronoi::triangulate()
     edge_pool.reserve(triangles_count_estimate*3);
     all_leaf_triangles.reserve(triangles_count_estimate);
     all_leaf_triangles_on_boundary.reserve((int)sqrt(num_points) * 4);
-    result_triangles_pack.reserve(triangles_count_estimate);
 
     stack_size = triangles_count_estimate * 2;
     triangle_stack = new Triangle*[stack_size];
@@ -1667,36 +1664,6 @@ static inline unsigned hash_triangle_by_id(Triangle_pack triangle)
 }
 
 
-unsigned Delaunay_Voronoi::calculate_checksum(Point head, Point tail, double threshold)
-{
-    PDASSERT(result_triangles_pack.size() > 0);
-    Point uncyclic_head = head, uncyclic_tail = tail;
-
-    if(uncyclic_head.x == uncyclic_tail.x) {
-        while(uncyclic_head.x >= 360) uncyclic_head.x -= 360;
-        while(uncyclic_head.x < 0) uncyclic_head.x += 360;
-        while(uncyclic_tail.x >= 360) uncyclic_tail.x -= 360;
-        while(uncyclic_tail.x < 0) uncyclic_tail.x += 360;
-    }
-
-    unsigned checksum = 0;
-    for(unsigned i = 0; i < result_triangles_pack.size();) {
-        if (result_triangles_pack[i].is_cyclic) {
-            if(is_triangle_intersecting_with_segment(&result_triangles_pack[i+1], uncyclic_head, uncyclic_tail, threshold) ||
-               is_triangle_intersecting_with_segment(&result_triangles_pack[i+2], uncyclic_head, uncyclic_tail, threshold) )
-                checksum ^= hash_triangle_by_id(result_triangles_pack[i]);
-            i += 3;
-        } else {
-            if (is_triangle_intersecting_with_segment(&result_triangles_pack[i], head, tail, threshold))
-                checksum ^= hash_triangle_by_id(result_triangles_pack[i]);
-            i++;
-        }
-    }
-
-    return checksum;
-}
-
-
 int Delaunay_Voronoi::bound_direction(const Point* a, const Point* b)
 {
     if (a->x == b->x) {
@@ -1722,22 +1689,14 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
 {
     int dir = bound_direction(&head, &tail);
     PDASSERT(dir > -1);
-    Point uncyclic_head = head, uncyclic_tail = tail;
-
-    if(uncyclic_head.x == uncyclic_tail.x) {
-        while(uncyclic_head.x >= 360) uncyclic_head.x -= 360;
-        while(uncyclic_head.x < 0) uncyclic_head.x += 360;
-        while(uncyclic_tail.x >= 360) uncyclic_tail.x -= 360;
-        while(uncyclic_tail.x < 0) uncyclic_tail.x += 360;
-    }
 
     unsigned size_plot = 0;
     unsigned checksum = 0;
 
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
         if (bound_triangles[dir][i].is_cyclic) {
-            if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], uncyclic_head, uncyclic_tail, threshold) ||
-               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], uncyclic_head, uncyclic_tail, threshold) )
+            if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
+               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold) )
                 checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
             i += 3;
         } else {
@@ -1750,8 +1709,8 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
     Triangle_pack* plot_triangles = new Triangle_pack[bound_triangles[dir].size()];
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
         if (bound_triangles[dir][i].is_cyclic) {
-            if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], uncyclic_head, uncyclic_tail, threshold) ||
-               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], uncyclic_head, uncyclic_tail, threshold) )
+            if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
+               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold) )
                 plot_triangles[size_plot++] = bound_triangles[dir][i+1];
             i += 3;
         } else {
@@ -1837,47 +1796,6 @@ void Delaunay_Voronoi::update_virtual_polar_info()
 }
 
 
-void Delaunay_Voronoi::make_final_triangle_pack()
-{
-    for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        if(!all_leaf_triangles[i]->is_leaf)
-            continue;
-
-        Point**   v = all_leaf_triangles[i]->v;
-        bool cyclic = all_leaf_triangles[i]->is_cyclic;
-        result_triangles_pack.push_back(Triangle_pack(Point(v[0]->x, v[0]->y, global_index[v[0]->id]),
-                                                      Point(v[1]->x, v[1]->y, global_index[v[1]->id]),
-                                                      Point(v[2]->x, v[2]->y, global_index[v[2]->id]),
-                                                      cyclic));
-        sort_points_in_triangle(result_triangles_pack.back());
-        if (cyclic) {
-            double tmp_x[3];
-            Triangle_pack t_cur = result_triangles_pack.back();
-            for(int j = 0; j < 3; j++) {
-                if(t_cur.v[j].x >= 180)
-                    tmp_x[j] = t_cur.v[j].x - 360;
-                else
-                    tmp_x[j] = t_cur.v[j].x;
-            }
-            result_triangles_pack.push_back(Triangle_pack(Point(tmp_x[0], t_cur.v[0].y, t_cur.v[0].id),
-                                                          Point(tmp_x[1], t_cur.v[1].y, t_cur.v[1].id),
-                                                          Point(tmp_x[2], t_cur.v[2].y, t_cur.v[2].id),
-                                                          cyclic));
-            for(int j = 0; j < 3; j++) {
-                if(t_cur.v[j].x < 180)
-                    tmp_x[j] = t_cur.v[j].x + 360;
-                else
-                    tmp_x[j] = t_cur.v[j].x;
-            }
-            result_triangles_pack.push_back(Triangle_pack(Point(tmp_x[0], t_cur.v[0].y, t_cur.v[0].id),
-                                                          Point(tmp_x[1], t_cur.v[1].y, t_cur.v[1].id),
-                                                          Point(tmp_x[2], t_cur.v[2].y, t_cur.v[2].id),
-                                                          cyclic));
-        }
-    }
-}
-
-
 void Delaunay_Voronoi::set_polar_mode(bool mode)
 {
     polar_mode = mode;
@@ -1941,26 +1859,6 @@ inline void Delaunay_Voronoi::add_to_bound_triangles(Triangle_pack& t, unsigned 
                                                       Point(tmp_x[2], t.v[2].y, t.v[2].id), true));
     } else
         bound_triangles[type].push_back(t);
-}
-
-
-inline void Delaunay_Voronoi::add_to_result_triangles(Triangle_pack& t)
-{
-    if (t.is_cyclic) {
-        result_triangles_pack.push_back(t);
-
-        double tmp_x[3];
-        for(int j = 0; j < 3; j++)
-            tmp_x[j] = t.v[j].x >= 180 ? t.v[j].x - 360 : t.v[j].x;
-        result_triangles_pack.push_back(Triangle_pack(Point(tmp_x[0], t.v[0].y, t.v[0].id), Point(tmp_x[1], t.v[1].y, t.v[1].id),
-                                                      Point(tmp_x[2], t.v[2].y, t.v[2].id), true));
-
-        for(int j = 0; j < 3; j++)
-            tmp_x[j] = t.v[j].x < 180 ? t.v[j].x + 360 : t.v[j].x;
-        result_triangles_pack.push_back(Triangle_pack(Point(tmp_x[0], t.v[0].y, t.v[0].id), Point(tmp_x[1], t.v[1].y, t.v[1].id),
-                                                      Point(tmp_x[2], t.v[2].y, t.v[2].id), true));
-    } else
-        result_triangles_pack.push_back(t);
 }
 
 
