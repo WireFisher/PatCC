@@ -34,6 +34,11 @@
 
 #define PI ((double) 3.1415926535897932384626433)
 
+#define PDLN_UP     0
+#define PDLN_LEFT   1
+#define PDLN_DOWN   2
+#define PDLN_RIGHT  3
+
 using std::vector;
 
 class Edge;
@@ -156,6 +161,7 @@ class Delaunay_Voronoi
         unsigned   stack_size;
 
         /* property */
+        bool   polar_mode;
         double tolerance;
 
         int num_points;
@@ -166,7 +172,10 @@ class Delaunay_Voronoi
         vector<Triangle*> triangles_containing_vpolar;
         int vpolar_local_index;
 
-        double common_boundry[4];
+        bool   have_bound;
+        Point  bound_vertexes[4];
+        double checking_threshold;
+        vector<Triangle_pack> bound_triangles[4];
 
         const double *x_ref;
         const double *y_ref;
@@ -177,7 +186,7 @@ class Delaunay_Voronoi
 #endif
 
         void check_and_set_twin_edge_relationship(vector<Triangle*>*);
-        void triangularization_process(Triangle*, unsigned);
+        void triangulating_process(Triangle*, unsigned);
         void map_buffer_index_to_point_index();
         void push(unsigned *, Triangle*);
 
@@ -201,6 +210,17 @@ class Delaunay_Voronoi
         void remove_leaf_triangle(Triangle*);
         void update_virtual_polar_info();
 
+        Triangle_pack pack_triangle(Triangle*);
+        bool Point_distence_in_threshold(Point*, Point, Point, double);
+        bool All_distence_in_threshold(Triangle*, Point, Point, double);
+        bool Vertexs_not_on_same_side(Triangle*, Point, Point);
+        bool Is_segment_in_triangle(Triangle*, Point, Point);
+        bool Is_segment_intersected_with_edge(Point*, Point*, Point, Point);
+        bool Is_segment_intersected_with_one_of_edges(Triangle*, Point, Point);
+        void get_bounding_box(Triangle*, double&, double&, double&, double&);
+        bool Is_triangle_intersecting_with_segment(Triangle*, Point, Point, double);
+        void add_to_bound_triangles(Triangle_pack&, unsigned);
+
     public:
         Delaunay_Voronoi();
         ~Delaunay_Voronoi();
@@ -209,6 +229,8 @@ class Delaunay_Voronoi
         void set_virtual_polar_index(int idx);
         void set_origin_coord(const double *x_origin, const double *y_origin);
         void triangulate();
+        void set_checksum_bound(double, double, double, double, double);
+        void set_polar_mode(bool);
 
         void legalize_triangles(Point *pt, Edge *edge, unsigned*);
         Edge *allocate_edge(Point *head, Point *tail);
@@ -221,9 +243,14 @@ class Delaunay_Voronoi
         std::vector<Triangle*> search_cyclic_triangles_for_rotated_grid(Point, Point);
         void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
+
         unsigned calculate_checksum(Point, Point, double = 0);
+        int bound_direction(const Point*, const Point*);
+        unsigned cal_checksum(Point, Point, double = 0);
+
         void get_triangles_intersecting_with_segment(Point, Point, Triangle_pack*, int*, int, double threshold = 0);
         bool is_triangle_in_circle(Triangle*, Point, double);
+
         void remove_triangles_in_circle(Point, double);
         void remove_triangles_on_segment(Point, Point);
         void recognize_cyclic_triangles();
@@ -234,6 +261,7 @@ class Delaunay_Voronoi
         void remove_triangles_till(int);
 
         void make_final_triangle_pack();
+        void make_bounding_triangle_pack();
 
         /* debug */
         void save_original_points_into_file();
@@ -252,6 +280,7 @@ class Triangle_pack
         bool is_cyclic;
         Triangle_pack() {};
         Triangle_pack(Point, Point, Point, bool = false);
+        void check_cyclic();
         friend bool operator == (Triangle_pack, Triangle_pack);
 };
 

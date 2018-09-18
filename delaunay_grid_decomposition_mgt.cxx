@@ -45,11 +45,6 @@
 
 #define PDLN_MAX_NUM_PROCESSING_UNITS 512
 
-#define PDLN_UP     0
-#define PDLN_LEFT   1
-#define PDLN_DOWN   2
-#define PDLN_RIGHT  3
-
 static inline bool is_in_region(double x, double y, Boundry region);
 
 bool operator == (Triangle_ID_Only t1, Triangle_ID_Only t2)
@@ -285,6 +280,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], ori_idx, num_kernel_points + num_expand_points);
         triangulation->set_virtual_polar_index(virtual_point_local_index);
         triangulation->set_origin_coord(ori_lon, ori_lat);
+        triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
+        if(node_type != PDLN_NODE_TYPE_COMMON)
+            triangulation->set_polar_mode(true);
         triangulation->triangulate();
 
         if(node_type != PDLN_NODE_TYPE_COMMON) {
@@ -302,7 +300,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             triangulation->update_all_points_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
             triangulation->recognize_cyclic_triangles();
             triangulation->relegalize_all_triangles();
-            triangulation->make_final_triangle_pack();
+            //triangulation->make_final_triangle_pack();
+            triangulation->make_bounding_triangle_pack();
 
             if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
                 reset_polars();
@@ -365,9 +364,10 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 
             triangulation->update_all_points_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
             //triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
-            triangulation->uncyclic_all_points();
-            triangulation->recognize_cyclic_triangles();
-            triangulation->make_final_triangle_pack();
+            //triangulation->uncyclic_all_points();
+            //triangulation->recognize_cyclic_triangles();
+            //triangulation->make_final_triangle_pack();
+            triangulation->make_bounding_triangle_pack();
         }
         if(num_inserted > 0)
             triangulation->remove_triangles_till(num_inserted);
@@ -375,13 +375,15 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         triangulation = new Delaunay_Voronoi();
         triangulation->add_points(ori_lon, ori_lat, ori_idx, num_kernel_points + num_expand_points);
         triangulation->set_virtual_polar_index(virtual_point_local_index);
+        triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
         triangulation->triangulate();
        
-        triangulation->uncyclic_all_points();
-        triangulation->recognize_cyclic_triangles();
+        //triangulation->uncyclic_all_points();
+        //triangulation->recognize_cyclic_triangles();
         if(num_inserted > 0)
             triangulation->remove_triangles_till(num_inserted);
-        triangulation->make_final_triangle_pack();
+        //triangulation->make_final_triangle_pack();
+        triangulation->make_bounding_triangle_pack();
     }
 
     delete[] ori_lon;
@@ -1262,22 +1264,28 @@ unsigned Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *t
 
     /* cyclic boundry detecting */
     coord_value[0][PDLN_LAT] = coord_value[0][PDLN_LON] = coord_value[1][PDLN_LAT] = coord_value[1][PDLN_LON] = PDLN_DOUBLE_INVALID_VALUE;
-    if(fabs(fabs(tree_node->kernel_boundry->min_lon - neighbor_node->kernel_boundry->max_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR ||
-       fabs(fabs(tree_node->kernel_boundry->max_lon - neighbor_node->kernel_boundry->min_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) { // Case 1 or case 3
-        if(std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat) < 
-           std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat)) {
-            coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = std::min(tree_node->kernel_boundry->min_lon, neighbor_node->kernel_boundry->min_lon);
-            coord_value[0][PDLN_LAT] = std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat);
-            coord_value[1][PDLN_LAT] = std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat);
-        }
-    }
+    //if(fabs(fabs(tree_node->kernel_boundry->min_lon - neighbor_node->kernel_boundry->max_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR ||
+    //   fabs(fabs(tree_node->kernel_boundry->max_lon - neighbor_node->kernel_boundry->min_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) { // Case 1 or case 3
+    //    if(std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat) < 
+    //       std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat)) {
+    //        coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = std::min(tree_node->kernel_boundry->min_lon, neighbor_node->kernel_boundry->min_lon);
+    //        coord_value[0][PDLN_LAT] = std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat);
+    //        coord_value[1][PDLN_LAT] = std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat);
+    //    }
+    //}
     if(std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat) < 
        std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat)) {
         if(fabs(fabs(tree_node->kernel_boundry->min_lon - neighbor_node->kernel_boundry->max_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) { // Case 1
+            coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node->kernel_boundry->min_lon;
+            coord_value[0][PDLN_LAT] = std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat);
+            coord_value[1][PDLN_LAT] = std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat);
             tree_node->num_neighbors_on_boundry[PDLN_LEFT]++;
             boundry_type |= PDLN_BOUNDRY_TYPE_L;
         }
         if(fabs(fabs(tree_node->kernel_boundry->max_lon - neighbor_node->kernel_boundry->min_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) { // Case 3
+            coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node->kernel_boundry->max_lon;
+            coord_value[0][PDLN_LAT] = std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat);
+            coord_value[1][PDLN_LAT] = std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat);
             tree_node->num_neighbors_on_boundry[PDLN_RIGHT]++;
             boundry_type |= PDLN_BOUNDRY_TYPE_R;
         }
@@ -1393,12 +1401,12 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
         
         local_checksums[i] = 0;
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            unsigned checksum = leaf_node->triangulation->calculate_checksum(common_boundary_head, common_boundary_tail, threshold);
+            unsigned checksum = leaf_node->triangulation->cal_checksum(common_boundary_head, common_boundary_tail, threshold);
             local_checksums[i] ^= checksum;
         }
 
         if(cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            unsigned checksum = leaf_node->triangulation->calculate_checksum(cyclic_common_boundary_head, cyclic_common_boundary_tail, threshold);
+            unsigned checksum = leaf_node->triangulation->cal_checksum(cyclic_common_boundary_head, cyclic_common_boundary_tail, threshold);
             local_checksums[i] ^= checksum;
         }
         local_checksums[i] = set_boundry_type(local_checksums[i], boundry_type);
@@ -2483,10 +2491,7 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_pack 
     snprintf(filename, 64, file_fmt, processing_info->get_num_total_processing_units());
     FILE *fp = fopen(filename, "w");
     for(int i = 0; i < num_different_triangles; i++)
-        fprintf(fp, "%d, %d, %d, (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id,
-                                                                        triangles[i].v[0].x, triangles[i].v[0].y,
-                                                                        triangles[i].v[1].x, triangles[i].v[1].y,
-                                                                        triangles[i].v[2].x, triangles[i].v[2].y);
+        fprintf(fp, "%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
     fclose(fp);
 #endif
 
