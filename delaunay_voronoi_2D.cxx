@@ -92,7 +92,7 @@ static int compare_lon(const void* a, const void* b)
 static inline void radix_sort(Triangle_pack *triangles, int num_triangles)
 {
     PDASSERT(sizeof(Triangle_pack) > sizeof(void *)/2);
-    merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_lon);
+    //merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_lon);
     merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v2);
     merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v1);
     merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v0);
@@ -1000,17 +1000,12 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
     if (triangle->remained_points_tail == -1) {
         all_leaf_triangles.push_back(triangle);
 
-        all_leaf_triangles_on_boundary.push_back(triangle);
-        //Triangle_pack tp = pack_triangle(triangle);
-        //sort_points_in_triangle(tp);
-        //if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
-        //    bound_triangles[PDLN_DOWN].push_back(tp);
-        //if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold))
-        //    bound_triangles[PDLN_RIGHT].push_back(tp);
-        //if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold))
-        //    bound_triangles[PDLN_UP].push_back(tp);
-        //if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold))
-        //    bound_triangles[PDLN_LEFT].push_back(tp);
+        Triangle_pack tp = pack_triangle(triangle);
+        if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold) ||
+            is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold) ||
+            is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold) ||
+            is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold) )
+            all_leaf_triangles_on_boundary.push_back(triangle);
         return;
     }
 
@@ -1356,6 +1351,7 @@ void Delaunay_Voronoi::triangulate()
     triangle_pool.reserve(triangles_count_estimate);
     edge_pool.reserve(triangles_count_estimate*3);
     all_leaf_triangles.reserve(triangles_count_estimate);
+    all_leaf_triangles_on_boundary.reserve((int)sqrt(num_points) * 4);
     result_triangles_pack.reserve(triangles_count_estimate);
 
     stack_size = triangles_count_estimate * 2;
@@ -1893,43 +1889,40 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
 
     unsigned size_plot = 0;
     unsigned checksum = 0;
-    //for(unsigned i = 0; i < result_triangles_pack.size();) {
-    //    if (result_triangles_pack[i].is_cyclic) {
-    //        if(is_triangle_intersecting_with_segment(&result_triangles_pack[i+1], uncyclic_head, uncyclic_tail, threshold) ||
-    //           is_triangle_intersecting_with_segment(&result_triangles_pack[i+2], uncyclic_head, uncyclic_tail, threshold) ) {
-    //            checksum ^= hash_triangle_by_id(result_triangles_pack[i]);
-    //        }
-    //        i += 3;
-    //    } else {
-    //        if (is_triangle_intersecting_with_segment(&result_triangles_pack[i], head, tail, threshold)) {
-    //            checksum ^= hash_triangle_by_id(result_triangles_pack[i]);
-    //        }
-    //        i++;
-    //    }
-    //}
+
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
         if (bound_triangles[dir][i].is_cyclic) {
             if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], uncyclic_head, uncyclic_tail, threshold) ||
-               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], uncyclic_head, uncyclic_tail, threshold) ) {
+               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], uncyclic_head, uncyclic_tail, threshold) )
                 checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
-            }
             i += 3;
         } else {
-            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold)) {
+            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold))
                 checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
-            }
             i++;
         }
     }
 
-    //Triangle_pack* plot_triangles = new Triangle_pack[result_triangles_pack.size()];
-                //plot_triangles[size_plot++] = result_triangles_pack[i+1];
-                //plot_triangles[size_plot++] = result_triangles_pack[i];
+    Triangle_pack* plot_triangles = new Triangle_pack[bound_triangles[dir].size()];
+    for(unsigned i = 0; i < bound_triangles[dir].size();) {
+        if (bound_triangles[dir][i].is_cyclic) {
+            if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], uncyclic_head, uncyclic_tail, threshold) ||
+               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], uncyclic_head, uncyclic_tail, threshold) )
+                plot_triangles[size_plot++] = bound_triangles[dir][i+1];
+            i += 3;
+        } else {
+            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold))
+                plot_triangles[size_plot++] = bound_triangles[dir][i];
+            i++;
+        }
+    }
+
     //char filename[64];
     //int rank;
     //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
     //snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
     //plot_triangles_into_file(filename, plot_triangles, size_plot);
+    //delete[] plot_triangles;
 
     return checksum;
 }
@@ -1942,33 +1935,58 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
     int current = 0;
     int num_triangles = 0;
 
-    for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        if(!all_leaf_triangles[i]->is_leaf)
-            continue;
+    if(x_ref) {
+        for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
+            if(!all_leaf_triangles[i]->is_leaf)
+                continue;
 
-        bool in = true;
-        for(int j = 0; j < 3; j++)
-            if(!(all_leaf_triangles[i]->v[j]->x < max_x && all_leaf_triangles[i]->v[j]->x > min_x &&
-                 all_leaf_triangles[i]->v[j]->y < max_y && all_leaf_triangles[i]->v[j]->y > min_y)) {
-                in = false;
-                break;
+            bool in = true;
+            Point** v = all_leaf_triangles[i]->v;
+            for(int j = 0; j < 3; j++)
+                if(!(x_ref[v[j]->id] < max_x && x_ref[v[j]->id] > min_x && y_ref[v[j]->id] < max_y && y_ref[v[j]->id] > min_y)) {
+                    in = false;
+                    break;
+                }
+
+            if(in) {
+                output_triangles[current++] = Triangle_pack(Point(x_ref[v[0]->id], y_ref[v[0]->id], global_index[v[0]->id]),
+                                                            Point(x_ref[v[1]->id], y_ref[v[1]->id], global_index[v[1]->id]),
+                                                            Point(x_ref[v[2]->id], y_ref[v[2]->id], global_index[v[2]->id]));
             }
+        }
+    } else {
+        for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
+            if(!all_leaf_triangles[i]->is_leaf)
+                continue;
 
-        if(in) {
-            output_triangles[current++] = Triangle_pack(Point(all_leaf_triangles[i]->v[0]->x, all_leaf_triangles[i]->v[0]->y, global_index[all_leaf_triangles[i]->v[0]->id]),
-                                                             Point(all_leaf_triangles[i]->v[1]->x, all_leaf_triangles[i]->v[1]->y, global_index[all_leaf_triangles[i]->v[1]->id]),
-                                                             Point(all_leaf_triangles[i]->v[2]->x, all_leaf_triangles[i]->v[2]->y, global_index[all_leaf_triangles[i]->v[2]->id]));
+            bool in = true;
+            Point** v = all_leaf_triangles[i]->v;
+            for(int j = 0; j < 3; j++)
+                if(!(v[j]->x < max_x && v[j]->x > min_x && v[j]->y < max_y && v[j]->y > min_y)) {
+                    in = false;
+                    break;
+                }
+
+            if(in) {
+                output_triangles[current++] = Triangle_pack(Point(v[0]->x, v[0]->y, global_index[v[0]->id]),
+                                                            Point(v[1]->x, v[1]->y, global_index[v[1]->id]),
+                                                            Point(v[2]->x, v[2]->y, global_index[v[2]->id]));
+            }
         }
     }
     PDASSERT(current < buf_len);
 
-    get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
-    current += num_triangles;
-    get_triangles_intersecting_with_segment(Point(max_x, min_y), Point(max_x, max_y), output_triangles+current, &num_triangles, buf_len-current);
-    current += num_triangles;
-    get_triangles_intersecting_with_segment(Point(max_x, max_y), Point(min_x, max_y), output_triangles+current, &num_triangles, buf_len-current);
-    current += num_triangles;
-    get_triangles_intersecting_with_segment(Point(min_x, max_y), Point(min_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
+    for (unsigned j = 0; j < 4; j++)
+        for (unsigned i = 0; i < bound_triangles[j].size(); i++)
+            output_triangles[current++] = bound_triangles[j][i];
+
+    //get_triangles_intersecting_with_segment(Point(min_x, min_y), Point(max_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
+    //current += num_triangles;
+    //get_triangles_intersecting_with_segment(Point(max_x, min_y), Point(max_x, max_y), output_triangles+current, &num_triangles, buf_len-current);
+    //current += num_triangles;
+    //get_triangles_intersecting_with_segment(Point(max_x, max_y), Point(min_x, max_y), output_triangles+current, &num_triangles, buf_len-current);
+    //current += num_triangles;
+    //get_triangles_intersecting_with_segment(Point(min_x, max_y), Point(min_x, min_y), output_triangles+current, &num_triangles, buf_len-current);
     *output_num_triangles = current + num_triangles;
 }
 
@@ -2034,11 +2052,11 @@ void Delaunay_Voronoi::set_polar_mode(bool mode)
 void Delaunay_Voronoi::make_bounding_triangle_pack()
 {
     if (polar_mode) {
-        for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-            if(!all_leaf_triangles[i]->is_leaf)
+        for(unsigned i = 0; i < all_leaf_triangles_on_boundary.size(); i++) {
+            if(!all_leaf_triangles_on_boundary[i]->is_leaf)
                 continue;
 
-            Triangle_pack tp = pack_triangle(all_leaf_triangles[i]);
+            Triangle_pack tp = pack_triangle(all_leaf_triangles_on_boundary[i]);
 
             //double x_min, x_max, y_min, y_max;
             //::get_bounding_box(&tp, x_min, x_max, y_min, y_max);
@@ -2066,11 +2084,11 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
                 add_to_bound_triangles(tp, PDLN_LEFT);
         }
     } else {
-        for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-            if(!all_leaf_triangles[i]->is_leaf)
+        for(unsigned i = 0; i < all_leaf_triangles_on_boundary.size(); i++) {
+            if(!all_leaf_triangles_on_boundary[i]->is_leaf)
                 continue;
 
-            Triangle_pack tp = pack_triangle(all_leaf_triangles[i]);
+            Triangle_pack tp = pack_triangle(all_leaf_triangles_on_boundary[i]);
 
             //double x_min, x_max, y_min, y_max;
             //::get_bounding_box(&tp, x_min, x_max, y_min, y_max);

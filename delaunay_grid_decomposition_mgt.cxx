@@ -281,8 +281,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         triangulation->set_virtual_polar_index(virtual_point_local_index);
         triangulation->set_origin_coord(ori_lon, ori_lat);
         triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
-        if(node_type != PDLN_NODE_TYPE_COMMON)
-            triangulation->set_polar_mode(true);
         triangulation->triangulate();
 
         if(node_type != PDLN_NODE_TYPE_COMMON) {
@@ -301,16 +299,16 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             triangulation->recognize_cyclic_triangles();
             triangulation->relegalize_all_triangles();
             //triangulation->make_final_triangle_pack();
-            triangulation->make_bounding_triangle_pack();
+            triangulation->set_polar_mode(true);
 
             if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
                 reset_polars();
         } else {
-            Point circle_center;
-            double radius;
-            double x[3], y[3];
+            //Point circle_center;
+            //double radius;
+            //double x[3], y[3];
 
-            calculate_real_boundary();
+            //calculate_real_boundary();
             //triangulation->plot_projection_into_file(filename);
 
             //if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->min_lat < 0) {
@@ -362,15 +360,15 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             triangulation->plot_projection_into_file(filename);
             */
 
-            triangulation->update_all_points_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
+            //triangulation->update_all_points_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
             //triangulation->remove_triangles_on_or_out_of_boundary(real_boundry->min_lon, real_boundry->max_lon, real_boundry->min_lat, real_boundry->max_lat);
             //triangulation->uncyclic_all_points();
             //triangulation->recognize_cyclic_triangles();
             //triangulation->make_final_triangle_pack();
-            triangulation->make_bounding_triangle_pack();
         }
         if(num_inserted > 0)
             triangulation->remove_triangles_till(num_inserted);
+        triangulation->make_bounding_triangle_pack();
     } else {
         triangulation = new Delaunay_Voronoi();
         triangulation->add_points(ori_lon, ori_lat, ori_idx, num_kernel_points + num_expand_points);
@@ -386,9 +384,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         triangulation->make_bounding_triangle_pack();
     }
 
-    delete[] ori_lon;
-    delete[] ori_lat;
-    delete[] ori_idx;
+    //delete[] ori_lon; TODO: fixit
+    //delete[] ori_lat;
+    //delete[] ori_idx;
 }
 
 
