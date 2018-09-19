@@ -120,7 +120,6 @@ class Triangle
         double area();
         void get_center_coordinates();
         int find_best_candidate_point(Point*) const;
-        void check_and_set_twin_edge_relationship(Triangle*);
         bool contain_vertex(Point*);
         void calulate_circum_circle();
         
@@ -147,23 +146,24 @@ void delete_redundent_points(double *&x, double *&y, int &num);
 class Delaunay_Voronoi
 {
     private:
-        /* storage */
+        /* Storage */
         vector<Triangle*>     all_leaf_triangles;
         vector<Triangle*>     all_leaf_triangles_on_boundary;
         vector<Triangle*>     triangle_pool;
         vector<Edge*>         edge_pool;
         Point*                all_points;
 
-        /* memory management */
+        /* Memory management */
         MemoryPool<Triangle, 0x10000*sizeof(Triangle), Edge*, Edge*, Edge*> triangle_allocator;
         MemoryPool<Edge, 0x10000*sizeof(Edge)> edge_allocator;
         Triangle** triangle_stack;
         unsigned   stack_size;
 
-        /* property */
+        /* Property */
         bool   polar_mode;
         double tolerance;
 
+        /* Grid info */
         int num_points;
         int* point_idx_to_buf_idx;
         Point *virtual_point[4];
@@ -171,21 +171,20 @@ class Delaunay_Voronoi
         const int *global_index;
         vector<Triangle*> triangles_containing_vpolar;
         int vpolar_local_index;
+        const double *x_ref;
+        const double *y_ref;
 
+        /* Consistency checking boundary */
         bool   have_bound;
         Point  bound_vertexes[4];
         double checking_threshold;
         vector<Triangle_pack> bound_triangles[4];
-
-        const double *x_ref;
-        const double *y_ref;
 
 #ifdef DEBUG
         const double* x_store;
         const double* y_store;
 #endif
 
-        void check_and_set_twin_edge_relationship(vector<Triangle*>*);
         void triangulating_process(Triangle*, unsigned);
         void map_buffer_index_to_point_index();
         void push(unsigned *, Triangle*);
@@ -199,8 +198,6 @@ class Delaunay_Voronoi
         bool is_angle_too_large(const Point *pt, const Edge *edge);
         bool is_angle_ambiguous(const Point *pt, const Edge *edge);
         const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
-        double calculate_angle(const Point *, const Point *, const Point *);
-        std::vector<Triangle*> find_triangles_intersecting_with_segment(Point, Point, double);
         Edge* generate_twins_edge(Edge*);
 
         bool is_triangle_legal(const Point *pt, const Edge *edge);
@@ -211,16 +208,12 @@ class Delaunay_Voronoi
         void update_virtual_polar_info();
 
         Triangle_pack pack_triangle(Triangle*);
-        bool Point_distence_in_threshold(Point*, Point, Point, double);
-        bool All_distence_in_threshold(Triangle*, Point, Point, double);
-        bool Vertexs_not_on_same_side(Triangle*, Point, Point);
-        bool Is_segment_in_triangle(Triangle*, Point, Point);
-        bool Is_segment_intersected_with_edge(Point*, Point*, Point, Point);
-        bool Is_segment_intersected_with_one_of_edges(Triangle*, Point, Point);
-        void get_bounding_box(Triangle*, double&, double&, double&, double&);
-        bool Is_triangle_intersecting_with_segment(Triangle*, Point, Point, double);
         void add_to_bound_triangles(Triangle_pack&, unsigned);
-        void add_to_result_triangles(Triangle_pack& t);
+
+        void legalize_triangles(Point *pt, Edge *edge, unsigned*);
+
+        Edge *allocate_edge(Point *head, Point *tail);
+        Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
 
     public:
         Delaunay_Voronoi();
@@ -233,15 +226,11 @@ class Delaunay_Voronoi
         void set_checksum_bound(double, double, double, double, double);
         void set_polar_mode(bool);
 
-        void legalize_triangles(Point *pt, Edge *edge, unsigned*);
-        Edge *allocate_edge(Point *head, Point *tail);
-        Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
+        bool is_all_leaf_triangle_legal();
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
-        bool is_all_leaf_triangle_legal();
         void get_triangles_in_region(double, double, double, double, Triangle_pack *, int *, int);
         void update_all_points_coord(double *, double *, int);
-        std::vector<Triangle*> search_cyclic_triangles_for_rotated_grid(Point, Point);
         void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
 
@@ -249,7 +238,6 @@ class Delaunay_Voronoi
         int bound_direction(const Point*, const Point*);
         unsigned cal_checksum(Point, Point, double = 0);
 
-        void get_triangles_intersecting_with_segment(Point, Point, Triangle_pack*, int*, int, double threshold = 0);
         bool is_triangle_in_circle(Triangle*, Point, double);
 
         void remove_triangles_in_circle(Point, double);

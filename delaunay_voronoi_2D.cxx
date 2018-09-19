@@ -302,19 +302,6 @@ Edge* Delaunay_Voronoi::generate_twins_edge(Edge *e)
 }
 
 
-double Delaunay_Voronoi::calculate_angle(const Point *center, const Point *p1, const Point *p2)
-{
-    double ax, ay, bx, by;
-    PDASSERT(center != p1 && center != p2) ;
-
-    ax = p1->x - center->x;
-    ay = p1->y - center->y;
-    bx = p2->x - center->x;
-    by = p2->y - center->y;
-    return acos((ax*bx+ay*by) / sqrt((ax*ax+ay*ay)*(bx*bx+by*by)));
-}
-
-
 const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const Point *p2, const Point *p3, const Point *p4)
 {
     const Point *p = p1;
@@ -586,17 +573,6 @@ double Triangle::area()
     double c = v[2]->calculate_distance(v[0]);
     double p = (a + b + c) * 0.5;
     return sqrt(p*(p-a)*(p-b)*(p-c));
-}
-
-
-void Triangle::check_and_set_twin_edge_relationship(Triangle *another_triangle)
-{
-    for (int i = 0; i < 3; i ++)
-        for (int j = 0; j < 3; j ++)
-            if (edge[i]->head == another_triangle->edge[j]->tail && edge[i]->tail == another_triangle->edge[j]->head) {
-                edge[i]->twin_edge = another_triangle->edge[j];
-                another_triangle->edge[j]->twin_edge = edge[i];
-            }
 }
 
 
@@ -1389,14 +1365,6 @@ void Delaunay_Voronoi::set_checksum_bound(double min_x, double max_x, double min
     bound_vertexes[2] = Point(max_x, max_y);
     bound_vertexes[3] = Point(min_x, max_y);
     checking_threshold = threshold;
-}
-
-
-void Delaunay_Voronoi::check_and_set_twin_edge_relationship(vector<Triangle*> *triangles)
-{
-    for (unsigned i = 0; i < triangles->size(); i ++)
-        for (unsigned j = i+1; j < triangles->size(); j ++)
-            (*triangles)[i]->check_and_set_twin_edge_relationship((*triangles)[j]);
 }
 
 

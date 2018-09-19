@@ -88,7 +88,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
             delaunay_triangulation = NULL;
         }
         this->delaunay_triangulation = new Delaunay_grid_decomposition(this->grid_id, NULL, 0);
-        this->delaunay_triangulation->generate_trianglulation_for_whole_grid();
+        assert(false);
     }
     return 0;
 }
