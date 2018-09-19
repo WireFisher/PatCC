@@ -168,7 +168,7 @@ class Delaunay_Voronoi
         int* point_idx_to_buf_idx;
         Point *virtual_point[4];
         vector<Point*> extra_virtual_point;
-        int *global_index;
+        const int *global_index;
         vector<Triangle*> triangles_containing_vpolar;
         int vpolar_local_index;
 

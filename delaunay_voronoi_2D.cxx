@@ -897,11 +897,12 @@ inline Triangle_pack Delaunay_Voronoi::pack_triangle(Triangle* t)
 }
 
 
-inline double ppoint_distence_to_line(double px, double py, double x1, double y1, double x2, double y2)
+static inline double point_distence_to_line(double px, double py, double x1, double y1, double x2, double y2)
 {
-    if(x1 - x2 == 0)
+    //TODO: may be slow
+    if(x1 == x2)
         return fabs(px - x1);
-    else if(y1 - y2 == 0)
+    else if(y1 == y2)
         return fabs(py - y1);
     else {
         double A=(y1-y2)/(x1-x2);
@@ -910,26 +911,26 @@ inline double ppoint_distence_to_line(double px, double py, double x1, double y1
     }
 }
 
-inline bool point_distence_in_threshold(Point v, Point p1, Point p2, double threshold) {
-    return ppoint_distence_to_line(v.x, v.y, p1.x, p1.y, p2.x, p2.y) <= threshold;
+static inline bool point_distence_in_threshold(Point v, Point p1, Point p2, double threshold) {
+    return point_distence_to_line(v.x, v.y, p1.x, p1.y, p2.x, p2.y) <= threshold;
 }
 
-inline bool all_distence_in_threshold(Triangle_pack* triangle, Point p1, Point p2, double threshold) {
+static inline bool all_distence_in_threshold(Triangle_pack* triangle, Point p1, Point p2, double threshold) {
     return point_distence_in_threshold(triangle->v[0], p1, p2, threshold) &&
            point_distence_in_threshold(triangle->v[1], p1, p2, threshold) &&
            point_distence_in_threshold(triangle->v[2], p1, p2, threshold);
 }
 
-inline bool is_segment_in_triangle(Triangle_pack* triangle, Point p1, Point p2) {
+static inline bool is_segment_in_triangle(Triangle_pack* triangle, Point p1, Point p2) {
     return p1.position_to_triangle(triangle) >= 0 && p2.position_to_triangle(triangle) >= 0;
 }
 
-inline bool is_segment_intersected_with_edge(Point p_e1, Point p_e2, Point p1, Point p2) {
+static inline bool is_segment_intersected_with_edge(Point p_e1, Point p_e2, Point p1, Point p2) {
     return (p1.position_to_edge(&p_e1, &p_e2) * p2.position_to_edge(&p_e1, &p_e2) < 0) &&
            (p_e1.position_to_edge(&p1, &p2) * p_e2.position_to_edge(&p1, &p2) <= 0);
 }
 
-inline bool is_segment_intersected_with_any_edges(Triangle_pack* triangle, Point p1, Point p2) {
+static inline bool is_segment_intersected_with_any_edges(Triangle_pack* triangle, Point p1, Point p2) {
     return is_segment_intersected_with_edge(triangle->v[0], triangle->v[1], p1, p2) ||
            is_segment_intersected_with_edge(triangle->v[1], triangle->v[2], p1, p2) ||
            is_segment_intersected_with_edge(triangle->v[2], triangle->v[0], p1, p2);
@@ -981,6 +982,7 @@ inline bool is_triangle_intersecting_with_segment(Triangle_pack* triangle, Point
     return (threshold == 0 || all_distence_in_threshold(triangle, p1, p2, threshold)) &&
            (is_segment_intersected_with_any_edges(triangle, p1, p2) || is_segment_in_triangle(triangle, p1, p2));
 }
+
 
 void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_base)
 {
@@ -1286,6 +1288,27 @@ Delaunay_Voronoi::Delaunay_Voronoi()
 {}
 
 
+Delaunay_Voronoi::~Delaunay_Voronoi()
+{
+    delete[] all_points;
+    delete[] global_index;
+    for (int i = 0; i < 4; i++)
+        delete virtual_point[i];
+    delete[] point_idx_to_buf_idx;
+    delete[] triangle_stack;
+    delete[] x_ref;
+    delete[] y_ref;
+    /*
+    for (unsigned i = 0; i < edge_pool.size(); i ++)
+        delete edge_pool[i];
+        //edge_allocator.deleteElement(edge_pool[i]);
+    for (unsigned i = 0; i < triangle_pool.size(); i ++)
+        delete triangle_pool[i];
+        //triangle_allocator.deleteElement(triangle_pool[i]);
+    */
+}
+
+
 void Delaunay_Voronoi::add_points(const double* x, const double* y, const int* global_idx, int num)
 {
 #ifdef DEBUG
@@ -1307,10 +1330,7 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, const int* g
 
     all_points[0].prev = all_points[num_points-1].next = -1;
 
-    if(global_idx != NULL) {
-        global_index = new int[num_points];
-        memcpy(global_index, global_idx, num_points*sizeof(int));
-    }
+    global_index = global_idx;
 
 #ifdef DEBUG
     x_store = x;
@@ -1369,25 +1389,6 @@ void Delaunay_Voronoi::set_checksum_bound(double min_x, double max_x, double min
     bound_vertexes[2] = Point(max_x, max_y);
     bound_vertexes[3] = Point(min_x, max_y);
     checking_threshold = threshold;
-}
-
-
-Delaunay_Voronoi::~Delaunay_Voronoi()
-{
-    delete[] all_points;
-    delete[] global_index;
-    for (int i = 0; i < 4; i++)
-        delete virtual_point[i];
-    delete[] point_idx_to_buf_idx;
-    delete[] triangle_stack;
-    /*
-    for (unsigned i = 0; i < edge_pool.size(); i ++)
-        delete edge_pool[i];
-        //edge_allocator.deleteElement(edge_pool[i]);
-    for (unsigned i = 0; i < triangle_pool.size(); i ++)
-        delete triangle_pool[i];
-        //triangle_allocator.deleteElement(triangle_pool[i]);
-    */
 }
 
 
@@ -1537,21 +1538,6 @@ vector<Edge*> Delaunay_Voronoi::get_all_legal_delaunay_edge()
             }
 
     return all_edges;
-}
-
-
-static inline double point_distence_to_line(double px, double py, double x1, double y1, double x2, double y2)
-{
-    //TODO: may be slow
-    if(x1 - x2 == 0)
-        return fabs(px - x1);
-    else if(y1 - y2 == 0)
-        return fabs(py - y1);
-    else {
-        double A=(y1-y2)/(x1-x2);
-        double B=y1-A*x1;
-        return fabs((A*px+B-py)/sqrt(A*A+1));
-    }
 }
 
 
