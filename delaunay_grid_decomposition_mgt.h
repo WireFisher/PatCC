@@ -103,47 +103,52 @@ private:
 public:    
     Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type);
     ~Search_tree_node();
-    void decompose_by_processing_units_number(double*, double**, int**, int*, Boundry*, int*, int*, int, int** =NULL, int* =NULL);
-    void split_local_points(Midline, double**, int**, int*);
 
+    /* Grid Decomposition */
+    void decompose_by_processing_units_number(double*, double**, int**, int*, Boundry*, int*, int*, int, int** =NULL, int* =NULL);
+    void divide_at_fix_line(Midline, double**, int**, int*);
     void divide_local_points(double, double, double, double, int, int, int, Midline*, int*);
     static void divide_points(double**, int*, double, double, double, double, int, int, int, Midline*, int*);
 
+    /* Getter & Setter */
     void update_region_ids(int, int);
+    void set_groups(int *, int);
     inline int ids_size() {return ids_end - ids_start; };
 
-    void generate_local_triangulation(bool, int);
+    /* Triangulation */
     void project_grid();
+    void generate_local_triangulation(bool, int);
+
+    /* Expanding */
+    Boundry expand();
     void add_expand_points(double *, double *, int*, int);
     void add_expand_points(double **, int*, int);
     void add_neighbors(vector<Search_tree_node*>);
     void init_num_neighbors_on_boundry(int);
     bool expanding_success(Boundry *, Boundry *, bool);
 
-    void reduce_num_neighbors_on_boundry(unsigned);
-    void clear_expanding_count(unsigned);
-
-    Boundry expand();
-    void set_groups(int *, int);
-
+    /* Points searching */
     static void search_points_in_halo(const Boundry*, const Boundry*, double*const *, const int*, int, double**, int*, int*);
     void search_points_in_halo(const Boundry*, const Boundry*, double**, int*, int*);
     static bool is_coordinate_in_halo(double x, double y, const Boundry *inner, const Boundry *outer);
-    static void count_points(double**, int*, int, int, Midline, int*);
+
+    /* Consistency checking */
+    void reduce_num_neighbors_on_boundry(unsigned);
+    void clear_expanding_count(unsigned);
 
     friend class Delaunay_grid_decomposition;
 };
 
 class Delaunay_grid_decomposition {
 private:
-    /* search tree info */
+    /* Search tree info */
     Search_tree_node*         search_tree_root;
     Search_tree_node*         current_tree_node;
     vector<Search_tree_node*> all_leaf_nodes;
     vector<Search_tree_node*> local_leaf_nodes;
     int  min_points_per_chunk;
 
-    /* grid info */
+    /* Grid info */
     int     original_grid;
     bool    is_cyclic;
     double* coord_values[2];
@@ -151,7 +156,7 @@ private:
     int     num_points;
     int     num_inserted;
 
-    /* proc info */
+    /* Proc info */
     Processing_resource* processing_info;
     int       num_regions;
     bool*     active_processing_units_flag;
@@ -161,61 +166,64 @@ private:
     unsigned* regionID_to_checksum;
     int*      all_group_intervals;
 
-    /* temp buffer */
+    /* Temp buffer */
 
+    /* Main processes */
     void initialze_workload();
     void initialze_buffer();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*, bool =true);
-    void assign_cyclic_grid_for_single_processing_unit();
+
+    /* Pre-treatment */
+    int dup_inserted_points(double *coord_values[2], Boundry *boundry, int num_points);
+
+    /* Helper */
     bool have_local_region_ids(int, int);
     void update_workloads(int, int, int);
-    int expand_tree_node_boundry(Search_tree_node*, double);
-    bool do_two_regions_overlap(Boundry, Boundry);
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int, int, int);
-    int dup_inserted_points(double *coord_values[2], Boundry *boundry, int num_points);
-    vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double, double**, int*, int*);
+    bool is_polar_node(Search_tree_node*) const;
 
+    /* Grid Expanding */
+    int expand_tree_node_boundry(Search_tree_node*, double);
+    vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double, double**, int*, int*);
+    bool do_two_regions_overlap(Boundry, Boundry);
     static void adjust_subrectangle(double, double, double**, int*, int, int, Boundry*, int, int, int*, int*);
     static int move_together(double**, int*, int*, int*, Boundry);
-
-    vector<Search_tree_node*> search_halo_points_from_top(const Boundry*, const Boundry*, double**, int*, int*);
-    void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>&, double **, int*, int*);
-    void search_halo_points_from_buf(Boundry*, Boundry*, double**, int*, int*);
-
     static void halo_to_rectangles(Boundry, Boundry, Boundry*);
     static void rectangles_to_halo(Boundry*, Boundry*);
     static int classify_points(double**, int*, int, Boundry, int);
 
-    /* different decompositon consistency checking */
+    /* Points searching */
+    vector<Search_tree_node*> search_halo_points_from_top(const Boundry*, const Boundry*, double**, int*, int*);
+    void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>&, double **, int*, int*);
+    void search_halo_points_from_buf(Boundry*, Boundry*, double**, int*, int*);
+
+    /* Consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
     unsigned compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
+    void send_recv_checksums_with_neighbors(Search_tree_node*, unsigned*, unsigned*, vector<MPI_Request*> *, int);
+    bool are_checksums_identical(Search_tree_node*, unsigned*, unsigned*);
     
-    /* process thread communication */
+    /* Process thread communication */
     int recv_triangles_from_remote(int, int, Triangle_pack *, int, int);
     void send_triangles_to_remote(int, int, Triangle_pack *, int, int);
 
-    bool is_polar_node(Search_tree_node*) const;
-
-    /* debug */
+    /* Debug */
     void print_tree_node_info_recursively(Search_tree_node*);
     void save_unique_triangles_into_file(Triangle_pack *&, int, bool);
 
 public:
     Delaunay_grid_decomposition(int, Processing_resource*, int);
     ~Delaunay_grid_decomposition();
-    int generate_grid_decomposition(bool =true);
-    int grid_full_decomposition();
-    int generate_delaunay_triangulizition();
-    vector<Search_tree_node*> get_local_leaf_nodes() {return local_leaf_nodes; };
-    int generate_trianglulation_for_local_decomp();
-    int generate_trianglulation_for_whole_grid();
-    void send_recv_checksums_with_neighbors(Search_tree_node*, unsigned*, unsigned*, vector<MPI_Request*> *, int);
-    bool are_checksums_identical(Search_tree_node*, unsigned*, unsigned*);
 
-    /* debug */
+    int generate_grid_decomposition(bool =true);
+    int generate_trianglulation_for_local_decomp();
+    vector<Search_tree_node*> get_local_leaf_nodes() {return local_leaf_nodes; };
+
+    /* Debug */
     void print_whole_search_tree_info();
     void merge_all_triangles(bool);
+
 #ifdef OPENCV
     void plot_grid_decomposition(const char*);
     void plot_local_triangles(const char*);

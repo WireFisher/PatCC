@@ -330,33 +330,6 @@ void Search_tree_node::reset_polars()
 }
 
 
-void Search_tree_node::count_points(double *coord[2], int *idx, int offset, int num, Midline midline,
-                                    //double *c_points_coord[4], int *child_points_idx[2],
-                                    int c_num_points[2])
-{
-    c_num_points[0] = 0;
-    c_num_points[1] = 0;
-
-    #pragma omp parallel for
-    for(int i = offset; i < offset+num; i ++) {
-        if(coord[midline.type][i] < midline.value) {
-            //child_coord[midline.type][c_num_points[0]] = coord[midline.type][i];
-            //child_coord[(midline.type+1)%2][c_num_points[0]] = coord[(midline.type+1)%2][i];
-            //child_points_idx[0][c_num_points[0]] = idx[i];
-            #pragma omp critical
-            c_num_points[0]++;
-        }
-        else {
-            //child_coord[2+midline.type][c_num_points[1]] = coord[midline.type][i];
-            //child_coord[2+(midline.type+1)%2][c_num_points[1]] = coord[(midline.type+1)%2][i];
-            //child_points_idx[1][c_num_points[1]] = idx[i];
-            #pragma omp critical
-            c_num_points[1]++;
-        }
-    }
-}
-
-
 void Search_tree_node::sort_by_line(Midline* midline, int* left_num, int* rite_num)
 {
     sort_by_line(midline, 0, num_kernel_points, left_num, rite_num);
@@ -415,7 +388,7 @@ void Search_tree_node::sort_by_line(double* coord[2], int* index,  Midline* midl
 }
 
 
-void Search_tree_node::split_local_points(Midline midline, double *c_points_coord[4], int *c_points_idx[2], int c_num_points[2])
+void Search_tree_node::divide_at_fix_line(Midline midline, double *c_points_coord[4], int *c_points_idx[2], int c_num_points[2])
 {
     sort_by_line(&midline, &c_num_points[0], &c_num_points[1]);
 
@@ -1411,7 +1384,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         if(c_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT) {
             midline.type = PDLN_LAT;
             midline.value = PDLN_SPOLAR_MAX_LAT;
-            current_tree_node->split_local_points(midline, c_points_coord, c_points_index, c_num_points);;
+            current_tree_node->divide_at_fix_line(midline, c_points_coord, c_points_index, c_num_points);;
 
             if(c_num_points[0] < min_points_per_chunk)
                 goto fail;
@@ -1466,7 +1439,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         if(c_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT) {
             midline.type = PDLN_LAT;
             midline.value = PDLN_NPOLAR_MIN_LAT;
-            current_tree_node->split_local_points(midline, c_points_coord, c_points_index, c_num_points);;
+            current_tree_node->divide_at_fix_line(midline, c_points_coord, c_points_index, c_num_points);;
 
             if(c_num_points[1] < min_points_per_chunk)
                 goto fail;
@@ -2294,13 +2267,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         return 0;
     else
         return 1;
-}
-
-
-int Delaunay_grid_decomposition::generate_trianglulation_for_whole_grid()
-{
-    PDASSERT(false);
-    return 0;
 }
 
 
