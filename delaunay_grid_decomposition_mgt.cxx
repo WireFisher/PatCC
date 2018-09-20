@@ -1651,34 +1651,9 @@ Boundry Search_tree_node::expand()
 }
 
 
-bool Search_tree_node::expanding_success(Boundry *prev_expanded, Boundry *max_expanded, bool is_cyclic)
+bool Search_tree_node::expanding_success(bool go_on[4])
 {
-    if(expand_boundry->min_lat < prev_expanded->min_lat || expand_boundry->min_lat <= max_expanded->min_lat)
-        num_neighbors_on_boundry[PDLN_DOWN] = 0;
-    else {
-        //printf("down not\n");
-        //num_neighbors_on_boundry[PDLN_DOWN] = 1;
-    }
-    if(expand_boundry->max_lat > prev_expanded->max_lat || expand_boundry->max_lat >= max_expanded->max_lat)
-        num_neighbors_on_boundry[PDLN_UP] = 0;
-    else {
-        //printf("up not\n");
-        //num_neighbors_on_boundry[PDLN_UP] = 1;
-    }
-    if(node_type != PDLN_NODE_TYPE_COMMON || expand_boundry->min_lon < prev_expanded->min_lon || (!is_cyclic && expand_boundry->min_lon <= max_expanded->min_lon))
-        num_neighbors_on_boundry[PDLN_LEFT] = 0;
-    else {
-        //printf("left not\n");
-        //num_neighbors_on_boundry[PDLN_LEFT] = 1;
-    }
-    if(node_type != PDLN_NODE_TYPE_COMMON || expand_boundry->max_lon > prev_expanded->max_lon || (!is_cyclic && expand_boundry->max_lon >= max_expanded->max_lon))
-        num_neighbors_on_boundry[PDLN_RIGHT] = 0;
-    else {
-        //printf("right not\n");
-        //num_neighbors_on_boundry[PDLN_RIGHT] = 1;
-    }
-    return num_neighbors_on_boundry[PDLN_DOWN] == 0 && num_neighbors_on_boundry[PDLN_UP] == 0 &&
-           num_neighbors_on_boundry[PDLN_LEFT] == 0 && num_neighbors_on_boundry[PDLN_RIGHT] == 0;
+    return !(go_on[0] || go_on[1] || go_on[2] || go_on[3]);
 }
 
 
@@ -1716,6 +1691,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     Boundry old_boundry, new_boundry;
     old_boundry = *tree_node->expand_boundry;
     int fail_count = 0;
+    bool go_on[4];
     do {
         Boundry last_boundry = *tree_node->expand_boundry;
         new_boundry = tree_node->expand();
@@ -1725,7 +1701,8 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         //printf("before adjust: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
 
         //printf("adjusting ID: %d\n", tree_node->region_id);
-        leaf_nodes_found = adjust_expanding_boundry(&old_boundry, &new_boundry, quota, expanded_coord, expanded_index, &num_found);
+        go_on[0] = go_on[1] = go_on[2] = go_on[3] = false;
+        leaf_nodes_found = adjust_expanding_boundry(&last_boundry, &new_boundry, quota, expanded_coord, expanded_index, go_on, &num_found);
         //printf("after  adjust: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         //printf("expanded boundry : %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
         //printf("root real boundry: %lf, %lf, %lf, %lf\n", search_tree_root->real_boundry->min_lon, search_tree_root->real_boundry->max_lon, search_tree_root->real_boundry->min_lat, search_tree_root->real_boundry->max_lat);
@@ -1748,10 +1725,10 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
             return -1;
         }
         *tree_node->expand_boundry = new_boundry;
-    }while(!tree_node->expanding_success(&old_boundry, search_tree_root->real_boundry, is_cyclic));
+        tree_node->add_expand_points(expanded_coord, expanded_index, num_found);
+        tree_node->add_neighbors(leaf_nodes_found);
+    }while(!tree_node->expanding_success(go_on));
 
-    tree_node->add_expand_points(expanded_coord, expanded_index, num_found);
-    tree_node->add_neighbors(leaf_nodes_found);
 
     delete[] expanded_coord[0];
     delete[] expanded_coord[1];
@@ -1851,7 +1828,7 @@ void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double
     PDASSERT(c_num_points[1] >= 0);
 
     if (save_option == PDLN_SAVE_L) {
-        PDASSERT(c_num_points[0] > 0);
+        //PDASSERT(c_num_points[0] > 0);
         *offset_picked = offset;
         *num_picked = c_num_points[0];
         if (linetype == PDLN_LON)
@@ -1859,7 +1836,7 @@ void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double
         else
             bound->max_lat = midline.value;
     } else {
-        PDASSERT(c_num_points[1] > 0);
+        //PDASSERT(c_num_points[1] > 0);
         *offset_picked = offset + c_num_points[0];
         *num_picked = c_num_points[1];
         if (linetype == PDLN_LON)
@@ -1872,7 +1849,8 @@ void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double
 
 
 vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(const Boundry* inner, Boundry* outer, double quota,
-                                                                                double *expanded_coord[2], int *expanded_index, int *total_num)
+                                                                                double *expanded_coord[2], int *expanded_index, 
+                                                                                bool go_on[4], int *total_num)
 {
     vector<Search_tree_node*> leaf_nodes_found = search_halo_points_from_top(inner, outer, expanded_coord, expanded_index, total_num);
     int squeeze_count = 0;
@@ -1889,7 +1867,7 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
         offset_picked[i] = sorted;
         num_points_picked[i] = num;
         if (num <= 0 && sub_rectangles[i].min_lat != sub_rectangles[i].max_lat && sub_rectangles[i].min_lon != sub_rectangles[i].max_lon)
-            PDASSERT(false);
+            go_on[i] = true;
         if (num > quota) {
             double l_num = i<2 ? num - quota : quota;
             double r_num = i<2 ? quota : num - quota;
@@ -1897,6 +1875,8 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
             int savetype = i<2 ? PDLN_SAVE_R : PDLN_SAVE_L;
             adjust_subrectangle(l_num, r_num, expanded_coord, expanded_index, sorted, num,
                                 &sub_rectangles[i], linetype, savetype, &offset_picked[i], &num_points_picked[i]);
+            if (num_points_picked[i] <= 0)
+                go_on[i] = true;
         }
         sorted += num;
     }
