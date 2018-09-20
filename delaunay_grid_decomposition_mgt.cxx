@@ -1688,42 +1688,36 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     PDASSERT(num_edge_to_expand > 0);
 
     double quota = std::max(average_workload * expanding_ratio, PDLN_MIN_QUOTA) / num_edge_to_expand;
-    Boundry old_boundry, new_boundry;
-    old_boundry = *tree_node->expand_boundry;
     int fail_count = 0;
     bool go_on[4];
     do {
-        Boundry last_boundry = *tree_node->expand_boundry;
-        new_boundry = tree_node->expand();
+        Boundry* old_boundry = tree_node->expand_boundry;
+        Boundry  new_boundry = tree_node->expand();
         new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
 
-        //printf("kern boundary: %lf, %lf, %lf, %lf\n", tree_node->kernel_boundry->min_lon, tree_node->kernel_boundry->max_lon, tree_node->kernel_boundry->min_lat, tree_node->kernel_boundry->max_lat);
-        //printf("before adjust: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
-
-        //printf("adjusting ID: %d\n", tree_node->region_id);
         go_on[0] = go_on[1] = go_on[2] = go_on[3] = false;
-        leaf_nodes_found = adjust_expanding_boundry(&last_boundry, &new_boundry, quota, expanded_coord, expanded_index, go_on, &num_found);
-        //printf("after  adjust: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
-        //printf("expanded boundry : %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
-        //printf("root real boundry: %lf, %lf, %lf, %lf\n", search_tree_root->real_boundry->min_lon, search_tree_root->real_boundry->max_lon, search_tree_root->real_boundry->min_lat, search_tree_root->real_boundry->max_lat);
-        if(last_boundry == *tree_node->expand_boundry)
+        leaf_nodes_found = adjust_expanding_boundry(old_boundry, &new_boundry, quota, expanded_coord, expanded_index, go_on, &num_found);
+        //printf("last boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
+        //printf("expd boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
+        if(*old_boundry == new_boundry)
             fail_count ++;
         else
             fail_count = 0;
+
         if(fail_count > 5) {
-            printf("expanding failed, max3\n");
+            printf("expanding failed too many times\n");
             return -1;
         }
-        if(processing_info->get_num_total_processing_units() > 4 &&
-           new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
+        if(new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
            new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
-            printf("expanded to the max1\n");
+            printf("expanded too large\n");
             return -1;
         }
         if(new_boundry == *search_tree_root->kernel_boundry || new_boundry.max_lon - new_boundry.min_lon > 360.0) {
-            printf("expanded to the max2\n");
+            printf("expanded to the max\n");
             return -1;
         }
+
         *tree_node->expand_boundry = new_boundry;
         tree_node->add_expand_points(expanded_coord, expanded_index, num_found);
         tree_node->add_neighbors(leaf_nodes_found);
