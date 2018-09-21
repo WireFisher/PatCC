@@ -883,14 +883,14 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], Bo
     inserted_coord[1] = new double[num_points + 2*num_x + 2*num_y];
 
     /* store inserted points first */
-    if(float_eq(boundry->max_lat, 90) && v_maxy < 90) {
+    if(!float_eq(boundry->max_lat, 90) && v_maxy < 90) {
         for(unsigned i = 1; i < num_x-1; i++) {
             inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/num_x*i;
             inserted_coord[PDLN_LAT][num_inserted++] = r_maxy;
         }
         if(boundry->max_lat < r_maxy) boundry->max_lat = r_maxy;
     }
-    if(float_eq(boundry->min_lat, -90) && v_miny > -90) {
+    if(!float_eq(boundry->min_lat, -90) && v_miny > -90) {
         for(unsigned i = 1; i < num_x-1; i++) {
             inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/num_x*i;
             inserted_coord[PDLN_LAT][num_inserted++] = r_miny;
