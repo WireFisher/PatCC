@@ -529,7 +529,7 @@ void Search_tree_node::divide_points(double* coord[2], int* index, double left_e
                                      int offset, int num_points, int count, Midline* midline, int c_num_points[2]) {
     PDASSERT(num_points >= 0);
 
-    if (fabs(rite_expt) < PDLN_FLOAT_EQ_ERROR) {
+    if (float_eq(rite_expt, 0)) {
         midline->value = rite_bound;
         c_num_points[0] = num_points;
         c_num_points[1] = 0;
@@ -832,7 +832,7 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 #define PDLN_INSERT_EXPAND_RATIO (0.01)
 int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], Boundry *boundry, int num_points)
 {
-    if(is_cyclic && fabs(boundry->max_lat - 90) < PDLN_FLOAT_EQ_ERROR && fabs(boundry->min_lat - -90) < PDLN_FLOAT_EQ_ERROR) {
+    if(is_cyclic && float_eq(boundry->max_lat, 90) && float_eq(boundry->min_lat, -90)) {
         double* tmp1 = new double[num_points];
         double* tmp2 = new double[num_points];
         memcpy(tmp1, coord_values[PDLN_LON], num_points*sizeof(double));
@@ -883,14 +883,14 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], Bo
     inserted_coord[1] = new double[num_points + 2*num_x + 2*num_y];
 
     /* store inserted points first */
-    if(fabs(boundry->max_lat - 90) >= PDLN_FLOAT_EQ_ERROR && v_maxy < 90) {
+    if(float_eq(boundry->max_lat, 90) && v_maxy < 90) {
         for(unsigned i = 1; i < num_x-1; i++) {
             inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/num_x*i;
             inserted_coord[PDLN_LAT][num_inserted++] = r_maxy;
         }
         if(boundry->max_lat < r_maxy) boundry->max_lat = r_maxy;
     }
-    if(fabs(boundry->min_lat - -90) >= PDLN_FLOAT_EQ_ERROR && v_miny > -90) {
+    if(float_eq(boundry->min_lat, -90) && v_miny > -90) {
         for(unsigned i = 1; i < num_x-1; i++) {
             inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/num_x*i;
             inserted_coord[PDLN_LAT][num_inserted++] = r_miny;
@@ -1164,25 +1164,16 @@ unsigned Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *t
 
     /* cyclic boundry detecting */
     coord_value[0][PDLN_LAT] = coord_value[0][PDLN_LON] = coord_value[1][PDLN_LAT] = coord_value[1][PDLN_LON] = PDLN_DOUBLE_INVALID_VALUE;
-    //if(fabs(fabs(tree_node->kernel_boundry->min_lon - neighbor_node->kernel_boundry->max_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR ||
-    //   fabs(fabs(tree_node->kernel_boundry->max_lon - neighbor_node->kernel_boundry->min_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) { // Case 1 or case 3
-    //    if(std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat) < 
-    //       std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat)) {
-    //        coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = std::min(tree_node->kernel_boundry->min_lon, neighbor_node->kernel_boundry->min_lon);
-    //        coord_value[0][PDLN_LAT] = std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat);
-    //        coord_value[1][PDLN_LAT] = std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat);
-    //    }
-    //}
     if(std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat) < 
        std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat)) {
-        if(fabs(fabs(tree_node->kernel_boundry->min_lon - neighbor_node->kernel_boundry->max_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) { // Case 1
+        if(float_eq(fabs(tree_node->kernel_boundry->min_lon - neighbor_node->kernel_boundry->max_lon), 360.0)) { // Case 1
             coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node->kernel_boundry->min_lon;
             coord_value[0][PDLN_LAT] = std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat);
             coord_value[1][PDLN_LAT] = std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat);
             tree_node->num_neighbors_on_boundry[PDLN_LEFT]++;
             boundry_type |= PDLN_BOUNDRY_TYPE_L;
         }
-        if(fabs(fabs(tree_node->kernel_boundry->max_lon - neighbor_node->kernel_boundry->min_lon) - 360.0) < PDLN_FLOAT_EQ_ERROR) { // Case 3
+        if(float_eq(fabs(tree_node->kernel_boundry->max_lon - neighbor_node->kernel_boundry->min_lon), 360.0)) { // Case 3
             coord_value[0][PDLN_LON] = coord_value[1][PDLN_LON] = tree_node->kernel_boundry->max_lon;
             coord_value[0][PDLN_LAT] = std::max(tree_node->kernel_boundry->min_lat, neighbor_node->kernel_boundry->min_lat);
             coord_value[1][PDLN_LAT] = std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat);
@@ -1528,7 +1519,7 @@ int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
     double min_lon, max_lon, min_lat, max_lat;
     grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
 
-    if(assign_polars(std::abs(min_lat - -90.0) < PDLN_FLOAT_EQ_ERROR, std::abs(max_lat -  90.0) < PDLN_FLOAT_EQ_ERROR))
+    if(assign_polars(float_eq(min_lat, -90.0), float_eq(max_lat, 90.0)))
         return 1;
 
     int num_computing_nodes = processing_info->get_num_computing_nodes();
@@ -1561,7 +1552,7 @@ double Search_tree_node::load_polars_info()
     if(node_type == PDLN_NODE_TYPE_NPOLAR) {
         double nearest_point_lat = -1e10;
         for(int i = 0; i < num_kernel_points+num_expand_points; i++) {
-            if(std::abs(kernel_coord[PDLN_LAT][i] - 90.0) < PDLN_FLOAT_EQ_ERROR)
+            if(float_eq(kernel_coord[PDLN_LAT][i], 90.0))
                 polars_local_index->push_back(i);
             else if(nearest_point_lat < kernel_coord[PDLN_LAT][i])
                 nearest_point_lat = kernel_coord[PDLN_LAT][i];
@@ -1589,7 +1580,7 @@ double Search_tree_node::load_polars_info()
     else if(node_type == PDLN_NODE_TYPE_SPOLAR) {
         double nearest_point_lat = 1e10;
         for(int i = 0; i < num_kernel_points+num_expand_points; i++) {
-            if(std::abs(kernel_coord[PDLN_LAT][i] - -90.0) < PDLN_FLOAT_EQ_ERROR)
+            if(float_eq(kernel_coord[PDLN_LAT][i], -90.0))
                 polars_local_index->push_back(i);
             else if(nearest_point_lat > kernel_coord[PDLN_LAT][i])
                 nearest_point_lat = kernel_coord[PDLN_LAT][i];
@@ -2297,8 +2288,8 @@ void Delaunay_grid_decomposition::plot_local_triangles(const char *perfix)
 
 static inline bool on_a_line(Triangle_pack* t)
 {
-    return (fabs(t->v[0].y - t->v[1].y) < PDLN_FLOAT_EQ_ERROR && fabs(t->v[1].y - t->v[2].y) < PDLN_FLOAT_EQ_ERROR) ||
-           (fabs(t->v[0].x - t->v[1].x) < PDLN_FLOAT_EQ_ERROR && fabs(t->v[1].x - t->v[2].x) < PDLN_FLOAT_EQ_ERROR);
+    return (float_eq(t->v[0].y, t->v[1].y) && float_eq(t->v[1].y, t->v[2].y)) ||
+           (float_eq(t->v[0].x, t->v[1].x) && float_eq(t->v[1].x, t->v[2].x));
 }
 
 
@@ -2516,7 +2507,7 @@ void Grid_info_manager::gen_three_polar_grid()
             coord_values[PDLN_LON][i] += 360.0;
 
     for(int i = 0; i < num_points; i++)
-        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_FLOAT_EQ_ERROR) {
+        if(float_eq(coord_values[PDLN_LON][i], 360.0)) {
             coord_values[PDLN_LON][i] = 0.0;
         }
 

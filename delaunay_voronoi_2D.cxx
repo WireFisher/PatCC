@@ -168,9 +168,9 @@ bool operator == (Point p1, Point p2)
     if(p1.id != -1 && p2.id != -1)
         return p1.id == p2.id;
 
-    if(std::abs(p1.x - p2.x) < FLOAT_ERROR && std::abs(p1.y - p2.y) < FLOAT_ERROR )
+    if(float_eq(p1.x, p2.x) && float_eq(p1.y, p2.y))
         return true;
-    else if(std::abs(std::abs(p1.x - p2.x) - 360.0) < FLOAT_ERROR && std::abs(p1.y - p2.y) < FLOAT_ERROR )
+    else if(float_eq(fabs(p1.x - p2.x), 360.0) && float_eq(p1.y, p2.y))
         return true;
     else
         return false;
@@ -194,7 +194,7 @@ int Point::position_to_edge(const Point *pt1, const Point *pt2) const
 {
     double res1 = det(pt1, pt2, this);
 
-    if (std::fabs(res1) < FLOAT_ERROR_HI)
+    if (float_eq_hi(res1, 0))
         return 0;
     else if (res1 > 0)
         return 1;
@@ -615,7 +615,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
         //                 "points given to construct triangle are on the same line.");
 
 #ifdef DEBUG
-        if(!(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI)) {
+        if(float_eq_hi(det(pt1, pt2, pt3), 0) || float_eq_hi(det(pt2, pt3, pt1), 0) || float_eq_hi(det(pt3, pt1, pt2), 0)) {
             printf("(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
             printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
                                                                                                                                std::fabs(det(pt2, pt3, pt1)),
@@ -623,7 +623,7 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
         }
 #endif
         /* if there are unmarked redundant points, the PDASSERTion may fail */
-        PDASSERT(std::fabs(det(pt1, pt2, pt3)) > FLOAT_ERROR_HI && std::fabs(det(pt2, pt3, pt1)) > FLOAT_ERROR_HI && std::fabs(det(pt3, pt1, pt2)) > FLOAT_ERROR_HI);
+        PDASSERT(!float_eq_hi(det(pt1, pt2, pt3), 0) && !float_eq_hi(det(pt2, pt3, pt1), 0) && !float_eq_hi(det(pt3, pt1, pt2), 0));
         //EXECUTION_REPORT(REPORT_ERROR, -1, edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head, "edges given to construct triangle is invalid.");
 #ifdef DEBUG
         if(!(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head)) {
@@ -1252,7 +1252,7 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 Delaunay_Voronoi::Delaunay_Voronoi()
     : triangle_stack(NULL)
     , stack_size(0)
-    , tolerance(FLOAT_ERROR)
+    , tolerance(PDLN_FLOAT_EQ_ERROR)
     , num_points(0)
     , point_idx_to_buf_idx(NULL)
     , global_index(NULL)

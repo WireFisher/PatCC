@@ -15,8 +15,6 @@
 #define PDLN_LON 0
 #define PDLN_LAT 1
 
-#define PDLN_FLOAT_EQ_ERROR (1e-10)
-
 using std::pair;
 
 struct Midline {

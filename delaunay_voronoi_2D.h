@@ -17,6 +17,7 @@
 #include <cmath>
 #include <iostream>
 #include "dependency/MemoryPool/C-98/MemoryPool.h"
+#include "common_utils.h"
 
 #ifdef UNITTEST
 #include "gtest/gtest_prod.h"
@@ -27,12 +28,6 @@
 #endif
 
 #define PDLN_CHECKSUM_FALSE (0xFFFFFFFF)
-
-#define FLOAT_ERROR_LOW ((double) 1e-8)
-#define FLOAT_ERROR ((double) 1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
-#define FLOAT_ERROR_HI ((double) 1e-10) // normal grid less than 1e-11
-
-#define PI ((double) 3.1415926535897932384626433)
 
 #define PDLN_UP     0
 #define PDLN_LEFT   1
@@ -106,7 +101,7 @@ class Triangle
         double circum_center[2];
         double circum_radius;
 
-        int circum_circle_contains(Point*, double tolerance=FLOAT_ERROR);
+        int circum_circle_contains(Point*, double tolerance=PDLN_FLOAT_EQ_ERROR);
         bool really_on_circum_circle(Point *, double);
         bool contain_virtual_polar;
 
