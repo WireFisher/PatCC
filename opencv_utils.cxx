@@ -12,17 +12,10 @@ void plot_edge_into_file(const char *filename, double *head_coord[2], double *ta
 
     cv::Mat mat = cv::Mat::zeros(180*10, 400*10, CV_8UC3); /* rows, columns*/
 
-    cv::line(mat, cv::Point(  0.0*scale+x_shift, -90.0*scale+y_shift), cv::Point(  0.0*scale+x_shift,  90.0*scale+y_shift), cv::Scalar(0, 255, 255), 1, 8);
-    cv::line(mat, cv::Point(  0.0*scale+x_shift,  90.0*scale+y_shift), cv::Point(360.0*scale+x_shift,  90.0*scale+y_shift), cv::Scalar(0, 255, 255), 1, 8);
-    cv::line(mat, cv::Point(360.0*scale+x_shift,  90.0*scale+y_shift), cv::Point(360.0*scale+x_shift, -90.0*scale+y_shift), cv::Scalar(0, 255, 255), 1, 8);
-    cv::line(mat, cv::Point(360.0*scale+x_shift, -90.0*scale+y_shift), cv::Point(  0.0*scale+x_shift, -90.0*scale+y_shift), cv::Scalar(0, 255, 255), 1, 8);
+    cv::rectangle(mat, cv::Point(0*scale+x_shift, -90*scale+y_shift), cv::Point(360*scale+x_shift, 90*scale+y_shift), cv::Scalar(0, 255, 255), 1, 8);
 
-    if(min_x != 0.0 || max_x != 0.0 || min_y != 0.0 || max_y != 0.0) {
-        cv::line(mat, cv::Point(min_x*scale+x_shift, min_y*scale+y_shift), cv::Point(min_x*scale+x_shift, max_y*scale+y_shift), cv::Scalar(0, 0, 255), 2, 8);
-        cv::line(mat, cv::Point(min_x*scale+x_shift, max_y*scale+y_shift), cv::Point(max_x*scale+x_shift, max_y*scale+y_shift), cv::Scalar(0, 0, 255), 2, 8);
-        cv::line(mat, cv::Point(max_x*scale+x_shift, max_y*scale+y_shift), cv::Point(max_x*scale+x_shift, min_y*scale+y_shift), cv::Scalar(0, 0, 255), 2, 8);
-        cv::line(mat, cv::Point(max_x*scale+x_shift, min_y*scale+y_shift), cv::Point(min_x*scale+x_shift, min_y*scale+y_shift), cv::Scalar(0, 0, 255), 2, 8);
-    }
+    if(min_x != 0.0 || max_x != 0.0 || min_y != 0.0 || max_y != 0.0)
+        cv::rectangle(mat, cv::Point(min_x*scale+x_shift, min_y*scale+y_shift), cv::Point(max_x*scale+x_shift, max_y*scale+y_shift), cv::Scalar(0, 0, 255), 2, 8);
 
     for(int i = 0; i < num_edges; i++)
         cv::line(mat, cv::Point(head_coord[0][i]*scale+x_shift, head_coord[1][i]*scale+y_shift), cv::Point(tail_coord[0][i]*scale+x_shift, tail_coord[1][i]*scale+y_shift),
@@ -33,8 +26,7 @@ void plot_edge_into_file(const char *filename, double *head_coord[2], double *ta
     compression_params.push_back(9);
     try {
         cv::imwrite(filename, mat, compression_params);
-    }
-    catch (cv::Exception& ex) {
+    } catch (cv::Exception& ex) {
         fprintf(stderr, "Exception converting image to PNG format: %s\n", ex.what());
     }
 }

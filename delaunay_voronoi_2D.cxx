@@ -1856,20 +1856,39 @@ void Delaunay_Voronoi::plot_into_file(const char *filename, double min_x, double
     tail_coord[1] = new double[num_edges];
 
     num_edges = 0;
-    for(unsigned i = 0; i < all_leaf_triangles.size(); i ++)
-        if(all_leaf_triangles[i]->is_leaf) {
-            for(unsigned j = 0; j < 3; j++) {
-                head_coord[0][num_edges] = all_leaf_triangles[i]->edge[j]->head->x;
-                head_coord[1][num_edges] = all_leaf_triangles[i]->edge[j]->head->y;
-                tail_coord[0][num_edges] = all_leaf_triangles[i]->edge[j]->tail->x;
-                tail_coord[1][num_edges++] = all_leaf_triangles[i]->edge[j]->tail->y;
-            }
-            if(all_leaf_triangles[i]->is_cyclic)
-                for(unsigned j = num_edges-1; j > num_edges-4; j--) {
-                    if(head_coord[0][j] > 180) head_coord[0][j] -= 360;
-                    if(tail_coord[0][j] > 180) tail_coord[0][j] -= 360;
+    if (x_ref) {
+        for(unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
+            if(all_leaf_triangles[i]->is_leaf) {
+                for(unsigned j = 0; j < 3; j++) {
+                    head_coord[0][num_edges]   = x_ref[all_leaf_triangles[i]->edge[j]->head->id];
+                    head_coord[1][num_edges]   = y_ref[all_leaf_triangles[i]->edge[j]->head->id];
+                    tail_coord[0][num_edges]   = x_ref[all_leaf_triangles[i]->edge[j]->tail->id];
+                    tail_coord[1][num_edges++] = y_ref[all_leaf_triangles[i]->edge[j]->tail->id];
                 }
+                if(all_leaf_triangles[i]->is_cyclic)
+                    for(unsigned j = num_edges-1; j > num_edges-4; j--) {
+                        if(head_coord[0][j] > 180) head_coord[0][j] -= 360;
+                        if(tail_coord[0][j] > 180) tail_coord[0][j] -= 360;
+                    }
+            }
         }
+    } else {
+        for(unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
+            if(all_leaf_triangles[i]->is_leaf) {
+                for(unsigned j = 0; j < 3; j++) {
+                    head_coord[0][num_edges]   = all_leaf_triangles[i]->edge[j]->head->x;
+                    head_coord[1][num_edges]   = all_leaf_triangles[i]->edge[j]->head->y;
+                    tail_coord[0][num_edges]   = all_leaf_triangles[i]->edge[j]->tail->x;
+                    tail_coord[1][num_edges++] = all_leaf_triangles[i]->edge[j]->tail->y;
+                }
+                if(all_leaf_triangles[i]->is_cyclic)
+                    for(unsigned j = num_edges-1; j > num_edges-4; j--) {
+                        if(head_coord[0][j] > 180) head_coord[0][j] -= 360;
+                        if(tail_coord[0][j] > 180) tail_coord[0][j] -= 360;
+                    }
+            }
+        }
+    }
 
     PDASSERT(num_edges%3 == 0);
     PDASSERT(num_edges <= 3 * all_leaf_triangles.size());
