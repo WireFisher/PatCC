@@ -1999,27 +1999,37 @@ void Search_tree_node::search_points_in_halo(const Boundry *inner_boundary, cons
     r_outer.min_lon += 360.0;
     r_outer.max_lon += 360.0;
 
+    int count = *num_found;
+
     #pragma omp parallel for
     for(int j = 0; j < num_points; j++) {
         if (is_coordinate_in_halo(coord[PDLN_LON][j], coord[PDLN_LAT][j], inner_boundary, outer_boundary)) {
-            coord_values[PDLN_LON][*num_found] = coord[PDLN_LON][j];
-            coord_values[PDLN_LAT][*num_found] = coord[PDLN_LAT][j];
-            global_idx[(*num_found)++] = idx[j]; //FIXME: there may be data race
+            coord_values[PDLN_LON][count] = coord[PDLN_LON][j];
+            coord_values[PDLN_LAT][count] = coord[PDLN_LAT][j];
+            global_idx[count] = idx[j];
+            #pragma omp atomic
+            count++;
             continue;
         }
         if (is_coordinate_in_halo(coord[PDLN_LON][j], coord[PDLN_LAT][j], &l_inner, &l_outer)) {
-            coord_values[PDLN_LON][*num_found] = coord[PDLN_LON][j] + 360.0;
-            coord_values[PDLN_LAT][*num_found] = coord[PDLN_LAT][j];
-            global_idx[(*num_found)++] = idx[j];
+            coord_values[PDLN_LON][count] = coord[PDLN_LON][j] + 360.0;
+            coord_values[PDLN_LAT][count] = coord[PDLN_LAT][j];
+            global_idx[count] = idx[j];
+            #pragma omp atomic
+            count++;
             continue;
         }
         if (is_coordinate_in_halo(coord[PDLN_LON][j], coord[PDLN_LAT][j], &r_inner, &r_outer)) {
-            coord_values[PDLN_LON][*num_found] = coord[PDLN_LON][j] - 360.0;
-            coord_values[PDLN_LAT][*num_found] = coord[PDLN_LAT][j];
-            global_idx[(*num_found)++] = idx[j];
+            coord_values[PDLN_LON][count] = coord[PDLN_LON][j] - 360.0;
+            coord_values[PDLN_LAT][count] = coord[PDLN_LAT][j];
+            global_idx[count] = idx[j];
+            #pragma omp atomic
+            count++;
             continue;
         }
     }
+
+    *num_found = count;
 }
 
 
@@ -2147,12 +2157,10 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         #pragma omp parallel for
-        for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
-            if(!is_local_leaf_node_finished[i]) {
-
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+            if(!is_local_leaf_node_finished[i])
                 local_leaf_nodes[i]->generate_local_triangulation(is_cyclic, num_inserted);
-            }
-        }
+
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
 
