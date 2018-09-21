@@ -15,7 +15,7 @@
 #include <vector>
 #include <tr1/unordered_map>
 #include <sys/time.h>
-#include "pd_assert.h"
+#include "common_utils.h"
 #include "ccpl_utils.h"
 #include "netcdf_utils.h"
 #include "opencv_utils.h"
@@ -2295,6 +2295,13 @@ void Delaunay_grid_decomposition::plot_local_triangles(const char *perfix)
 #endif
 
 
+static inline bool on_a_line(Triangle_pack* t)
+{
+    return (fabs(t->v[0].y - t->v[1].y) < PDLN_FLOAT_EQ_ERROR && fabs(t->v[1].y - t->v[2].y) < PDLN_FLOAT_EQ_ERROR) ||
+           (fabs(t->v[0].x - t->v[1].x) < PDLN_FLOAT_EQ_ERROR && fabs(t->v[1].x - t->v[2].x) < PDLN_FLOAT_EQ_ERROR);
+}
+
+
 void delete_redundent_triangles(Triangle_pack *&all_triangles, int &num)
 {
     std::tr1::unordered_map<Triangle_pack, std::list<int> > hash_table;
@@ -2307,6 +2314,9 @@ void delete_redundent_triangles(Triangle_pack *&all_triangles, int &num)
 
     int count = 0;
     for(int i = 0; i < num; i++) {
+        if (on_a_line(&all_triangles[i]))
+            continue;
+
         it_hash = hash_table.find(all_triangles[i]);
         if(it_hash != hash_table.end()) {
             bool same = false;
@@ -2346,7 +2356,8 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_pack 
         for(i = 0, j = 1; j < num_triangles; j++) {
             if(triangles[i].v[0].id == triangles[j].v[0].id &&
                triangles[i].v[1].id == triangles[j].v[1].id &&
-               triangles[i].v[2].id == triangles[j].v[2].id) {
+               triangles[i].v[2].id == triangles[j].v[2].id ||
+               on_a_line(&triangles[j])) {
                 continue;
             }
             else

@@ -11,7 +11,7 @@
 #include <cstdio>
 #include <cstring>
 #include <omp.h>
-#include "pd_assert.h"
+#include "common_utils.h"
 
 #define MAX_HOSTNAME_LEN 32
 typedef std::map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
