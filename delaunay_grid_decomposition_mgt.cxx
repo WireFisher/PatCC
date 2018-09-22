@@ -135,6 +135,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], 
     , midline(Midline{-1, -361.0})
     , group_intervals(NULL)
     , triangulation(NULL)
+    , shifted_polar_lat(0)
     , virtual_point_local_index(-1)
 {
     PDASSERT(num_points > 0);
@@ -257,9 +258,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 {
     delete triangulation;
 
-    //char filename[64];
-    //snprintf(filename, 64, "log/original_input_points_%d.png", region_id);
-    //plot_points_into_file(filename, kernel_coord[PDLN_LON], kernel_coord[PDLN_LAT], num_kernel_points + num_expand_points, PDLN_PLOT_GLOBAL);
     double* ori_lon = new double[num_kernel_points + num_expand_points];
     double* ori_lat = new double[num_kernel_points + num_expand_points];
     int*    ori_idx = new int[num_kernel_points + num_expand_points];
@@ -270,12 +268,23 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     memcpy(ori_idx, kernel_index, sizeof(int)*num_kernel_points);
     memcpy(ori_idx+num_kernel_points, expand_index, sizeof(int)*num_expand_points);
 
+    //char filename[64];
+    //snprintf(filename, 64, "log/original_input_points_%d.png", region_id);
+    //plot_points_into_file(filename, ori_lon, ori_lat, num_kernel_points + num_expand_points, PDLN_PLOT_GLOBAL);
+
     if(rotated_expand_boundry != NULL) {
         triangulation = new Delaunay_Voronoi();
         triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], ori_idx, num_kernel_points + num_expand_points);
         triangulation->set_virtual_polar_index(virtual_point_local_index);
         triangulation->set_origin_coord(ori_lon, ori_lat);
-        triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
+
+        if(PDLN_INSERT_VIRTUAL_POINT && node_type != PDLN_NODE_TYPE_COMMON && polars_local_index->size() > 1) {
+            if (node_type == PDLN_NODE_TYPE_SPOLAR)
+                triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, shifted_polar_lat, kernel_boundry->max_lat, 0);
+            else
+                triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, shifted_polar_lat, 0);
+        } else
+            triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
         triangulation->triangulate();
 
         if(node_type != PDLN_NODE_TYPE_COMMON) {
@@ -296,8 +305,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             triangulation->set_polar_mode(true);
 
             if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
-                reset_polars();
-        } else {
+                reset_polars(ori_lat);
         }
         if(num_inserted > 0)
             triangulation->remove_triangles_till(num_inserted);
@@ -319,14 +327,14 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 }
 
 
-void Search_tree_node::reset_polars()
+void Search_tree_node::reset_polars(double* lat_buf)
 {
 #ifdef DEBUG
     PDASSERT(node_type != PDLN_NODE_TYPE_COMMON);
 #endif
     double reset_lat_value = node_type == PDLN_NODE_TYPE_NPOLAR ? 90 : -90;
-    triangulation->update_points_coord_y(reset_lat_value, polars_local_index);
-    triangulation->remove_triangles_only_containing_virtual_polar();
+    for(unsigned i = 0; i < polars_local_index->size(); i++)
+        lat_buf[(*polars_local_index)[i]] = reset_lat_value;
 }
 
 
@@ -1557,11 +1565,15 @@ double Search_tree_node::load_polars_info()
             else if(nearest_point_lat < kernel_coord[PDLN_LAT][i])
                 nearest_point_lat = kernel_coord[PDLN_LAT][i];
         }
+        if (nearest_point_lat == -1e10)
+            nearest_point_lat = 89.0;
 
         if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() != 1) {
+            shifted_polar_lat = (90.0 + nearest_point_lat) * 0.5;
+
             /* Note: only polar nodes' coord value is changed, search tree root's coord value is unchanged */
             for(unsigned i = 0; i < polars_local_index->size(); i++)
-                kernel_coord[PDLN_LAT][(*polars_local_index)[i]] = (90.0 + nearest_point_lat) * 0.5;
+                kernel_coord[PDLN_LAT][(*polars_local_index)[i]] = shifted_polar_lat;
 
             double vpoint_lon = 0;
             double vpoint_lat = 90;
@@ -1573,7 +1585,7 @@ double Search_tree_node::load_polars_info()
             PDASSERT(expand_coord[PDLN_LAT][virtual_point_local_index-num_kernel_points] == vpoint_lat);
             PDASSERT(expand_index[virtual_point_local_index-num_kernel_points] == vpoint_idx);
 #endif
-            return (90.0 + nearest_point_lat) * 0.5;
+            return shifted_polar_lat;
         }
         return PDLN_DOUBLE_INVALID_VALUE;
     }
@@ -1585,10 +1597,14 @@ double Search_tree_node::load_polars_info()
             else if(nearest_point_lat > kernel_coord[PDLN_LAT][i])
                 nearest_point_lat = kernel_coord[PDLN_LAT][i];
         }
+        if (nearest_point_lat == 1e10)
+            nearest_point_lat = -89.0;
 
         if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() != 1) {
+            shifted_polar_lat = (-90.0 + nearest_point_lat) * 0.5;
+
             for(unsigned i = 0; i < polars_local_index->size(); i++)
-                kernel_coord[PDLN_LAT][(*polars_local_index)[i]] = (-90.0 + nearest_point_lat) * 0.5;
+                kernel_coord[PDLN_LAT][(*polars_local_index)[i]] = shifted_polar_lat;
 
             double vpoint_lon = 0;
             double vpoint_lat = -90;
@@ -1600,7 +1616,7 @@ double Search_tree_node::load_polars_info()
             PDASSERT(expand_coord[PDLN_LAT][virtual_point_local_index-num_kernel_points] == vpoint_lat);
             PDASSERT(expand_index[virtual_point_local_index-num_kernel_points] == vpoint_idx);
 #endif
-            return (-90.0 + nearest_point_lat) * 0.5;
+            return shifted_polar_lat;
         }
         return PDLN_DOUBLE_INVALID_VALUE;
     }
@@ -1838,6 +1854,7 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
                                                                                 bool go_on[4], int *total_num)
 {
     vector<Search_tree_node*> leaf_nodes_found = search_halo_points_from_top(inner, outer, expanded_coord, expanded_index, total_num);
+    PDASSERT(!have_redundent_points(expanded_coord[PDLN_LON], expanded_coord[PDLN_LAT], *total_num));
     int squeeze_count = 0;
     Boundry old_outer = *outer;
     Boundry sub_rectangles[4];
@@ -2001,13 +2018,11 @@ void Search_tree_node::search_points_in_halo(const Boundry *inner_boundary, cons
 
     int count = *num_found;
 
-    #pragma omp parallel for
     for(int j = 0; j < num_points; j++) {
         if (is_coordinate_in_halo(coord[PDLN_LON][j], coord[PDLN_LAT][j], inner_boundary, outer_boundary)) {
             coord_values[PDLN_LON][count] = coord[PDLN_LON][j];
             coord_values[PDLN_LAT][count] = coord[PDLN_LAT][j];
             global_idx[count] = idx[j];
-            #pragma omp atomic
             count++;
             continue;
         }
@@ -2015,7 +2030,6 @@ void Search_tree_node::search_points_in_halo(const Boundry *inner_boundary, cons
             coord_values[PDLN_LON][count] = coord[PDLN_LON][j] + 360.0;
             coord_values[PDLN_LAT][count] = coord[PDLN_LAT][j];
             global_idx[count] = idx[j];
-            #pragma omp atomic
             count++;
             continue;
         }
@@ -2023,7 +2037,6 @@ void Search_tree_node::search_points_in_halo(const Boundry *inner_boundary, cons
             coord_values[PDLN_LON][count] = coord[PDLN_LON][j] - 360.0;
             coord_values[PDLN_LAT][count] = coord[PDLN_LAT][j];
             global_idx[count] = idx[j];
-            #pragma omp atomic
             count++;
             continue;
         }
@@ -2132,8 +2145,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             if(!is_local_leaf_node_finished[i]) {
                 ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
 
-                //if (((local_leaf_nodes[i]->kernel_boundry->min_lat+local_leaf_nodes[i]->kernel_boundry->max_lat)*0.5 < -20 && is_polar_node(search_tree_root->children[0])) ||
-                //    ((local_leaf_nodes[i]->kernel_boundry->min_lat+local_leaf_nodes[i]->kernel_boundry->max_lat)*0.5 >  20 && is_polar_node(search_tree_root->children[2])))
                 if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
                     local_leaf_nodes[i]->project_grid();
             }
@@ -2395,7 +2406,7 @@ void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
      * plus one exterior face */
     int local_buf_len = 0;
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
-        local_buf_len += local_leaf_nodes[i]->num_kernel_points * 3; 
+        local_buf_len += local_leaf_nodes[i]->num_kernel_points * 3 * 2;
 
     Triangle_pack* local_triangles = new Triangle_pack[local_buf_len];
     int num_local_triangles = 0;

@@ -82,6 +82,7 @@ private:
     Delaunay_Voronoi* triangulation;
 
     vector<int>* polars_local_index;
+    double       shifted_polar_lat;
     int          virtual_point_local_index;
     
     /* consistency check */
@@ -96,7 +97,7 @@ private:
     void calculate_real_boundary();
     void fix_expand_boundry(int index, int count);
     double load_polars_info();
-    void reset_polars();
+    void reset_polars(double*);
 
 public:    
     Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type);

@@ -1730,11 +1730,11 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
             }
         }
     }
-    PDASSERT(current < buf_len);
 
     for (unsigned j = 0; j < 4; j++)
         for (unsigned i = 0; i < bound_triangles[j].size(); i++)
             output_triangles[current++] = bound_triangles[j][i];
+    PDASSERT(current < buf_len);
     *output_num_triangles = current;
 }
 
