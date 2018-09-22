@@ -15,7 +15,6 @@ double max_point_lat;
 class Mock_Process_thread_manager3 : public Process_thread_manager
 {
 public:
-    MOCK_METHOD0(get_openmp_size, int());
     MOCK_METHOD0(get_mpi_comm, MPI_Comm());
 };
 
@@ -262,15 +261,12 @@ void prepare_latlon_singlepolar()
 
 
 TEST_F(FullProcess, Basic) {
-    const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_openmp_size())
-        .WillByDefault(Return(num_thread));
     ON_CALL(*mock_process_thread_manager, get_mpi_comm())
         .WillByDefault(Return(comm));
 
@@ -331,14 +327,11 @@ TEST_F(FullProcess, Basic) {
 
 #ifdef NETCDF
 TEST_F(FullProcess, LatLonGrid) {
-    const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_openmp_size())
-        .WillByDefault(Return(num_thread));
     ON_CALL(*mock_process_thread_manager, get_mpi_comm())
         .WillByDefault(Return(comm));
 
@@ -398,14 +391,11 @@ TEST_F(FullProcess, LatLonGrid) {
 
 
 TEST_F(FullProcess, LatLonSinglePolar) {
-    const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_openmp_size())
-        .WillByDefault(Return(num_thread));
     ON_CALL(*mock_process_thread_manager, get_mpi_comm())
         .WillByDefault(Return(comm));
 
@@ -466,14 +456,11 @@ TEST_F(FullProcess, LatLonSinglePolar) {
 
 
 TEST_F(FullProcess, LatLonMutiPolars) {
-    const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_openmp_size())
-        .WillByDefault(Return(num_thread));
     ON_CALL(*mock_process_thread_manager, get_mpi_comm())
         .WillByDefault(Return(comm));
 
@@ -533,14 +520,11 @@ TEST_F(FullProcess, LatLonMutiPolars) {
 
 
 TEST_F(FullProcess, ThreePolar) {
-    const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_openmp_size())
-        .WillByDefault(Return(num_thread));
     ON_CALL(*mock_process_thread_manager, get_mpi_comm())
         .WillByDefault(Return(comm));
 
@@ -603,31 +587,28 @@ const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 //"V3_Greenland_pole_x1_T_grid.nc", //md5sum wrong
 const char dim1_grid_name[][64] = {
     /*
-    */
     "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong | 15 pass 5 assert false|md5sum wrong: OK by 1e-10
     "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong |15 pass 5 assert false|md5sum wrong: OK by 1e-10
     "gx3v5_Present_DP_x3.nc", //x | md5sum wrong: OK
-    "wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles|15 pass 5 max|grid preteatment: OK
-    "Gamil_128x60_Grid.nc", // x | deleting outter triangle: ok
-    "fv1.9x2.5_050503.nc", // x ok
     "Gamil_360x180_Grid.nc", // x ok
     "licom_eq1x1_degree_Grid.nc", //x ok
     "licom_gr1x1_degree_Grid.nc", //x ok
     "LICOM_P5_Grid.nc",
-    "R05_Grid.nc",
+    */
     "ll1deg_grid.nc",
     "ll2.5deg_grid.nc",
     "R42_Gaussian_Grid.nc",
+    "T85_Gaussian_Grid.nc",
+    "Gamil_128x60_Grid.nc", // x | deleting outter triangle: ok
+    "fv1.9x2.5_050503.nc", // x ok
     "T42_Gaussian_Grid.nc",
     "T42_grid.nc",
     "T62_Gaussian_Grid.nc",
-    "T85_Gaussian_Grid.nc",
     "ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK | md5sum wrong: virtual p
+    "wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles|15 pass 5 max|grid preteatment: OK
     "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
+    "R05_Grid.nc",
     /*
-    "thetao_Omon_MRI-CGCM3_piControl_r1i1p1_186601-187012.nc", //ncfile float don't match double
-    "tos_Omon_MPI-ESM-LR_historical_r1i1p1_185001-200512.nc",
-    "tos_Omon_inmcm4_historical_r1i1p1_185001-200512.nc",
     */
 };
 const char dim1_global_grid_name[][64] = {
@@ -768,7 +749,6 @@ void prepare_dim1_grid(const char grid_name[])
 #include <unistd.h>
 TEST_F(FullProcess, ManyTypesOfGrids) {
     MPI_Barrier(MPI_COMM_WORLD);
-    const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
     printf("pid: %d\n", getpid());
@@ -777,9 +757,6 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
     MPI_Comm split_world;
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
-
-    ON_CALL(*mock_process_thread_manager, get_openmp_size())
-        .WillByDefault(Return(num_thread));
 
     for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
@@ -829,7 +806,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
                 MPI_Comm_size(split_world, &new_mpi_size);
 
                 FILE *fp;
-                char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
+                char fmt[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
                 char cmd[256];
                 snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
 
@@ -948,7 +925,6 @@ void prepare_scvt_grid(const char grid_name[], int grid_size)
 
 TEST_F(FullProcess, SCVTPoints) {
     MPI_Barrier(MPI_COMM_WORLD);
-    const int num_thread = 1;
     MPI_Comm comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -956,9 +932,6 @@ TEST_F(FullProcess, SCVTPoints) {
     MPI_Comm split_world;
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
-
-    ON_CALL(*mock_process_thread_manager, get_openmp_size())
-        .WillByDefault(Return(num_thread));
 
     for(unsigned i = 0; i < sizeof(scvt_grid_name)/64; i++) {
         printf("processing: %s\n", scvt_grid_name[i]);

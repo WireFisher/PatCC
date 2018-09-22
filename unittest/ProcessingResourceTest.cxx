@@ -8,7 +8,7 @@
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
 
-class Mock_Process_thread_manager : public Process_thread_manager//_base
+class Mock_Process_thread_manager : public Process_thread_manager
 {
 public:
     MOCK_METHOD2(get_hostname, void(char* hostname, int len));
@@ -16,7 +16,6 @@ public:
     MOCK_METHOD0(get_mpi_size, int());
     MOCK_METHOD0(get_mpi_comm, MPI_Comm());
     MOCK_METHOD0(get_openmp_size, int());
-    //MOCK_METHOD7(allgather, int(void*, int, MPI_Datatype, void*, int, MPI_Datatype, MPI_Comm));
 };
 
 using ::testing::Return;
@@ -54,27 +53,6 @@ void get_different_hostname(char* hostname, int len)
         ASSERT_TRUE(false);
 };
 
-/*
-int allgather_num_threads(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm)
-{
-    int* buf = (int*)recvbuf;
-    for(int i = 0; i < mpi_size; i++)
-        buf[i] = 4;
-}
-
-int allgather_hostname_checksum(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm)
-{
-    unsigned int* buf = (unsigned int*)recvbuf;
-    for(int i = 0; i < mpi_size; i++)
-        buf[i] = 567;
-}
-    
-    ON_CALL(*mock_process_thread_manager, allgather(_, _, MPI_INT, _, _, _, _))
-        .WillByDefault(Invoke(allgather_num_threads));
-
-    ON_CALL(*mock_process_thread_manager, allgather(_, _, MPI_UNSIGNED, _, _, _, _))
-        .WillByDefault(Invoke(allgather_hostname_checksum));
-    */
 
 void setup_dependency(void(*func)(char*, int), int num_threads)
 {
