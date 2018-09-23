@@ -2479,6 +2479,8 @@ void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
         MPI_Send(&num_local_triangles, 1, MPI_INT, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
         MPI_Send(local_triangles, num_local_triangles * sizeof(Triangle_pack), MPI_CHAR, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
     }
+
+    delete[] local_triangles;
 }
 
 

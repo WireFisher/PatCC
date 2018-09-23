@@ -1261,7 +1261,8 @@ Delaunay_Voronoi::Delaunay_Voronoi()
     , y_ref(NULL)
     , polar_mode(false)
     , have_bound(false)
-{}
+{
+}
 
 
 Delaunay_Voronoi::~Delaunay_Voronoi()
@@ -1453,7 +1454,6 @@ void delete_redundent_points(double *&x, double *&y, int &num)
     return;
 }
 
-
 Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
 {
     //Edge *new_edge = new Edge(head, tail);
@@ -1462,7 +1462,6 @@ Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
 
     return new_edge;
 }
-
 
 Triangle *Delaunay_Voronoi::allocate_Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
 {
@@ -1660,19 +1659,19 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
         }
     }
 
-    Triangle_pack* plot_triangles = new Triangle_pack[bound_triangles[dir].size()];
-    for(unsigned i = 0; i < bound_triangles[dir].size();) {
-        if (bound_triangles[dir][i].is_cyclic) {
-            if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
-               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold) )
-                plot_triangles[size_plot++] = bound_triangles[dir][i+1];
-            i += 3;
-        } else {
-            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold))
-                plot_triangles[size_plot++] = bound_triangles[dir][i];
-            i++;
-        }
-    }
+    //Triangle_pack* plot_triangles = new Triangle_pack[bound_triangles[dir].size()];
+    //for(unsigned i = 0; i < bound_triangles[dir].size();) {
+    //    if (bound_triangles[dir][i].is_cyclic) {
+    //        if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
+    //           is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold) )
+    //            plot_triangles[size_plot++] = bound_triangles[dir][i+1];
+    //        i += 3;
+    //    } else {
+    //        if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold))
+    //            plot_triangles[size_plot++] = bound_triangles[dir][i];
+    //        i++;
+    //    }
+    //}
 
     //char filename[64];
     //int rank;
