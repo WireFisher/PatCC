@@ -3,8 +3,6 @@
 #include "common_utils.h"
 #include <algorithm>
 
-#define PI (3.1415926535898)
-
 void rotate_sphere_coordinate(double lon_original, double lat_original, double &lon_rotated, double &lat_rotated)
 {
     double lon_rotated_radian, lat_rotated_radian, temp1_value, temp2_value;

@@ -460,8 +460,6 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
 
     double length[2], boundry_values[4], c_total_workload[2];
     Midline midline;
-    unsigned i;
-    int iteration_count;
 
     boundry_values[PDLN_LON] = kernel_boundry->min_lon;
     boundry_values[PDLN_LAT] = kernel_boundry->min_lat;
@@ -495,6 +493,7 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
     PDASSERT(c_ids_end[0] - c_ids_start[0] + c_ids_end[1] - c_ids_start[1] == ids_size());
 #endif
 
+    int i;
     if(ids_size() > 1) {
         for(i = c_ids_start[0], c_total_workload[0] = 0.0; i < c_ids_end[0]; i++)
             c_total_workload[0] += workloads[i];
@@ -776,9 +775,9 @@ void Search_tree_node::project_grid()
 
 
 Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_points_per_chunk)
-    : original_grid(grid_id)
+    : min_points_per_chunk(min_points_per_chunk)
+    , original_grid(grid_id)
     , processing_info(proc_info)
-    , min_points_per_chunk(min_points_per_chunk)
     , workloads(NULL)
     , average_workload(0)
     , regionID_to_unitID(NULL)
@@ -994,18 +993,18 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, int start
     }
 
     double old_total_workload = 0.0;
-    for (unsigned i = start; i < end; i++)
+    for (int i = start; i < end; i++)
         old_total_workload += workloads[i];
 
-    for (unsigned i = start; i < end; i++)
+    for (int i = start; i < end; i++)
         workloads[i] = workloads[i] * total_workload / old_total_workload;
 
     int non_zero_regions = size;
-    for (unsigned i = start; i < end; i++)
+    for (int i = start; i < end; i++)
         if (workloads[i] == 0)
             non_zero_regions--;
 
-    for (unsigned i = start; i < end; i++) {
+    for (int i = start; i < end; i++) {
         if (non_zero_regions < 2)
             break;
 
@@ -1521,7 +1520,7 @@ bool Delaunay_grid_decomposition::have_local_region_ids(int start, int end)
         return false;
 
     for(int j = 0; j < num_local_proc_ids; j++)
-        for(unsigned i = start; i < end; i++)
+        for(int i = start; i < end; i++)
             if(regionID_to_unitID[i] == local_proc_ids[j])
                 return true;
 
@@ -1866,7 +1865,6 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
 {
     vector<Search_tree_node*> leaf_nodes_found = search_halo_points_from_top(inner, outer, expanded_coord, expanded_index, total_num);
     PDASSERT(!have_redundent_points(expanded_coord[PDLN_LON], expanded_coord[PDLN_LAT], *total_num));
-    int squeeze_count = 0;
     Boundry old_outer = *outer;
     Boundry sub_rectangles[4];
     int offset_picked[4];
@@ -2378,9 +2376,9 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_pack 
         sort_triangles(triangles, num_triangles);
         int i, j;
         for(i = 0, j = 1; j < num_triangles; j++) {
-            if(triangles[i].v[0].id == triangles[j].v[0].id &&
-               triangles[i].v[1].id == triangles[j].v[1].id &&
-               triangles[i].v[2].id == triangles[j].v[2].id ||
+            if((triangles[i].v[0].id == triangles[j].v[0].id &&
+                triangles[i].v[1].id == triangles[j].v[1].id &&
+                triangles[i].v[2].id == triangles[j].v[2].id) ||
                on_a_line(&triangles[j])) {
                 continue;
             }
