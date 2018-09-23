@@ -138,16 +138,16 @@ Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], 
     , shifted_polar_lat(0)
     , virtual_point_local_index(-1)
 {
-    PDASSERT(num_points > 0);
+    PDASSERT(num_points >= 0);
     children[0] = NULL;
     children[1] = NULL;
     children[2] = NULL;
     projected_coord[0] = NULL;
     projected_coord[1] = NULL;
 
-    kernel_boundry    = new Boundry();
+    kernel_boundry  = new Boundry();
     expand_boundry  = new Boundry();
-    *kernel_boundry   = boundry;
+    *kernel_boundry = boundry;
     *expand_boundry = boundry;
 
     kernel_coord[0] = coord_value[0];
@@ -412,37 +412,10 @@ void Search_tree_node::divide_at_fix_line(Midline midline, double *c_points_coor
 void Search_tree_node::decompose_by_processing_units_number(double *workloads, double *c_points_coord[4], int *c_points_idx[2], int c_num_points[2],
                                    Boundry c_boundry[2], int c_ids_start[2], int c_ids_end[2], int mode, int *c_intervals[2], int c_num_intervals[2])
 {
-    double length[2], boundry_values[4], c_total_workload[2];
-    Midline midline;
-    unsigned i;
-    int iteration_count;
-
     PDASSERT(ids_size() > 1);
-    boundry_values[PDLN_LON] = kernel_boundry->min_lon;
-    boundry_values[PDLN_LAT] = kernel_boundry->min_lat;
-    boundry_values[PDLN_LON+2] = kernel_boundry->max_lon;
-    boundry_values[PDLN_LAT+2] = kernel_boundry->max_lat;
 
-    if(non_monotonic) {
-        PDASSERT(false);
-        boundry_values[PDLN_LON] -= 360.0;
-    }
-
-    PDASSERT(boundry_values[PDLN_LON] != boundry_values[PDLN_LON+2]);
-    PDASSERT(boundry_values[PDLN_LAT] < boundry_values[PDLN_LAT+2]);
-    length[0] = boundry_values[PDLN_LON+2] - boundry_values[PDLN_LON];
-    length[1] = boundry_values[PDLN_LAT+2] - boundry_values[PDLN_LAT];
-    PDASSERT(length[0] >= 0 || length[1] >= 0);
-    PDASSERT(length[0] <= (360.0+PDLN_HIGH_BOUNDRY_SHIFTING) && length[0] >= 0.0 && length[1] <= (180.0+PDLN_HIGH_BOUNDRY_SHIFTING) && length[1] >= 0.0);
-    
-    if(mode == PDLN_DECOMPOSE_SPOLAR_MODE || mode == PDLN_DECOMPOSE_NPOLAR_MODE)
-        midline.type = PDLN_LAT;
-    else if(length[1] > length[0])
-        midline.type = PDLN_LAT;
-    else
-        midline.type = PDLN_LON;
-
-    /* PDLN_DECOMPOSE_COMMON_MODE: 0   1   2   3 | 4   5   6   7
+    /* Decompose computing units' group
+     * PDLN_DECOMPOSE_COMMON_MODE: 0   1   2   3 | 4   5   6   7
      * PDLN_DECOMPOSE_SPOLAR_MODE: 0 | 1   2   3   4   5   6   7
      * PDLN_DECOMPOSE_NPOLAR_MODE: 0   1   2   3   4   5   6 | 7 */
     if(mode == PDLN_DECOMPOSE_COMMON_MODE) {
@@ -454,7 +427,7 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
             c_intervals[0] = c_intervals[1] = NULL;
             c_num_intervals[0] = c_num_intervals[1] = 1;
         } else {
-            for(i = 0; i < num_groups/2; i++)
+            for(int i = 0; i < num_groups/2; i++)
                 mid_off += group_intervals[i];
             c_intervals[0] = group_intervals;
             c_intervals[1] = group_intervals+num_groups/2;
@@ -478,6 +451,41 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
         c_ids_end[1]   = ids_end;
     } else
         PDASSERT(false);
+
+    if (kernel_boundry->min_lon == kernel_boundry->max_lon || kernel_boundry->min_lat == kernel_boundry->max_lat) {
+        c_num_points[0] = c_num_points[1] = 0;
+        c_boundry[0] = c_boundry[1] = *kernel_boundry;
+        return;
+    }
+
+    double length[2], boundry_values[4], c_total_workload[2];
+    Midline midline;
+    unsigned i;
+    int iteration_count;
+
+    boundry_values[PDLN_LON] = kernel_boundry->min_lon;
+    boundry_values[PDLN_LAT] = kernel_boundry->min_lat;
+    boundry_values[PDLN_LON+2] = kernel_boundry->max_lon;
+    boundry_values[PDLN_LAT+2] = kernel_boundry->max_lat;
+
+    if(non_monotonic) {
+        PDASSERT(false);
+        boundry_values[PDLN_LON] -= 360.0;
+    }
+
+    PDASSERT(boundry_values[PDLN_LON] != boundry_values[PDLN_LON+2]);
+    PDASSERT(boundry_values[PDLN_LAT] < boundry_values[PDLN_LAT+2]);
+    length[0] = boundry_values[PDLN_LON+2] - boundry_values[PDLN_LON];
+    length[1] = boundry_values[PDLN_LAT+2] - boundry_values[PDLN_LAT];
+    PDASSERT(length[0] >= 0 || length[1] >= 0);
+    PDASSERT(length[0] <= (360.0+PDLN_HIGH_BOUNDRY_SHIFTING) && length[0] >= 0.0 && length[1] <= (180.0+PDLN_HIGH_BOUNDRY_SHIFTING) && length[1] >= 0.0);
+    
+    if(mode == PDLN_DECOMPOSE_SPOLAR_MODE || mode == PDLN_DECOMPOSE_NPOLAR_MODE)
+        midline.type = PDLN_LAT;
+    else if(length[1] > length[0])
+        midline.type = PDLN_LAT;
+    else
+        midline.type = PDLN_LON;
 
 #ifdef DEBUG
     PDASSERT(c_ids_start[0] >= 0);
@@ -980,24 +988,28 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, int start
 {
     /* NOTE: This will make the final workload of leaf node not exactly more than min_points_per_chunk */
     int size = end - start;
-    if(size  == 1) {
+    if (size  == 1) {
         workloads[start] = total_workload;
         return;
     }
 
     double old_total_workload = 0.0;
-    for(unsigned int i = start; i < end; i++)
+    for (unsigned i = start; i < end; i++)
         old_total_workload += workloads[i];
 
-    for(unsigned int i = start; i < end; i++)
+    for (unsigned i = start; i < end; i++)
         workloads[i] = workloads[i] * total_workload / old_total_workload;
 
     int non_zero_regions = size;
-    for(unsigned int i = start; i < end;) {
-        if(non_zero_regions < 2)
+    for (unsigned i = start; i < end; i++)
+        if (workloads[i] == 0)
+            non_zero_regions--;
+
+    for (unsigned i = start; i < end; i++) {
+        if (non_zero_regions < 2)
             break;
 
-        if(workloads[i] < min_points_per_chunk) {
+        if (workloads[i] > 0 && workloads[i] < min_points_per_chunk) {
             active_processing_units_flag[i] = false;
             non_zero_regions--;
             double average_workload = workloads[i] / non_zero_regions;
@@ -1006,10 +1018,7 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, int start
                 if (workloads[j] > 0)
                     workloads[j] += average_workload;
         }
-        else
-            i++;
     }
-
 #ifdef DEBUG
     PDASSERT(non_zero_regions > 0);
 #endif
@@ -1035,7 +1044,7 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
 
     PDASSERT(node->ids_size() > 0);
     if(node->ids_size() == 1) {
-        if(have_local_region_ids(node->ids_start, node->ids_end))
+        if(node->num_kernel_points > 0 && have_local_region_ids(node->ids_start, node->ids_end))
             local_leaf_nodes.push_back(node);
         all_leaf_nodes.push_back(node);
         return;
@@ -1051,10 +1060,12 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     for (int i = 0; i < c_num_points[1]; i++)
         PDASSERT(is_in_region(c_points_coord[2][i], c_points_coord[3][i], c_boundry[1]));
 
-    PDASSERT(c_points_coord[0] + c_num_points[0] == c_points_coord[2]);
-    PDASSERT(c_points_coord[1] + c_num_points[0] == c_points_coord[3]);
-    PDASSERT(c_points_coord[2] + c_num_points[1] == node->kernel_coord[0] + node->num_kernel_points);
-    PDASSERT(c_points_coord[3] + c_num_points[1] == node->kernel_coord[1] + node->num_kernel_points);
+    if(c_num_points[0] != 0 || c_num_points[1] != 0) {
+        PDASSERT(c_points_coord[0] + c_num_points[0] == c_points_coord[2]);
+        PDASSERT(c_points_coord[1] + c_num_points[0] == c_points_coord[3]);
+        PDASSERT(c_points_coord[2] + c_num_points[1] == node->kernel_coord[0] + node->num_kernel_points);
+        PDASSERT(c_points_coord[3] + c_num_points[1] == node->kernel_coord[1] + node->num_kernel_points);
+    }
     for (int i = 0; i < c_num_points[0]; i++)
         PDASSERT(is_in_region(c_points_coord[0][i], c_points_coord[1][i], c_boundry[0]));
     for (int i = 0; i < c_num_points[1]; i++)
@@ -1958,6 +1969,9 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
 
     Boundry region = *outer_boundary;
     if(node->ids_size() == 1) {
+        if (node->num_kernel_points == 0)
+            return;
+
         if(do_two_regions_overlap(region, *node->kernel_boundry) ||
            do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->kernel_boundry) ||
            do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->kernel_boundry)) {
