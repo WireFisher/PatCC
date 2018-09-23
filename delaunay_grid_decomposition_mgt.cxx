@@ -135,6 +135,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], 
     , midline(Midline{-1, -361.0})
     , group_intervals(NULL)
     , triangulation(NULL)
+    , polars_local_index(NULL)
     , shifted_polar_lat(0)
     , virtual_point_local_index(-1)
 {
@@ -193,11 +194,17 @@ Search_tree_node::~Search_tree_node()
 {
     delete kernel_boundry;
     delete expand_boundry;
+    delete real_boundry;
     delete rotated_kernel_boundry;
     delete rotated_expand_boundry;
     for(int i = 0; i < 3; i ++)
         delete children[i];
     delete triangulation;
+
+    delete[] projected_coord[0];
+    delete[] projected_coord[1];
+
+    delete polars_local_index;
 }
 
 
@@ -836,10 +843,14 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
     delete[] coord_values[0];
     delete[] coord_values[1];
     delete search_tree_root;
-    if(workloads != NULL)
-        delete[] workloads; 
+    delete[] regionID_to_unitID;
+    delete[] workloads; 
     delete[] active_processing_units_flag;
     delete[] all_group_intervals;
+
+    delete[] tmp_coord[0];
+    delete[] tmp_coord[1];
+    delete[] tmp_index;
 }
 
 
@@ -1026,6 +1037,9 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, int start
 
 void Delaunay_grid_decomposition::initialze_buffer()
 {
+    tmp_coord[0] = new double[search_tree_root->num_kernel_points];
+    tmp_coord[1] = new double[search_tree_root->num_kernel_points];
+    tmp_index    = new int[search_tree_root->num_kernel_points];
 }
 
 
@@ -1684,14 +1698,8 @@ void Search_tree_node::set_groups(int *intervals, int num)
 #define PDLN_MIN_QUOTA (400.0)
 int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
 {
-    double *expanded_coord[2];
-    int *expanded_index;
     int num_found;
     vector<Search_tree_node*> leaf_nodes_found;
-
-    expanded_coord[0] = new double[search_tree_root->num_kernel_points]; //FIXME: buf too large
-    expanded_coord[1] = new double[search_tree_root->num_kernel_points];
-    expanded_index    = new int[search_tree_root->num_kernel_points];
 
     for (int i = 0; i < 4; i++)
         if (tree_node->edge_expanding_count[i] > 2)
@@ -1713,7 +1721,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
 
         go_on[0] = go_on[1] = go_on[2] = go_on[3] = false;
-        leaf_nodes_found = adjust_expanding_boundry(old_boundry, &new_boundry, quota, expanded_coord, expanded_index, go_on, &num_found);
+        leaf_nodes_found = adjust_expanding_boundry(old_boundry, &new_boundry, quota, tmp_coord, tmp_index, go_on, &num_found);
         //printf("last boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
         //printf("expd boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         if(*old_boundry == new_boundry)
@@ -1736,14 +1744,9 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         }
 
         *tree_node->expand_boundry = new_boundry;
-        tree_node->add_expand_points(expanded_coord, expanded_index, num_found);
+        tree_node->add_expand_points(tmp_coord, tmp_index, num_found);
         tree_node->add_neighbors(leaf_nodes_found);
     }while(!tree_node->expanding_success(go_on));
-
-
-    delete[] expanded_coord[0];
-    delete[] expanded_coord[1];
-    delete[] expanded_index;
 
     return 0;
 }

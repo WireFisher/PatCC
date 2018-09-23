@@ -166,6 +166,8 @@ private:
     int*      all_group_intervals;
 
     /* Temp buffer */
+    double* tmp_coord[2];
+    int*    tmp_index;
 
     /* Main processes */
     void initialze_workload();
