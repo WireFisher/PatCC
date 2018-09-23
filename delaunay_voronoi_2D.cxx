@@ -1252,14 +1252,14 @@ void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
 Delaunay_Voronoi::Delaunay_Voronoi()
     : triangle_stack(NULL)
     , stack_size(0)
+    , polar_mode(false)
     , tolerance(PDLN_FLOAT_EQ_ERROR)
     , num_points(0)
-    , point_idx_to_buf_idx(NULL)
-    , global_index(NULL)
     , vpolar_local_index(-1)
     , x_ref(NULL)
     , y_ref(NULL)
-    , polar_mode(false)
+    , global_index(NULL)
+    , point_idx_to_buf_idx(NULL)
     , have_bound(false)
 {
 }
@@ -1643,7 +1643,6 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
     int dir = bound_direction(&head, &tail);
     PDASSERT(dir > -1);
 
-    unsigned size_plot = 0;
     unsigned checksum = 0;
 
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
@@ -1659,6 +1658,7 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
         }
     }
 
+    //unsigned size_plot = 0;
     //Triangle_pack* plot_triangles = new Triangle_pack[bound_triangles[dir].size()];
     //for(unsigned i = 0; i < bound_triangles[dir].size();) {
     //    if (bound_triangles[dir][i].is_cyclic) {

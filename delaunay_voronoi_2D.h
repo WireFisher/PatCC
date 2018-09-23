@@ -53,7 +53,6 @@ class Point
         int    next;
         int    prev;
 
-    public:
         Point();
         Point(double, double, int id=-1);
         ~Point();
@@ -69,12 +68,13 @@ class Point
 class Edge
 {
     private:
-        Point *head;
-        Point *tail;    /* the tail of this edge, constant */
-        Edge *twin_edge;            /* the twin_edge edge, whose tail is the head of this edge and head is the tail of this edge */
-        Edge *next_edge_in_triangle;            /* the next_edge_in_triangle edge, whose tail is the head of this edge but head isn't the tail of this edge */
-        Edge *prev_edge_in_triangle;            /* the prev_edge_in_triangle edge, whose head is the tail of this edge but tail isn't the head of this edge */
-        Triangle *triangle; /* the triangle which is composed by this edge and its next_edge_in_triangle and prev_edge_in_triangle */
+        Point* head;
+        Point* tail;                      /* the tail of this edge, constant */
+        Edge*  twin_edge;                 /* the twin_edge edge, whose tail is the head of this edge and head is the tail of this edge */
+        Edge*  next_edge_in_triangle;     /* the next_edge_in_triangle edge, whose tail is the head of this edge but head isn't the tail of this edge */
+        Edge*  prev_edge_in_triangle;     /* the prev_edge_in_triangle edge, whose head is the tail of this edge but tail isn't the head of this edge */
+        int    ref_count;
+        Triangle* triangle;               /* the triangle which is composed by this edge and its next_edge_in_triangle and prev_edge_in_triangle */
 
     public:
         Edge(Point *head, Point *tail);
@@ -92,18 +92,18 @@ class Edge
 class Triangle
 {
     private:
-        Point *v[3];    /* vertexes of triangle */
-        Edge *edge[3];
-        bool is_leaf;
-        bool is_cyclic;
-        int remained_points_head;
-        int remained_points_tail;
+        Point* v[3];    /* vertexes of triangle */
+        Edge*  edge[3];
+        bool   is_leaf;
+        bool   is_cyclic;
+        int    remained_points_head;
+        int    remained_points_tail;
         double circum_center[2];
         double circum_radius;
+        bool   contain_virtual_polar;
 
-        int circum_circle_contains(Point*, double tolerance=PDLN_FLOAT_EQ_ERROR);
+        int  circum_circle_contains(Point*, double tolerance=PDLN_FLOAT_EQ_ERROR);
         bool really_on_circum_circle(Point *, double);
-        bool contain_virtual_polar;
 
         void initialize_triangle_with_edges(Edge*, Edge*, Edge*, bool force=false);
 
@@ -142,11 +142,11 @@ class Delaunay_Voronoi
 {
     private:
         /* Storage */
-        vector<Triangle*>     all_leaf_triangles;
-        vector<Triangle*>     all_leaf_triangles_on_boundary;
-        vector<Triangle*>     triangle_pool;
-        vector<Edge*>         edge_pool;
-        Point*                all_points;
+        vector<Triangle*> all_leaf_triangles;
+        vector<Triangle*> all_leaf_triangles_on_boundary;
+        vector<Triangle*> triangle_pool;
+        vector<Edge*>     edge_pool;
+        Point*            all_points;
 
         /* Memory management */
         MemoryPool<Triangle, 0x10000*sizeof(Triangle), Edge*, Edge*, Edge*> triangle_allocator;
@@ -160,14 +160,16 @@ class Delaunay_Voronoi
 
         /* Grid info */
         int num_points;
-        int* point_idx_to_buf_idx;
-        Point *virtual_point[4];
-        vector<Point*> extra_virtual_point;
-        const int *global_index;
-        vector<Triangle*> triangles_containing_vpolar;
         int vpolar_local_index;
-        const double *x_ref;
-        const double *y_ref;
+        const double* x_ref;
+        const double* y_ref;
+        const int*    global_index;
+
+        /* Triangulating stuff */
+        Point* virtual_point[4];
+        int*   point_idx_to_buf_idx;
+        vector<Point*>    extra_virtual_point;
+        vector<Triangle*> triangles_containing_vpolar;
 
         /* Consistency checking boundary */
         bool   have_bound;
