@@ -78,21 +78,9 @@ static int compare_v0(const void* a, const void* b)
 }
 
 
-static int compare_lon(const void* a, const void* b)
-{
-    Triangle_pack t1 = *(const Triangle_pack*)a;
-    Triangle_pack t2 = *(const Triangle_pack*)b;
-
-    if(t1.v[0].x < t2.v[0].x) return -1;
-    if(t1.v[0].x > t2.v[0].x) return  1;
-    return 0;
-}
-
-
 static inline void radix_sort(Triangle_pack *triangles, int num_triangles)
 {
     PDASSERT(sizeof(Triangle_pack) > sizeof(void *)/2);
-    //merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_lon);
     merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v2);
     merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v1);
     merge_sort(triangles, num_triangles, sizeof(Triangle_pack), compare_v0);
@@ -280,8 +268,8 @@ Edge::Edge(Point *head, Point *tail)
     : head(head)
     , tail(tail)
     , twin_edge(NULL)
-    , prev_edge_in_triangle(NULL)
     , next_edge_in_triangle(NULL)
+    , prev_edge_in_triangle(NULL)
     , ref_count(0)
     , triangle(NULL)
 {
@@ -498,8 +486,6 @@ void Delaunay_Voronoi::legalize_triangles(Point *vr, Edge *edge, unsigned stack_
     PDASSERT(edge->twin_edge->triangle->is_leaf);
     push(stack_top, edge->twin_edge->triangle);
 
-    Triangle* old_t  = edge->triangle;
-    Triangle* old_tt = edge->twin_edge->triangle;
     edge->triangle->is_leaf = false;
     edge->twin_edge->triangle->is_leaf = false;
 
@@ -984,7 +970,6 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
     PDASSERT(triangle->is_leaf);
 #endif
     if (triangle->remained_points_tail == -1) {
-        //all_leaf_triangles.push_back(triangle);
         return;
     }
 
@@ -1094,9 +1079,6 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
     int list_head, list_tail;
     link_remained_list(stack_base, stack_top, &list_head, &list_tail);
 
-    //triangle_allocator.deleteElement(old_t);
-    //triangle_allocator.deleteElement(old_tt);
-
     distribute_points_into_triangles(list_head, list_tail, stack_base, stack_top);
 
     //char filename[64];
@@ -1118,23 +1100,7 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
             killed = triangle_stack[i];
             //delete killed;
             clean_triangle(killed);
-            new_triangle_allocator.deleteElement(killed);
-
-            //for (vector<Triangle*>::iterator it = all_leaf_triangles.begin(); it != all_leaf_triangles.end();)
-            //    if (*it == killed) {
-            //        //printf("earsing\n");
-            //        it = all_leaf_triangles.erase(it);
-            //    } else {
-            //        it++;
-            //    }
-
-            //for (vector<Triangle*>::iterator it = all_leaf_triangles_on_boundary.begin(); it != all_leaf_triangles_on_boundary.end();)
-            //    if (*it == killed) {
-            //        //printf("earsing\n");
-            //        it = all_leaf_triangles_on_boundary.erase(it);
-            //    } else {
-            //        it++;
-            //    }
+            triangle_allocator.deleteElement(killed);
         }
     }
 }
@@ -1321,14 +1287,10 @@ Delaunay_Voronoi::~Delaunay_Voronoi()
     delete[] triangle_stack;
     delete[] x_ref;
     delete[] y_ref;
-    /*
-    for (unsigned i = 0; i < edge_pool.size(); i ++)
-        delete edge_pool[i];
-        //edge_allocator.deleteElement(edge_pool[i]);
-    for (unsigned i = 0; i < triangle_pool.size(); i ++)
-        delete triangle_pool[i];
-        //triangle_allocator.deleteElement(triangle_pool[i]);
-    */
+    for (unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
+        clean_triangle(all_leaf_triangles[i]);
+        triangle_allocator.deleteElement(all_leaf_triangles[i]);
+    }
 }
 
 
@@ -1381,10 +1343,7 @@ void Delaunay_Voronoi::triangulate()
 
     int triangles_count_estimate = 2*(num_points+4);
 
-    triangle_pool.reserve(triangles_count_estimate);
-    edge_pool.reserve(triangles_count_estimate*3);
     all_leaf_triangles.reserve(triangles_count_estimate);
-    //all_leaf_triangles_on_boundary.reserve((int)sqrt(num_points) * 4);
 
     stack_size = triangles_count_estimate * 2;
     triangle_stack = new Triangle*[stack_size];
@@ -1409,7 +1368,7 @@ void Delaunay_Voronoi::triangulate()
 void Delaunay_Voronoi::make_final_triangle()
 {
     all_leaf_triangles.clear();
-    new_triangle_allocator.get_all_leaf_triangle(all_leaf_triangles);
+    triangle_allocator.get_all_leaf_triangle(all_leaf_triangles);
 }
 
 
@@ -1512,9 +1471,7 @@ void delete_redundent_points(double *&x, double *&y, int &num)
 Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
 {
     //Edge *new_edge = new Edge(head, tail);
-    //Edge *new_edge = edge_allocator.newElement(Edge(head, tail));
-    Edge *new_edge = new_edge_allocator.newElement(head, tail);
-    edge_pool.push_back(new_edge);
+    Edge *new_edge = edge_allocator.newElement(head, tail);
 
     return new_edge;
 }
@@ -1524,11 +1481,8 @@ Triangle *Delaunay_Voronoi::allocate_Triangle(Edge *edge1, Edge *edge2, Edge *ed
     //Triangle *new_triangle = new Triangle(edge1, edge2, edge3);
     
     //Triangle *new_triangle = new Triangle();
-    //Triangle *new_triangle = triangle_allocator.newElement(edge1, edge2, edge3);
-    //Triangle *new_triangle = triangle_allocator.newElement(Triangle());
-    Triangle *new_triangle = new_triangle_allocator.newElement();
+    Triangle *new_triangle = triangle_allocator.newElement();
     new_triangle->initialize_triangle_with_edges(edge1, edge2, edge3);
-    triangle_pool.push_back(new_triangle);
 
     return new_triangle;
 }
@@ -1814,43 +1768,6 @@ void Delaunay_Voronoi::set_polar_mode(bool mode)
 
 void Delaunay_Voronoi::make_bounding_triangle_pack()
 {
-    /*
-    if (polar_mode) {
-        for(unsigned i = 0; i < all_leaf_triangles_on_boundary.size(); i++) {
-            if(!all_leaf_triangles_on_boundary[i]->is_leaf)
-                continue;
-
-            Triangle_pack tp = pack_triangle(all_leaf_triangles_on_boundary[i]);
-
-            sort_points_in_triangle(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
-                add_to_bound_triangles(tp, PDLN_DOWN);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold))
-                add_to_bound_triangles(tp, PDLN_RIGHT);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold))
-                add_to_bound_triangles(tp, PDLN_UP);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold))
-                add_to_bound_triangles(tp, PDLN_LEFT);
-        }
-    } else {
-        for(unsigned i = 0; i < all_leaf_triangles_on_boundary.size(); i++) {
-            if(!all_leaf_triangles_on_boundary[i]->is_leaf)
-                continue;
-
-            Triangle_pack tp = pack_triangle(all_leaf_triangles_on_boundary[i]);
-
-            sort_points_in_triangle(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
-                bound_triangles[PDLN_DOWN].push_back(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold))
-                bound_triangles[PDLN_RIGHT].push_back(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold))
-                bound_triangles[PDLN_UP].push_back(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold))
-                bound_triangles[PDLN_LEFT].push_back(tp);
-        }
-    }
-    */
     if (polar_mode) {
         for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
             Triangle_pack tp = pack_triangle(all_leaf_triangles[i]);

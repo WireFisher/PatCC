@@ -16,7 +16,6 @@
 #include <list>
 #include <cmath>
 #include <iostream>
-#include "dependency/MemoryPool/C-98/MemoryPool.h"
 #include "common_utils.h"
 #include "memory_pool.h"
 #include "triangle.h"
@@ -45,16 +44,11 @@ class Delaunay_Voronoi
     private:
         /* Storage */
         vector<Triangle*> all_leaf_triangles;
-        vector<Triangle*> all_leaf_triangles_on_boundary;
-        vector<Triangle*> triangle_pool;
-        vector<Edge*>     edge_pool;
         Point*            all_points;
 
         /* Memory management */
-        //MemoryPool<Triangle, 0x10000*sizeof(Triangle), Edge*, Edge*, Edge*> triangle_allocator;
-        //MemoryPool<Edge, 0x10000*sizeof(Edge)> edge_allocator;
-        Triangle_pool new_triangle_allocator;
-        Edge_pool new_edge_allocator;
+        Triangle_pool triangle_allocator;
+        Edge_pool edge_allocator;
         Triangle** triangle_stack;
         unsigned   stack_size;
 
@@ -121,8 +115,8 @@ class Delaunay_Voronoi
             e->ref_count--;
             if(e->ref_count <= 0) {
                 if (e->twin_edge)
-                    e->twin_edge->twin_edge == NULL;
-                new_edge_allocator.deleteElement(e);
+                    e->twin_edge->twin_edge = NULL;
+                edge_allocator.deleteElement(e);
             }
         };
         void clean_triangle(Triangle*);
