@@ -583,10 +583,12 @@ TEST_F(FullProcess, ThreePolar) {
 };
 
 
+#define CHECK_PARALLEL_CONSISTENCY (true)
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 //"V3_Greenland_pole_x1_T_grid.nc", //md5sum wrong
 const char dim1_grid_name[][64] = {
     /*
+    */
     "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong | 15 pass 5 assert false|md5sum wrong: OK by 1e-10
     "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong |15 pass 5 assert false|md5sum wrong: OK by 1e-10
     "gx3v5_Present_DP_x3.nc", //x | md5sum wrong: OK
@@ -594,7 +596,6 @@ const char dim1_grid_name[][64] = {
     "licom_eq1x1_degree_Grid.nc", //x ok
     "licom_gr1x1_degree_Grid.nc", //x ok
     "LICOM_P5_Grid.nc",
-    */
     "ll1deg_grid.nc",
     "ll2.5deg_grid.nc",
     "R42_Gaussian_Grid.nc",
@@ -788,7 +789,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
         EXPECT_EQ(ret, 0);
         delete comp;
 
-        if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+        if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
             printf("spliting world: %s\n", dim1_grid_name[i]);
             MPI_Barrier(split_world);
             ON_CALL(*mock_process_thread_manager, get_mpi_comm())
