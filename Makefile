@@ -20,7 +20,8 @@ core_objs = ccpl_utils.o \
             component.o \
 			processing_unit_mgt.o \
 			delaunay_grid_decomposition_mgt.o \
-			delaunay_voronoi_2D.o
+			delaunay_voronoi_2D.o \
+			memory_pool.o
 
 test_objs = DelaunayVoronoi2D.o \
 			FullProcess.o \
