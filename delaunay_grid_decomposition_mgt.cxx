@@ -22,6 +22,7 @@
 #include "timer.h"
 
 #define PDLN_DEFAULT_EXPANGDING_RATIO (0.2)
+#define PDLN_DEFAULT_EXPANGDING_SCALE (2)
 #define PDLN_EXPECTED_EXPANDING_LOOP_TIMES (3)
 
 #define PDLN_SPOLAR_MAX_LAT (-19.47)
@@ -175,10 +176,10 @@ Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], 
 
     non_monotonic = kernel_boundry->min_lon > kernel_boundry->max_lon;
 
-    expanding_scale[0] = 2;
-    expanding_scale[1] = 2;
-    expanding_scale[2] = 2;
-    expanding_scale[3] = 2;
+    expanding_scale[0] = PDLN_DEFAULT_EXPANGDING_SCALE;
+    expanding_scale[1] = PDLN_DEFAULT_EXPANGDING_SCALE;
+    expanding_scale[2] = PDLN_DEFAULT_EXPANGDING_SCALE;
+    expanding_scale[3] = PDLN_DEFAULT_EXPANGDING_SCALE;
     num_neighbors_on_boundry[0] = 0;
     num_neighbors_on_boundry[1] = 0;
     num_neighbors_on_boundry[2] = 0;
@@ -1703,7 +1704,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
     for (int i = 0; i < 4; i++)
         if (tree_node->edge_expanding_count[i] > 2)
-            tree_node->num_neighbors_on_boundry[i+1] = tree_node->num_neighbors_on_boundry[(i+3)%4] = 1;
+            tree_node->num_neighbors_on_boundry[(i+1)%4] = tree_node->num_neighbors_on_boundry[(i+3)%4] = 1;
 
     int num_edge_to_expand = 0;
     for (int i = 0; i < 4; i++)
@@ -1748,6 +1749,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         tree_node->add_neighbors(leaf_nodes_found);
     }while(!tree_node->expanding_success(go_on));
 
+    //printf("expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
     return 0;
 }
 

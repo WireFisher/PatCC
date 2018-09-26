@@ -969,9 +969,8 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
 #ifdef DEBUG
     PDASSERT(triangle->is_leaf);
 #endif
-    if (triangle->remained_points_tail == -1) {
+    if (triangle->remained_points_tail == -1)
         return;
-    }
 
     triangle->is_leaf = false;
 
@@ -1001,8 +1000,7 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
     }
     else { // on the side
         Point *vi, *vj, *vk, *vl;
-        Edge *eij, *ejk, *eki;
-        Edge *eil, *elj, *eji;
+        Edge *eij;
         switch (dividing_point->position_to_triangle(triangle)) {
             case 1:
                 vi = triangle->v[0];
@@ -1023,24 +1021,17 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
                 eij = triangle->edge[2];
                 break;
             default:
-                //EXECUTION_REPORT(REPORT_ERROR, -1, false, "point, which should be found in triangle, is outside of triangle");
-                printf("pos: %d\n", dividing_point->position_to_triangle(triangle));
+                printf("point, which should be found in triangle, is outside of triangle\n");
                 PDASSERT(false);
                 break;
         }
-        //EXECUTION_REPORT(REPORT_ERROR, -1, dividing_point->position_to_edge(vi, vj) == 0, "point, which should be on the edge, is not on the edge");
         PDASSERT(dividing_point->position_to_edge(vi, vj) == 0);
-        if (eij->twin_edge != NULL)
-            PDASSERT(eij->twin_edge->triangle->is_leaf);
-        ejk = eij->next_edge_in_triangle;
-        eki = ejk->next_edge_in_triangle;
-        if (eij->twin_edge != NULL) { 
-            eji = eij->twin_edge;
-            eij->twin_edge->triangle->is_leaf = false;
-            eil = eji->next_edge_in_triangle;
-            elj = eil->next_edge_in_triangle;
-            vl = elj->head;
-        }
+        PDASSERT(eij->twin_edge == NULL || eij->twin_edge->triangle->is_leaf);
+
+        Edge* ejk = eij->next_edge_in_triangle;
+        Edge* eki = ejk->next_edge_in_triangle;
+        Edge *eil, *elj, *eji;
+
         Edge *eir = allocate_edge(vi, dividing_point);
         Edge *erk = allocate_edge(dividing_point, vk);
         Edge *ekr = generate_twins_edge(erk);
@@ -1053,6 +1044,11 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
         legalize_triangles(dividing_point, ejk, stack_base, &stack_top);
         legalize_triangles(dividing_point, eki, stack_base, &stack_top); 
         if (eij->twin_edge != NULL) {
+            eji = eij->twin_edge;
+            eij->twin_edge->triangle->is_leaf = false;
+            eil = eji->next_edge_in_triangle;
+            elj = eil->next_edge_in_triangle;
+            vl = elj->head;
             Edge *eri = generate_twins_edge(eir);
             Edge *ejr = generate_twins_edge(erj);
             Edge *erl = allocate_edge(dividing_point, vl);
@@ -1064,9 +1060,6 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
             push(&stack_top, tjrl);
             legalize_triangles(dividing_point, eil, stack_base, &stack_top);
             legalize_triangles(dividing_point, elj, stack_base, &stack_top);
-        }
-        else {
-            //eir->twin_edge = NULL;
         }
     }
 
@@ -1089,9 +1082,8 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
 
     //printf("base: %d, top: %d\n", stack_base, stack_top);
     for (unsigned i = stack_base+1; i <= stack_top; i ++)
-        if(triangle_stack[i] && triangle_stack[i]->is_leaf) {
+        if(triangle_stack[i] && triangle_stack[i]->is_leaf)
             triangulating_process(triangle_stack[i], stack_top);
-        }
 
     Triangle* killed;
     for (unsigned i = stack_base+1; i <= stack_top; i ++) {
