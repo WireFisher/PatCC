@@ -21,7 +21,7 @@
 #include "opencv_utils.h"
 #include "timer.h"
 
-#define PDLN_DEFAULT_EXPANGDING_RATIO (0.7)
+#define PDLN_DEFAULT_EXPANGDING_RATIO (0.2)
 #define PDLN_DEFAULT_EXPANGDING_SCALE (2)
 #define PDLN_EXPECTED_EXPANDING_LOOP_TIMES (3)
 
@@ -2200,7 +2200,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 #endif
 
         gettimeofday(&start, NULL);
-        #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
 #ifdef DEBUG
