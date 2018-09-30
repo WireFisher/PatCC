@@ -1059,7 +1059,9 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     PDASSERT(node->ids_size() > 0);
     if(node->ids_size() == 1) {
         if(node->num_kernel_points > 0 && have_local_region_ids(node->ids_start, node->ids_end))
+            #pragma omp critical
             local_leaf_nodes.push_back(node);
+        #pragma omp critical
         all_leaf_nodes.push_back(node);
         return;
     }
@@ -1094,10 +1096,14 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     //MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
     //printf("[Rank%d]x[ST-INFO-PRE] p: %p, first: %p, third: %p\n", rank, node, node->children[0], node->children[2]);
 
-    if(!lazy_mode || have_local_region_ids(node->children[0]->ids_start, node->children[0]->ids_end))
+    if(!lazy_mode || have_local_region_ids(node->children[0]->ids_start, node->children[0]->ids_end)) {
+        #pragma omp task
         decompose_common_node_recursively(node->children[0], lazy_mode);
-    if(!lazy_mode || have_local_region_ids(node->children[2]->ids_start, node->children[2]->ids_end))
+    }
+    if(!lazy_mode || have_local_region_ids(node->children[2]->ids_start, node->children[2]->ids_end)) {
+        #pragma omp task
         decompose_common_node_recursively(node->children[2], lazy_mode);
+    }
 }
 
 
@@ -1107,6 +1113,7 @@ Search_tree_node* Delaunay_grid_decomposition::alloc_search_tree_node(Search_tre
     PDASSERT(ids_end - ids_start > 0);
     Search_tree_node *new_node = new Search_tree_node(parent, coord_values, index, num_points, boundary, type);
 
+    #pragma omp critical
     update_workloads(num_points, ids_start, ids_end);
 
     new_node->update_region_ids(ids_start, ids_end);
@@ -1573,7 +1580,13 @@ int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
     PDASSERT(cur_group+1 <= num_computing_nodes);
 
     current_tree_node->set_groups(all_group_intervals, cur_group+1);
-    decompose_common_node_recursively(current_tree_node, lazy_mode);
+#pragma omp parallel
+{
+    #pragma omp single
+    {
+        decompose_common_node_recursively(current_tree_node, lazy_mode);
+    }
+}
     return 0;
 }
 
