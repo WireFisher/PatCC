@@ -835,24 +835,30 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 #endif
 
 
-const int scvt_grid_size[] = {
-                               500000,
+const int autogen_grid_size[] = {
+                               //500000,
                                //5000000,
                                //50000000,
+                               //100000,
+                               //100000,
+                               //100000,
                              };
-const char scvt_grid_name[][64] = { 
-                                    "500000.dat", 
-                                    //"5000000.dat",
-                                    //"50000000.dat",
+const char autogen_grid_name[][64] = { 
+                                    //"scvtgen_500000.dat", 
+                                    //"scvtgen_5000000.dat",
+                                    //"scvtgen_50000000.dat",
+                                    //"lonlat_random_global_100000.dat",
+                                    //"lonlat_random_regional_100000.dat",
+                                    //"lonlat_uniform_global_100000.dat",
                                   };
-const char scvt_grid_path[] = "gridfile/scvt_grid/%s";
-void prepare_scvt_grid(const char grid_name[], int grid_size)
+const char autogen_grid_path[] = "gridfile/performence_evaluation/%s";
+void prepare_autogen_grid(const char grid_name[], int grid_size)
 {
     char fullname[128];
     int squeeze_ratio = 0;
 
     if (mpi_rank == 0) {
-        snprintf(fullname, 128, scvt_grid_path, grid_name);
+        snprintf(fullname, 128, autogen_grid_path, grid_name);
         FILE *fp = fopen(fullname, "r");
         if(!fp) {
             fprintf(stderr, "can not find grid file\n");
@@ -924,7 +930,7 @@ void prepare_scvt_grid(const char grid_name[], int grid_size)
 };
 
 
-TEST_F(FullProcess, SCVTPoints) {
+TEST_F(FullProcess, Performance) {
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -934,9 +940,9 @@ TEST_F(FullProcess, SCVTPoints) {
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
 
-    for(unsigned i = 0; i < sizeof(scvt_grid_name)/64; i++) {
-        printf("processing: %s\n", scvt_grid_name[i]);
-        prepare_scvt_grid(scvt_grid_name[i], scvt_grid_size[i]);
+    for(unsigned i = 0; i < sizeof(autogen_grid_name)/64; i++) {
+        printf("processing: %s\n", autogen_grid_name[i]);
+        prepare_autogen_grid(autogen_grid_name[i], autogen_grid_size[i]);
 
         ON_CALL(*mock_process_thread_manager, get_mpi_comm())
             .WillByDefault(Return(comm));

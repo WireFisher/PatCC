@@ -8,3 +8,5 @@ log/*
 tmp*
 backup/*
 .DS_Store
+*.dat
+*.nc
