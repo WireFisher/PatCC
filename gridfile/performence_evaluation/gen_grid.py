@@ -51,11 +51,11 @@ min_lat = -90
 max_lat = 90
 
 fp = open("lonlat_global_uniform.txt", "w")
-edge_points = sqrt(num_points)
+edge_points = int(sqrt(num_points))
 for i in xrange(edge_points):
     for j in xrange(edge_points):
-    lon = min_lon + (max_lon - min_lon) * i / edge_points
-    lat = min_lat + (max_lat - min_lat) * i / (edge_points-1)
-    x, y, z = lonlat2xyz(lon, lat)
-    fp.write("%.10lf, %.10lf, %.10lf\n" % (x, y, z))
+        lon = min_lon + (max_lon - min_lon) * i / edge_points
+        lat = min_lat + (max_lat - min_lat) * i / (edge_points-1)
+        x, y, z = lonlat2xyz(lon, lat)
+        fp.write("%.10lf, %.10lf, %.10lf\n" % (x, y, z))
 fp.close()
