@@ -204,8 +204,8 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     MPI_Barrier(proc_resource->get_mpi_comm());
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-    printf("[ - ] Procs Resource MGR: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_usec - start.tv_usec));
-    time_proc_mgt = (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_usec - start.tv_usec);
+    printf("[ - ] Procs Resource MGR: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    time_proc_mgt = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
 
     //proc_resource->print_all_nodes_info();
