@@ -533,8 +533,8 @@ void Delaunay_Voronoi::relegalize_triangles(Point *vr, Edge *edge)
     Edge *ekr = generate_twins_edge(erk);
 
     bool force = edge->triangle->is_cyclic ? true : false;
-    triangle_origin->initialize_triangle_with_edges(eik, ekr, eri, force);
-    triangle_twin->initialize_triangle_with_edges(ejr, erk, ekj, force);
+    initialize_triangle_with_edges(triangle_origin, eik, ekr, eri, force);
+    initialize_triangle_with_edges(triangle_twin, ejr, erk, ekj, force);
     if(force)
         triangle_origin->is_cyclic = triangle_twin->is_cyclic = true;
 
@@ -547,18 +547,6 @@ Triangle::Triangle()
     edge[0] = NULL;
     edge[1] = NULL;
     edge[2] = NULL;
-}
-
-
-Triangle::Triangle(Point *p1, Point *p2, Point *p3)
-{
-    initialize_triangle_with_edges(new Edge(p1, p2), new Edge(p2, p3), new Edge(p3, p1));
-}
-
-
-Triangle::Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
-{
-    initialize_triangle_with_edges(edge1, edge2, edge3);
 }
 
 
@@ -593,20 +581,20 @@ void Triangle::calulate_circum_circle()
 }
 
 
-void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *edge3, bool force)
+void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, Edge *edge2, Edge *edge3, bool force)
 {
     if(force) {
-        v[0] = edge1->head;
-        v[1] = edge2->head;
-        v[2] = edge3->head;
-        edge[0] = edge1;
-        edge[1] = edge2;
-        edge[2] = edge3;
+        t->v[0] = edge1->head;
+        t->v[1] = edge2->head;
+        t->v[2] = edge3->head;
+        t->edge[0] = edge1;
+        t->edge[1] = edge2;
+        t->edge[2] = edge3;
     } else {
         Point *pt1, *pt2, *pt3;
 
-        is_leaf = true;
-        is_cyclic = false;
+        t->is_leaf = true;
+        t->is_cyclic = false;
         
         pt1 = edge1->head;
         pt2 = edge2->head;
@@ -632,46 +620,48 @@ void Triangle::initialize_triangle_with_edges(Edge *edge1, Edge *edge2, Edge *ed
 #endif
         PDASSERT(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
            
-        v[0] = pt1;
+        t->v[0] = pt1;
         if (pt1->position_to_edge(pt2, pt3) == 1) {
-            v[1] = pt2;
-            v[2] = pt3;
-            this->edge[0] = edge1;
-            this->edge[1] = edge2;
-            this->edge[2] = edge3;
+            t->v[1] = pt2;
+            t->v[2] = pt3;
+            t->edge[0] = edge1;
+            t->edge[1] = edge2;
+            t->edge[2] = edge3;
         }
         else {
-            //int rank;
-            //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-            //printf("[%d] PDASSERT false\n", rank);
             PDASSERT(false);
-            v[1] = pt3;
-            v[2] = pt2;
-            this->edge[0] = edge3->twin_edge;
-            this->edge[1] = edge2->twin_edge;
-            this->edge[2] = edge1->twin_edge;
-            //EXECUTION_REPORT(REPORT_ERROR, -1, edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL, "remap software error3 in new Triangle");
-            PDASSERT(edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL);
+            t->v[1] = pt3;
+            t->v[2] = pt2;
+            if (edge1->twin_edge == NULL)
+                edge1->twin_edge = generate_twins_edge(edge1);
+            if (edge2->twin_edge == NULL)
+                edge2->twin_edge = generate_twins_edge(edge2);
+            if (edge3->twin_edge == NULL)
+                edge3->twin_edge = generate_twins_edge(edge3);
+            t->edge[0] = edge3->twin_edge;
+            t->edge[1] = edge2->twin_edge;
+            t->edge[2] = edge1->twin_edge;
+            assert(edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL);
         }
     }
-    remained_points_head = -1;
-    remained_points_tail = -1;
+    t->remained_points_head = -1;
+    t->remained_points_tail = -1;
     
-    this->edge[0]->next_edge_in_triangle = this->edge[1];
-    this->edge[1]->next_edge_in_triangle = this->edge[2];
-    this->edge[2]->next_edge_in_triangle = this->edge[0];
-    this->edge[0]->prev_edge_in_triangle = this->edge[2];
-    this->edge[1]->prev_edge_in_triangle = this->edge[0];
-    this->edge[2]->prev_edge_in_triangle = this->edge[1];
+    t->edge[0]->next_edge_in_triangle = t->edge[1];
+    t->edge[1]->next_edge_in_triangle = t->edge[2];
+    t->edge[2]->next_edge_in_triangle = t->edge[0];
+    t->edge[0]->prev_edge_in_triangle = t->edge[2];
+    t->edge[1]->prev_edge_in_triangle = t->edge[0];
+    t->edge[2]->prev_edge_in_triangle = t->edge[1];
 
-    this->edge[0]->triangle = this;
-    this->edge[1]->triangle = this;
-    this->edge[2]->triangle = this;
+    t->edge[0]->triangle = t;
+    t->edge[1]->triangle = t;
+    t->edge[2]->triangle = t;
 
-    this->edge[0]->ref_inc();
-    this->edge[1]->ref_inc();
-    this->edge[2]->ref_inc();
-    calulate_circum_circle();
+    t->edge[0]->ref_inc();
+    t->edge[1]->ref_inc();
+    t->edge[2]->ref_inc();
+    t->calulate_circum_circle();
 }
 
 
@@ -1460,7 +1450,7 @@ void delete_redundent_points(double *&x, double *&y, int &num)
     return;
 }
 
-Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
+Edge* Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
 {
     //Edge *new_edge = new Edge(head, tail);
     Edge *new_edge = edge_allocator.newElement(head, tail);
@@ -1468,13 +1458,13 @@ Edge *Delaunay_Voronoi::allocate_edge(Point *head, Point *tail)
     return new_edge;
 }
 
-Triangle *Delaunay_Voronoi::allocate_Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
+Triangle* Delaunay_Voronoi::allocate_Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
 {
     //Triangle *new_triangle = new Triangle(edge1, edge2, edge3);
     
     //Triangle *new_triangle = new Triangle();
     Triangle *new_triangle = triangle_allocator.newElement();
-    new_triangle->initialize_triangle_with_edges(edge1, edge2, edge3);
+    initialize_triangle_with_edges(new_triangle, edge1, edge2, edge3);
 
     return new_triangle;
 }

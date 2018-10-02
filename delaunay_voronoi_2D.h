@@ -107,8 +107,9 @@ class Delaunay_Voronoi
 
         void legalize_triangles(Point *pt, Edge *edge, unsigned, unsigned*);
 
-        Edge *allocate_edge(Point *head, Point *tail);
-        Triangle *allocate_Triangle(Edge*, Edge*, Edge*);
+        Edge* allocate_edge(Point *head, Point *tail);
+        Triangle* allocate_Triangle(Edge*, Edge*, Edge*);
+        void initialize_triangle_with_edges(Triangle*, Edge*, Edge*, Edge*, bool force=false);
 
         inline void ref_inc(Edge* e) {e->ref_count++;};
         inline void ref_dec(Edge* e) {

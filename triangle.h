@@ -73,12 +73,8 @@ class Triangle
         int  circum_circle_contains(Point*, double tolerance=PDLN_FLOAT_EQ_ERROR);
         bool really_on_circum_circle(Point *, double);
 
-        void initialize_triangle_with_edges(Edge*, Edge*, Edge*, bool force=false);
-
     public:
         Triangle();
-        Triangle(Point*, Point*, Point*);
-        Triangle(Edge*, Edge*, Edge*);
         ~Triangle();
         double area();
         void get_center_coordinates();
