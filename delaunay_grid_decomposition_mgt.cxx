@@ -20,6 +20,7 @@
 #include "netcdf_utils.h"
 #include "opencv_utils.h"
 #include "timer.h"
+#include <omp.h>
 
 #define PDLN_DEFAULT_EXPANGDING_RATIO (0.2)
 #define PDLN_DEFAULT_EXPANGDING_SCALE (2)
@@ -862,8 +863,17 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], Bo
     if(is_cyclic && float_eq(boundry->max_lat, 90) && float_eq(boundry->min_lat, -90)) {
         double* tmp1 = new double[num_points];
         double* tmp2 = new double[num_points];
-        memcpy(tmp1, coord_values[PDLN_LON], num_points*sizeof(double));
-        memcpy(tmp2, coord_values[PDLN_LAT], num_points*sizeof(double));
+
+        int total_threads = omp_get_max_threads();
+        #pragma omp parallel for
+        for (int k = 0; k < total_threads; k++) {
+            int local_start = k * (num_points / total_threads);
+            int local_num   = k==total_threads-1 ? num_points/total_threads+num_points%total_threads : num_points / total_threads;
+
+            memcpy(&tmp1[local_start], &coord_values[PDLN_LON][local_start], local_num*sizeof(double));
+            memcpy(&tmp2[local_start], &coord_values[PDLN_LAT][local_start], local_num*sizeof(double));
+        }
+
         coord_values[PDLN_LON] = tmp1;
         coord_values[PDLN_LAT] = tmp2;
         return 0;
