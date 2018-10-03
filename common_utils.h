@@ -1,6 +1,7 @@
 #ifndef PD_ASSERT_H
 #define PD_ASSERT_H
 
+#include <mpi.h>
 #include <cassert>
 
 #ifdef DEBUG
@@ -21,5 +22,19 @@
 #define float_eq(a, b)     (fabs(a - b) <= PDLN_FLOAT_EQ_ERROR)
 #define float_eq_low(a, b) (fabs(a - b) <= PDLN_FLOAT_EQ_ERROR_LOW)
 #define float_eq_hi(a, b)  (fabs(a - b) <= PDLN_FLOAT_EQ_ERROR_HI)
+
+class PDLN_Timer
+{
+    public:
+        double time;
+
+        PDLN_Timer() : time(0){};
+        double tick() {
+            double t = MPI_Wtime();
+            double result = t - time;
+            time = t;
+            return result;
+        }
+};
 
 #endif
