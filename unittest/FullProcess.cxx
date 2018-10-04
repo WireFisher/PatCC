@@ -836,12 +836,6 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
 
 const int autogen_grid_size[] = {
-                               //500000,
-                               //5000000,
-                               //50000000,
-                               //100000,
-                               //1000000,
-                               10000000,
                                //100000,
                                //1000000,
                                //10000000,
@@ -849,16 +843,22 @@ const int autogen_grid_size[] = {
                                //1000000,
                                //10000000,
                                //100000,
+                               //1000000,
+                               //10000000,
+                               //100000,
+                               //1000000,
+                               //10000000,
+                               //99540,
+                               //1000000,
+                               //10000000,
+                               99540,
                                //1000000,
                                //10000000,
                              };
 const char autogen_grid_name[][64] = { 
-                                    //"scvtgen_500000.dat", 
-                                    //"scvtgen_5000000.dat",
-                                    //"scvtgen_50000000.dat",
                                     //"lonlat_random_global_100000.dat",
                                     //"lonlat_random_global_1000000.dat",
-                                    "lonlat_random_global_10000000.dat",
+                                    //"lonlat_random_global_10000000.dat",
                                     //"lonlat_random_regional_100000.dat",
                                     //"lonlat_random_regional_1000000.dat",
                                     //"lonlat_random_regional_10000000.dat",
@@ -868,6 +868,12 @@ const char autogen_grid_name[][64] = {
                                     //"MonteCarlo_100000.dat",
                                     //"MonteCarlo_1000000.dat",
                                     //"MonteCarlo_10000000.dat",
+                                    "lonlat_uniform_global_100000.dat",
+                                    //"lonlat_uniform_global_1000000.dat",
+                                    //"lonlat_uniform_global_1000000.dat",
+                                    //"lonlat_non-uniform_global_100000.dat",
+                                    //"lonlat_non-uniform_global_1000000.dat",
+                                    //"lonlat_non-uniform_global_10000000.dat",
                                   };
 const char autogen_grid_path[] = "gridfile/performence_evaluation/%s";
 void prepare_autogen_grid(const char grid_name[], int grid_size)
@@ -882,33 +888,41 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
             fprintf(stderr, "can not find grid file\n");
             return;
         }
-        double *x = new double[grid_size];
-        double *y = new double[grid_size];
-        double *z = new double[grid_size];
-        for(int i = 0; i < grid_size; i++)
-            fscanf(fp, "%lf %lf %lf\n", &x[i], &y[i], &z[i]);
-        fclose(fp);
 
         coord_values[PDLN_LON] = new double[grid_size];
         coord_values[PDLN_LAT] = new double[grid_size];
-        for(int i = 0; i < grid_size; i++) {
-            coord_values[PDLN_LON][i] = atan2(y[i], x[i]);
-            coord_values[PDLN_LAT][i] = asin(z[i]);
+
+        if (strstr(grid_name, "lonlat_uniform_global") ||
+            strstr(grid_name, "lonlat_non-uniform_global")) {
+            for(int i = 0; i < grid_size; i++)
+                fscanf(fp, "%lf %lf\n", &coord_values[PDLN_LON][i], &coord_values[PDLN_LAT][i]);
+        } else {
+            double *x = new double[grid_size];
+            double *y = new double[grid_size];
+            double *z = new double[grid_size];
+            for(int i = 0; i < grid_size; i++)
+                fscanf(fp, "%lf %lf %lf\n", &x[i], &y[i], &z[i]);
+
+            for(int i = 0; i < grid_size; i++) {
+                coord_values[PDLN_LON][i] = atan2(y[i], x[i]);
+                coord_values[PDLN_LAT][i] = asin(z[i]);
+            }
+            delete[] x;
+            delete[] y;
+            delete[] z;
+
+            for(int i = 0; i < num_points; i ++) {
+                coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
+                coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
+                while(coord_values[PDLN_LON][i] >= 360)
+                    coord_values[PDLN_LON][i] -= 360;
+                while(coord_values[PDLN_LON][i] < 0)
+                    coord_values[PDLN_LON][i] += 360;
+            }
         }
-        delete[] x;
-        delete[] y;
-        delete[] z;
+        fclose(fp);
 
         num_points = grid_size;
-
-        for(int i = 0; i < num_points; i ++) {
-            coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
-            coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
-            while(coord_values[PDLN_LON][i] >= 360)
-                coord_values[PDLN_LON][i] -= 360;
-            while(coord_values[PDLN_LON][i] < 0)
-                coord_values[PDLN_LON][i] += 360;
-        }
      
         if(squeeze_ratio > 0) {
             for(int i = 0; i < num_points/squeeze_ratio; i++) {
