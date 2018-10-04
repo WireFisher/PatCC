@@ -851,9 +851,8 @@ const int autogen_grid_size[] = {
                                //99540,
                                //999000,
                                //9995082,
-                               98910,
-                               //997002,
-                               //9988760,
+                               99225,
+                               //998001,
                              };
 const char autogen_grid_name[][64] = { 
                                     //"lonlat_random_global_100000.dat",
@@ -873,7 +872,6 @@ const char autogen_grid_name[][64] = {
                                     //"lonlat_uniform_global_1000000.dat",
                                     "lonlat_non-uniform_global_100000.dat",
                                     //"lonlat_non-uniform_global_1000000.dat",
-                                    //"lonlat_non-uniform_global_10000000.dat",
                                   };
 const char autogen_grid_path[] = "gridfile/performence_evaluation/%s";
 void prepare_autogen_grid(const char grid_name[], int grid_size)

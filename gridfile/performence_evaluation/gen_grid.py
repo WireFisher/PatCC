@@ -78,23 +78,6 @@ for i in xrange(edge_points):
         fp.write("%.10lf %.10lf\n" % (lon, lat))
 fp.close()
 
-# non-uniform lat-lon global grid
-#min_lon = 0
-#max_lon = 360
-#min_lat = -90
-#max_lat = 90
-#
-#fp = open("lonlat_non-uniform_global_%d.dat" % num_points, "w")
-#edge_points = int(math.sqrt(num_points))
-#a_lon = 360.0 / edge_points / edge_points;
-#a_lat = 180.0 / edge_points / edge_points;
-#for i in xrange(edge_points):
-#    for j in xrange(1, edge_points):
-#        lon = a_lon * i * i
-#        lat = a_lat * j * j - 90
-#        #x, y, z = lonlat2xyz(math.radians(lon), math.radians(lat))
-#        fp.write("%.10lf %.10lf\n" % (lon, lat))
-#fp.close()
 
 # non-uniform lat-lon global grid
 min_lon = 0
@@ -103,14 +86,15 @@ min_lat = -90
 max_lat = 90
 
 fp = open("lonlat_non-uniform_global_%d.dat" % num_points, "w")
-ratio = 0.994
+delta_lon = 360.0 / (num_points+1)
+delta_lat = 180.0 / (num_points+1)
 edge_points = int(math.sqrt(num_points))
-h_lon = 360.0 * (ratio - 1)/(ratio**(edge_points-1) - 1);
-h_lat = 180.0 * (ratio - 1)/(ratio**(edge_points-1) - 1);
+h_lon = 360.0 / edge_points + delta_lon * (edge_points-1) / 2
+h_lat = 180.0 / edge_points + delta_lat * (edge_points-1) / 2
 for i in xrange(1, edge_points):
-    for j in xrange(2, edge_points):
-        lon = h_lon * (ratio**(i-1)-1) / (ratio-1)
-        lat = h_lat * (ratio**(j-1)-1) / (ratio-1) - 90
+    for j in xrange(1, edge_points):
+        lon = h_lon * i - i*(i-1)*delta_lon/2
+        lat = h_lat * j - j*(j-1)*delta_lat/2 - 90
         #x, y, z = lonlat2xyz(math.radians(lon), math.radians(lat))
         fp.write("%.10lf %.10lf\n" % (lon, lat))
 fp.close()
