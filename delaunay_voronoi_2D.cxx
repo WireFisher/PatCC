@@ -302,6 +302,15 @@ const Point *Delaunay_Voronoi::get_lowest_point_of_four(const Point *p1, const P
         if(x_ref[p2->id] < x_ref[p->id] || (x_ref[p2->id] == x_ref[p->id] && y_ref[p2->id] < y_ref[p->id])) p = p2;
         if(x_ref[p3->id] < x_ref[p->id] || (x_ref[p3->id] == x_ref[p->id] && y_ref[p3->id] < y_ref[p->id])) p = p3;
         if(x_ref[p4->id] < x_ref[p->id] || (x_ref[p4->id] == x_ref[p->id] && y_ref[p4->id] < y_ref[p->id])) p = p4;
+        //if ((x_ref[p1->id] > 345 || x_ref[p1->id] < 0.5) && y_ref[p1->id] > 77.6 && y_ref[p1->id] < 78.2 &&
+        //    (x_ref[p2->id] > 345 || x_ref[p2->id] < 0.5) && y_ref[p2->id] > 77.6 && y_ref[p2->id] < 78.2 &&
+        //    (x_ref[p3->id] > 345 || x_ref[p3->id] < 0.5) && y_ref[p3->id] > 77.6 && y_ref[p3->id] < 78.2 &&
+        //    (x_ref[p4->id] > 345 || x_ref[p4->id] < 0.5) && y_ref[p4->id] > 77.6 && y_ref[p4->id] < 78.2)
+        //    printf("lowest: %p, [%lf, %lf] in [%.15lf, %.15lf] [%.15lf, %.15lf] [%.15lf, %.15lf] [%.15lf, %.15lf]\n", p, x_ref[p->id], y_ref[p->id],
+        //                                                                                         x_ref[p1->id], y_ref[p1->id],
+        //                                                                                         x_ref[p2->id], y_ref[p2->id],
+        //                                                                                         x_ref[p3->id], y_ref[p3->id],
+        //                                                                                         x_ref[p4->id], y_ref[p4->id]);
     }
     return p;
 }
@@ -406,7 +415,7 @@ bool Delaunay_Voronoi::is_angle_too_large(const Point *pt, const Edge *edge)
     }
 }
 
-bool Delaunay_Voronoi::is_triangle_ambiguous(const Point *pt, const Edge *edge)
+bool Delaunay_Voronoi::is_triangle_ambiguous(Point *pt, Edge *edge)
 {
     if (!edge->twin_edge) {
         return false;
@@ -420,7 +429,42 @@ bool Delaunay_Voronoi::is_triangle_ambiguous(const Point *pt, const Edge *edge)
         return false;
     }
 
-    int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head);
+    Point* p[4];
+    bool modified[4] = {0};
+    p[0] = pt;
+    p[1] = edge->head;
+    p[2] = edge->tail;
+    p[3] = edge->twin_edge->prev_edge_in_triangle->head;
+
+    PDASSERT(!modified[0] && !modified[1] && !modified[2] && !modified[3]);
+    //if ((x_ref[p[0]->id] > 358.0 || x_ref[p[0]->id] < 0.5) && y_ref[p[0]->id] > 77.0 && y_ref[p[0]->id] < 78.1 &&
+    //    (x_ref[p[1]->id] > 358.0 || x_ref[p[1]->id] < 0.5) && y_ref[p[1]->id] > 77.0 && y_ref[p[1]->id] < 78.1 &&
+    //    (x_ref[p[2]->id] > 358.0 || x_ref[p[2]->id] < 0.5) && y_ref[p[2]->id] > 77.0 && y_ref[p[2]->id] < 78.1 &&
+    //    (x_ref[p[3]->id] > 358.0 || x_ref[p[3]->id] < 0.5) && y_ref[p[3]->id] > 77.0 && y_ref[p[3]->id] < 78.1) {
+    //    printf("lowest: [%.15lf, %.15lf] [%.15lf, %.15lf] [%.15lf, %.15lf] [%.15lf, %.15lf]\n",// p, x_ref[p->id], y_ref[p->id],
+    //                                                                                         x_ref[p[0]->id], y_ref[p[0]->id],
+    //                                                                                         x_ref[p[1]->id], y_ref[p[1]->id],
+    //                                                                                         x_ref[p[2]->id], y_ref[p[2]->id],
+    //                                                                                         x_ref[p[3]->id], y_ref[p[3]->id]);
+    //    printf("%d, %d\n", edge->triangle->is_leaf, edge->twin_edge->triangle->is_leaf);
+    //    int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head, tolerance);
+    //    printf("ret: %d\n", ret);
+    //}
+
+    int ret;
+    if (edge->triangle->is_cyclic && edge->twin_edge->triangle->is_cyclic) {
+        for (int i = 0; i < 4; i++)
+            if (p[i]->x > 180) {
+                p[i]->x -= 360;
+                modified[i] = true;
+            }
+        ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head, tolerance);
+        for (int i = 0; i < 4; i++)
+            if (modified[i])
+                p[i]->x += 360;
+    }
+    else
+        ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head, tolerance);
     if (ret == 0) {
         return is_angle_ambiguous(pt, edge);
     }
@@ -675,6 +719,10 @@ int Triangle::circum_circle_contains(Point *p, double tolerance)
 {
     calulate_circum_circle();
     double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
+    //if (std::fabs(dist2 - circum_radius*circum_radius) < tolerance)
+    //    printf("first in\n");
+    //else
+    //    printf("first out, %.15lf, %.15lf\n", dist2, circum_radius*circum_radius);
     if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance &&
        really_on_circum_circle(p, tolerance))
         return 0;
@@ -1247,7 +1295,7 @@ Delaunay_Voronoi::Delaunay_Voronoi()
     : triangle_stack(NULL)
     , stack_size(0)
     , polar_mode(false)
-    , tolerance(PDLN_FLOAT_EQ_ERROR)
+    , tolerance(PDLN_FLOAT_EQ_ERROR_LOW)
     , num_points(0)
     , vpolar_local_index(-1)
     , x_ref(NULL)

@@ -97,7 +97,7 @@ class Delaunay_Voronoi
 
         bool is_triangle_legal(const Point *pt, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
-        bool is_triangle_ambiguous(const Point *pt, const Edge *edge);
+        bool is_triangle_ambiguous(Point *pt, Edge *edge);
         void relegalize_triangles(Point*, Edge*);
         void remove_leaf_triangle(Triangle*);
         void update_virtual_polar_info();
