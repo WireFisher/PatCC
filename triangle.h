@@ -1,10 +1,10 @@
 #ifndef PDLN_TRIANGLE_H
 #define PDLN_TRIANGLE_H
 
+#include "common_utils.h"
 #ifdef OPENCV
 #include "opencv2/opencv.hpp"
 #endif
-#include "common_utils.h"
 
 
 class Triangle;
