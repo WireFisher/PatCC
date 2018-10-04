@@ -903,7 +903,7 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
             delete[] y;
             delete[] z;
 
-            for(int i = 0; i < num_points; i ++) {
+            for(int i = 0; i < grid_size; i ++) {
                 coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
                 coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
                 while(coord_values[PDLN_LON][i] >= 360)
