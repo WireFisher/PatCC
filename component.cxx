@@ -209,7 +209,7 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
 #ifdef TIME_PERF
     printf("[ - ] Procs Resource MGR: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     //printf("[ - ] Procs Resource MGR: %lf s\n", time);
-    time_proc_mgt = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+    time_proc_mgt += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
 
     //proc_resource->print_all_nodes_info();

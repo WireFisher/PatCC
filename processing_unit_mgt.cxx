@@ -16,6 +16,9 @@
 #include <sched.h>
 #include <sys/syscall.h>
 #include <sys/sysinfo.h>
+#include <sys/time.h>
+
+#include "timer.h"
 
 #define MAX_HOSTNAME_LEN 32
 typedef std::map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
@@ -85,7 +88,12 @@ Processing_resource::Processing_resource() {
     delete[] num_threads_per_process;
     delete[] hostname_checksum_per_process;
 
+    timeval start, end;
+    gettimeofday(&start, NULL);
     set_cpu_affinity();
+    gettimeofday(&end, NULL);
+    printf("[ - ] set_cpu_affinity: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    time_proc_mgt -= (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 }
 
 
