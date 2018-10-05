@@ -13,6 +13,10 @@
 #include <omp.h>
 #include "common_utils.h"
 
+#include <sched.h>
+#include <sys/syscall.h>
+#include <sys/sysinfo.h>
+
 #define MAX_HOSTNAME_LEN 32
 typedef std::map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;
 
@@ -80,6 +84,8 @@ Processing_resource::Processing_resource() {
 
     delete[] num_threads_per_process;
     delete[] hostname_checksum_per_process;
+
+    set_cpu_affinity();
 }
 
 
@@ -93,6 +99,28 @@ Processing_resource::~Processing_resource() {
     delete[] processing_units;
 }
 
+
+void Processing_resource::set_cpu_affinity()
+{
+    #pragma omp parallel
+    {
+        cpu_set_t mask;
+
+        int omp_rank = omp_get_thread_num();
+        PDASSERT(omp_rank < get_num_local_proc_processing_units());
+
+        int total_cores = get_nprocs();
+
+        CPU_ZERO(&mask);
+        CPU_SET(get_local_proc_common_id()[omp_rank]%total_cores, &mask);
+
+        pid_t tid = syscall(__NR_gettid);
+        if (sched_setaffinity(tid, sizeof(cpu_set_t), &mask) == -1)
+            perror("Error: sched_setaffinity");
+
+        //fprintf(stderr, "Processing Unit %d on CPU %d\n", get_local_proc_common_id()[omp_rank], sched_getcpu());
+    }
+}
 
 int Processing_resource::identify_processing_units_by_hostname() {
 

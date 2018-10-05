@@ -63,6 +63,7 @@ private:
     vector<Thread_comm_packet> local_thread_comm;
     
     int identify_processing_units_by_hostname();
+    void set_cpu_affinity();
 
 public:
     Processing_resource();
