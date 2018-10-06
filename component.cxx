@@ -55,8 +55,8 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         MPI_Barrier(proc_resource->get_mpi_comm());
         gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-        printf("[ - ] Grid Decomposition: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-        time_decomose = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+        printf("[ - ] Grid Decomposition: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+        time_decomose = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
         //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
 
@@ -68,7 +68,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
         ret = all_ret;
 #ifdef TIME_PERF
-        printf("[ - ] All Trianglulation: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
+        printf("[ - ] All Trianglulation: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
 #endif
         /* Return Values: 0 - success
          *                1 - fail, normal decomp's expanded_boundry exceeded too large (expanding fail)
@@ -219,8 +219,8 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     MPI_Barrier(proc_resource->get_mpi_comm());
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-    printf("[ - ] Grid Pre-treatment: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-    time_pretreat += ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+    printf("[ - ] Gri Pre-treatment: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
 
     gettimeofday(&start, NULL);
@@ -233,8 +233,8 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     MPI_Barrier(proc_resource->get_mpi_comm());
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-    printf("[ - ] Total Time Elapsed: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-    time_total = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+    printf("[ - ] Total Time Elapsed: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    time_total = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
 
 #ifdef TIME_PERF

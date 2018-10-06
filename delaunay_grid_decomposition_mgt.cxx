@@ -281,6 +281,19 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     //snprintf(filename, 64, "log/original_input_points_%d.png", region_id);
     //plot_points_into_file(filename, ori_lon, ori_lat, num_kernel_points + num_expand_points, PDLN_PLOT_GLOBAL);
 
+    //if(node_type == PDLN_NODE_TYPE_COMMON) {
+    //    double l[2];
+    //    l[0] = expand_boundry->max_lon - expand_boundry->min_lon;
+    //    l[1] = expand_boundry->max_lat - expand_boundry->min_lat;
+    //    if (l[0] > l[1])
+    //        fprintf(stderr, "[%3d] ratio: %lf\n", region_id, l[0]/l[1]);
+    //    else
+    //        fprintf(stderr, "[%3d] ratio: %lf\n", region_id, l[1]/l[0]);
+    //    fprintf(stderr, "[%3d] num points: %d\n", region_id, num_kernel_points + num_expand_points);
+    //}
+    //timeval start, end;
+    //gettimeofday(&start, NULL);
+
     if(rotated_expand_boundry != NULL) {
         triangulation = new Delaunay_Voronoi();
         triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], ori_idx, num_kernel_points + num_expand_points);
@@ -333,6 +346,12 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         //triangulation->make_final_triangle_pack();
         triangulation->make_bounding_triangle_pack();
     }
+
+    //gettimeofday(&end, NULL);
+    //if(node_type == PDLN_NODE_TYPE_COMMON)
+    //    fprintf(stderr, "[%3d] one local triangle: %ld ms\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    //else
+    //    fprintf(stderr, "[%3d] one polar triangle: %ld ms\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
 }
 
 
@@ -813,8 +832,8 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     num_points += num_inserted;
 
 #ifdef TIME_PERF
-    printf("[ - ] Pseudo Point 3: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-    time_pretreat += ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+    printf("[ - ] Pseudo Point 3: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
 
     global_index = new int[num_points];
@@ -1469,8 +1488,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             search_tree_root->real_boundry->min_lat = shifted_polar_lat;
 
 #ifdef TIME_PERF
-        printf("[ - ] Pseudo Point 1&2: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-        time_pretreat += ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+        printf("[ - ] Pseudo Point 1&2: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+        time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
     }
     
@@ -1526,8 +1545,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             search_tree_root->real_boundry->max_lat = shifted_polar_lat;
 
 #ifdef TIME_PERF
-        printf("[ - ] Pseudo Point 1&2: %ld ms\n", ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-        time_pretreat += ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+        printf("[ - ] Pseudo Point 1&2: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+        time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
     }
 
@@ -2196,8 +2215,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         int rank;
         MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
         if (!all_finished) {
-            printf("[ - ] %dth expand: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-            time_expand = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+            printf("[ - ] %dth expand: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+            time_expand += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
         if(all_ret) {
@@ -2217,8 +2236,9 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
 #ifdef TIME_PERF
         if (!all_finished || iter == 0) {
-            printf("[ - ] %dth triangulize: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-            time_local_tri = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+            printf("[ - ] %dth triangulize: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+            long tmp = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+            time_local_tri = std::max(time_local_tri, tmp);
         }
 #endif
 
@@ -2263,8 +2283,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
 #ifdef TIME_PERF
         if (!all_finished || iter == 0) {
-            printf("[ - ] %dth check: %ld ms\n", iter, ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000);
-            time_consisty_check = ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec)) / 1000;
+            printf("[ - ] %dth check: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+            time_consisty_check = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
         if(!all_finished)
