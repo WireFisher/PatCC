@@ -763,13 +763,11 @@ void Search_tree_node::project_grid()
         projected_coord[0] = new double[num_kernel_points + len_expand_coord_buf];
         projected_coord[1] = new double[num_kernel_points + len_expand_coord_buf];
 
-        #pragma omp parallel for
         for(int i = 0; i < num_kernel_points; i++) {
             calculate_stereographic_projection(kernel_coord[PDLN_LON][i], kernel_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
                                                projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
         }
 
-        #pragma omp parallel for
         for(int i = 0; i < num_expand_points; i++) {
             calculate_stereographic_projection(expand_coord[PDLN_LON][i], expand_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
                                                projected_coord[PDLN_LON][i+num_kernel_points], projected_coord[PDLN_LAT][i+num_kernel_points]);
@@ -777,7 +775,6 @@ void Search_tree_node::project_grid()
 
         num_projected_points = num_kernel_points + num_expand_points;
     } else {
-        #pragma omp parallel for
         for(int i = num_projected_points - num_kernel_points; i < num_expand_points; i++) {
             calculate_stereographic_projection(expand_coord[PDLN_LON][i], expand_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
                                                projected_coord[PDLN_LON][i+num_kernel_points], projected_coord[PDLN_LAT][i+num_kernel_points]);
@@ -855,6 +852,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     //    snprintf(filename, 64, "log/original_input_points.png");
     //    plot_points_into_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points, PDLN_PLOT_GLOBAL);
     //}
+    initialze_buffer();
 }
 
 
@@ -869,9 +867,15 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
     delete[] active_processing_units_flag;
     delete[] all_group_intervals;
 
-    delete[] tmp_coord[0];
-    delete[] tmp_coord[1];
-    delete[] tmp_index;
+    int num_local_threads = processing_info->get_num_local_threads();
+    for (int i = 0; i < num_local_threads; i++) {
+        delete[] buf_double[0][i];
+        delete[] buf_double[1][i];
+        delete[] buf_int[i];
+    }
+    delete[] buf_double[0];
+    delete[] buf_double[1];
+    delete[] buf_int;
 }
 
 
@@ -1067,9 +1071,16 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, int start
 
 void Delaunay_grid_decomposition::initialze_buffer()
 {
-    tmp_coord[0] = new double[search_tree_root->num_kernel_points];
-    tmp_coord[1] = new double[search_tree_root->num_kernel_points];
-    tmp_index    = new int[search_tree_root->num_kernel_points];
+    int num_local_threads = processing_info->get_num_local_threads();
+    buf_double[0] = new double*[num_local_threads];
+    buf_double[1] = new double*[num_local_threads];
+    buf_int = new int*[num_local_threads];
+
+    for (int i = 0; i < num_local_threads; i++) {
+        buf_double[0][i] = new double[search_tree_root->num_kernel_points];
+        buf_double[1][i] = new double[search_tree_root->num_kernel_points];
+        buf_int[i] = new int[search_tree_root->num_kernel_points];
+    }
 }
 
 
@@ -1582,7 +1593,6 @@ bool Delaunay_grid_decomposition::have_local_region_ids(int start, int end)
 int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
 {
     initialze_workload();
-    initialze_buffer();
     current_tree_node = search_tree_root;
 
     double min_lon, max_lon, min_lat, max_lat;
@@ -1755,6 +1765,13 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
     PDASSERT(num_edge_to_expand > 0);
 
+    int thread_id = omp_get_thread_num();
+    double* tmp_coord[2];
+    int* tmp_index;
+    tmp_coord[0] = buf_double[0][thread_id];
+    tmp_coord[1] = buf_double[1][thread_id];
+    tmp_index = buf_int[thread_id];
+
     double quota = std::max(average_workload * expanding_ratio, PDLN_MIN_QUOTA) / num_edge_to_expand;
     int fail_count = 0;
     bool go_on[4];
@@ -1764,10 +1781,12 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         new_boundry.legalize(search_tree_root->kernel_boundry, is_cyclic);
 
         go_on[0] = go_on[1] = go_on[2] = go_on[3] = false;
+
+
         leaf_nodes_found = adjust_expanding_boundry(old_boundry, &new_boundry, quota, tmp_coord, tmp_index, go_on, &num_found);
         //printf("last boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
         //printf("expd boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
-        if(*old_boundry == new_boundry)
+        if(*old_boundry == new_boundry || num_found == 0)
             fail_count ++;
         else
             fail_count = 0;
@@ -1910,7 +1929,12 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
                                                                                 double *expanded_coord[2], int *expanded_index, 
                                                                                 bool go_on[4], int *total_num)
 {
-    vector<Search_tree_node*> leaf_nodes_found = search_halo_points_from_top(inner, outer, expanded_coord, expanded_index, total_num);
+    vector<Search_tree_node*> leaf_nodes_found;
+    *total_num = 0;
+
+    if(*inner != *outer)
+        search_down_for_points_in_halo(search_tree_root, inner, outer, &leaf_nodes_found, expanded_coord, expanded_index, total_num);
+
     PDASSERT(!have_redundent_points(expanded_coord[PDLN_LON], expanded_coord[PDLN_LAT], *total_num));
     Boundry old_outer = *outer;
     Boundry sub_rectangles[4];
@@ -1967,39 +1991,7 @@ int Delaunay_grid_decomposition::move_together(double* coord[2], int* index, int
 }
 
 
-vector<Search_tree_node*> Delaunay_grid_decomposition::search_halo_points_from_top(const Boundry* inner_boundary, const Boundry* outer_boundary,
-                                                                             double *coord_values[2], int *global_idx,
-                                                                             int *num_found)
-{
-    vector<Search_tree_node*> leaf_nodes_found;
-
-    *num_found = 0;
-
-    if(*inner_boundary == *outer_boundary)
-        return leaf_nodes_found;
-
-    search_down_for_points_in_halo(search_tree_root, inner_boundary, outer_boundary, leaf_nodes_found, coord_values, global_idx, num_found);
-
-    return leaf_nodes_found;
-}
-
-
-void Delaunay_grid_decomposition::search_halo_points_from_buf(Boundry* inner_boundary, Boundry* outer_boundary,
-                                                              double *coord_values[2], int *global_idx, int *num_found)
-{
-    if(*inner_boundary == *outer_boundary)
-        return;
-
-    int num_points = *num_found;
-    *num_found = 0;
-    Search_tree_node::search_points_in_halo(inner_boundary, outer_boundary, coord_values, global_idx, num_points, coord_values, global_idx, num_found);
-}
-
-
-void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_node *node, const Boundry *inner_boundary,
-                                                                 const Boundry *outer_boundary, vector<Search_tree_node*> &leaf_nodes_found,
-                                                                 double *coord_values[2], int *global_idx,
-                                                                 int *num_found)
+void Delaunay_grid_decomposition::extend_search_tree(Search_tree_node *node, const Boundry *inner_boundary, const Boundry *outer_boundary)
 {
     double*     c_points_coord[4];
     int*        c_points_index[2];
@@ -2014,20 +2006,11 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
 
     Boundry region = *outer_boundary;
     if(node->ids_size() == 1) {
-        if (node->num_kernel_points == 0)
-            return;
-
-        if(do_two_regions_overlap(region, *node->kernel_boundry) ||
-           do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->kernel_boundry) ||
-           do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->kernel_boundry)) {
-            leaf_nodes_found.push_back(node);
-            node->search_points_in_halo(inner_boundary, outer_boundary, coord_values, global_idx, num_found);
-        }
         all_leaf_nodes.push_back(node);
         return;
     }
 
-    if(node->children[0] == NULL && node->children[1] == NULL && node->children[2] == NULL) {
+    if(node->children[0] == NULL && node->children[2] == NULL) {
         node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, 
                                                    c_num_points, c_boundry, c_ids_start, c_ids_end, 
                                                    PDLN_DECOMPOSE_COMMON_MODE, c_intervals,
@@ -2046,6 +2029,41 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
         PDASSERT(node->children[2]->ids_size() > 0);
 
     }
+
+    for(int i = 0; i < 3; i ++)
+        if(node->children[i] != NULL) {
+            if(do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
+               do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
+               do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry)) {
+                extend_search_tree(node->children[i], inner_boundary, outer_boundary);
+            }
+        }
+}
+
+
+void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_node *node, const Boundry *inner_boundary,
+                                                                 const Boundry *outer_boundary, vector<Search_tree_node*> *leaf_nodes_found,
+                                                                 double *coord_values[2], int *global_idx, int *num_found)
+{
+    PDASSERT(node->ids_size() > 0);
+
+    Boundry region = *outer_boundary;
+    if(node->ids_size() == 1) {
+        if (node->num_kernel_points == 0)
+            return;
+
+        if(do_two_regions_overlap(region, *node->kernel_boundry) ||
+           do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->kernel_boundry) ||
+           do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->kernel_boundry)) {
+            node->search_points_in_halo(inner_boundary, outer_boundary, coord_values, global_idx, num_found);
+            #pragma omp critical
+            (*leaf_nodes_found).push_back(node);
+        }
+        return;
+    }
+
+    if(node->children[0] == NULL && node->children[2] == NULL)
+        return;
 
     for(int i = 0; i < 3; i ++)
         if(node->children[i] != NULL) {
@@ -2106,8 +2124,7 @@ void Search_tree_node::search_points_in_halo(const Boundry *inner_boundary, cons
 
 
 void Search_tree_node::search_points_in_halo(const Boundry *inner_boundary, const Boundry *outer_boundary,
-                                             double *coord_values[2], int *global_idx,
-                                             int *num_found)
+                                             double *coord_values[2], int *global_idx, int *num_found)
 {
     if(*kernel_boundry <= *inner_boundary)
         return;
@@ -2200,29 +2217,57 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
+
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i]) {
-                ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+                Search_tree_node* tree_node = local_leaf_nodes[i];
 
-                if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
-                    local_leaf_nodes[i]->project_grid();
+                Boundry* old_boundry = tree_node->expand_boundry;
+                Boundry  new_boundry = tree_node->expand();
+
+                extend_search_tree(search_tree_root, old_boundry, &new_boundry);
             }
+
+        #pragma omp parallel for shared(ret)
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+            if(!is_local_leaf_node_finished[i])
+                ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
 
         int all_ret = 0;
         MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, processing_info->get_mpi_comm());
+
         gettimeofday(&end, NULL);
+
 #ifdef TIME_PERF
-        int rank;
-        MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
         if (!all_finished) {
             printf("[ - ] %dth expand: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
             time_expand += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
+
         if(all_ret) {
             all_finished = false;
             break;
         }
+
+        MPI_Barrier(processing_info->get_mpi_comm());
+        gettimeofday(&start, NULL);
+
+        #pragma omp parallel for
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+            if(!is_local_leaf_node_finished[i])
+                if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2]))
+                    local_leaf_nodes[i]->project_grid();
+
+        MPI_Barrier(processing_info->get_mpi_comm());
+        gettimeofday(&end, NULL);
+
+#ifdef TIME_PERF
+        if (!all_finished) {
+            printf("[ - ] %dth project: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+            time_expand += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+        }
+#endif
 
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);

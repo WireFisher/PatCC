@@ -166,8 +166,8 @@ private:
     int*      all_group_intervals;
 
     /* Temp buffer */
-    double* tmp_coord[2];
-    int*    tmp_index;
+    double** buf_double[2];
+    int**    buf_int;
 
     /* Main processes */
     void initialze_workload();
@@ -195,9 +195,8 @@ private:
     static int classify_points(double**, int*, int, Boundry, int);
 
     /* Points searching */
-    vector<Search_tree_node*> search_halo_points_from_top(const Boundry*, const Boundry*, double**, int*, int*);
-    void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>&, double **, int*, int*);
-    void search_halo_points_from_buf(Boundry*, Boundry*, double**, int*, int*);
+    void extend_search_tree(Search_tree_node*, const Boundry*, const Boundry*);
+    void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>*, double **, int*, int*);
 
     /* Consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
