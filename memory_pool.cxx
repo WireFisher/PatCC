@@ -1,7 +1,7 @@
 #include "memory_pool.h"
 #include <cstring>
 
-#define PDLN_MEMORY_POOL_SIZE (0x10000)
+#define PDLN_MEMORY_POOL_SIZE (0x100000)
 Triangle_pool::Triangle_pool()
     : pagesize(PDLN_MEMORY_POOL_SIZE)
     , cur_page(NULL)

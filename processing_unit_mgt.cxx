@@ -92,7 +92,9 @@ Processing_resource::Processing_resource() {
     gettimeofday(&start, NULL);
     set_cpu_affinity();
     gettimeofday(&end, NULL);
+#ifdef TIME_PERF
     printf("[ - ] set_cpu_affinity: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+#endif
     time_proc_mgt -= (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 }
 
