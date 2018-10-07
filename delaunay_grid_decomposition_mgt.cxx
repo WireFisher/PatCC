@@ -1352,7 +1352,6 @@ namespace std
 #define PDLN_SET_TAG_SRC(tag, id)       ((id<<20&0xFFF00000) | tag)
 #define PDLN_SET_TAG_DST(tag, id)       ((id<< 8&0x000FFF00) | tag)
 #define PDLN_SET_TAG(src, dst, iter)    (PDLN_SET_TAG_DST(PDLN_SET_TAG_SRC(PDLN_SET_TAG_ITER(iter), src), dst))
-
 void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree_node *leaf_node, unsigned *local_checksums,
                                                                      unsigned *remote_checksums, vector<MPI_Request*> *waiting_list, int iter)
 {
@@ -1391,17 +1390,24 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
         /* send and recv */
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE || cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
             MPI_Request *req = new MPI_Request;
+            #pragma omp critical
+            {
 #ifdef DEBUG
-            waiting_list->push_back(req);
+                waiting_list->push_back(req);
 #endif
-            MPI_Isend(&local_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(regionID_to_unitID[leaf_node->neighbors[i].first->region_id])->process_id,
+                MPI_Isend(&local_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(regionID_to_unitID[leaf_node->neighbors[i].first->region_id])->process_id,
                       PDLN_SET_TAG(leaf_node->region_id, leaf_node->neighbors[i].first->region_id, iter),
                       processing_info->get_mpi_comm(), req); 
+            }
 
-            waiting_list->push_back(new MPI_Request);
-            MPI_Irecv(&remote_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(regionID_to_unitID[leaf_node->neighbors[i].first->region_id])->process_id,
+            #pragma omp critical
+            {
+                req = new MPI_Request;
+                waiting_list->push_back(req);
+                MPI_Irecv(&remote_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(regionID_to_unitID[leaf_node->neighbors[i].first->region_id])->process_id,
                       PDLN_SET_TAG(leaf_node->neighbors[i].first->region_id, leaf_node->region_id, iter),
-                      processing_info->get_mpi_comm(), waiting_list->back());
+                      processing_info->get_mpi_comm(), req);
+            }
         }
         else
             remote_checksums[i] = 0;
@@ -2250,6 +2256,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         int all_ret = 0;
         MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, processing_info->get_mpi_comm());
 
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
 
 #ifdef TIME_PERF
@@ -2302,16 +2309,19 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         }
 #endif
 
+        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
+        #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
 #ifdef DEBUG
             PDASSERT(local_leaf_nodes[i]->neighbors.size() < PDLN_MAX_NUM_NEIGHBORS);
 #endif
-            send_recv_checksums_with_neighbors(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i], waiting_lists + i, iter);
+            send_recv_checksums_with_neighbors(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i], &waiting_lists[i], iter);
         }
 
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             for(unsigned j = 0; j < waiting_lists[i].size(); j++) {
+                //fprintf(stderr, "waiting %p\n", waiting_lists[i]);
                 MPI_Wait(waiting_lists[i][j], MPI_STATUS_IGNORE);
                 delete waiting_lists[i][j];
             }
