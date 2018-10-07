@@ -8,6 +8,8 @@
 #include "../netcdf_utils.h"
 #include "../ccpl_utils.h"
 
+#include <cmath>
+
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
 
@@ -609,6 +611,10 @@ const char dim1_grid_name[][64] = {
     "wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles|15 pass 5 max|grid preteatment: OK
     "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
     "R05_Grid.nc",
+    "CUBE_grid_2.5.nc",
+    "CUBE_grid_1.nc",
+    "CUBE_grid_0.3.nc",
+    "CUBE_grid_0.1.nc",
     /*
     */
 };
@@ -624,9 +630,14 @@ const char dim1_global_grid_name[][64] = {
     "T42_grid.nc",
     "T62_Gaussian_Grid.nc",
     "T85_Gaussian_Grid.nc",
+    "CUBE_grid_2.5.nc",
+    "CUBE_grid_1.nc",
+    "CUBE_grid_0.3.nc",
+    "CUBE_grid_0.1.nc",
 };
 
 
+#define ROUND_VALUE (10000000.0)
 void prepare_dim1_grid(const char grid_name[])
 {
     char fullname[128];
@@ -690,7 +701,18 @@ void prepare_dim1_grid(const char grid_name[])
         if(max_lon > 360) max_lon = 360;
         max_lat += 0.0001;
         if(max_lat > 90) max_lat = 90;
-        assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+        if (strstr(grid_name, "CUBE_grid_")) {
+            for (int i = 0; i < num_points; i++) {
+                coord_values[PDLN_LON][i] = round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
+                coord_values[PDLN_LAT][i] = round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
+                while(coord_values[PDLN_LON][i] >= 360)
+                    coord_values[PDLN_LON][i] -= 360;
+                while(coord_values[PDLN_LON][i] < 0)
+                    coord_values[PDLN_LON][i] += 360;
+            }
+            delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+        } else
+            assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
 
         for(unsigned i = 0; i < sizeof(dim1_global_grid_name)/64; i++)
             if(strncmp(grid_name, dim1_global_grid_name[i], 64) == 0) {
@@ -838,7 +860,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 const int autogen_grid_size[] = {
                                //100000,
                                //1000000,
-                               //10000000,
+                               10000000,
 
                                //100000,
                                //400000,
@@ -855,7 +877,7 @@ const int autogen_grid_size[] = {
 
                                //99540,
                                //999000,
-                               9995082,
+                               //9995082,
 
                                //99225,
                                //998001,
@@ -863,7 +885,7 @@ const int autogen_grid_size[] = {
 const char autogen_grid_name[][64] = { 
                                     //"lonlat_random_global_100000.dat",
                                     //"lonlat_random_global_1000000.dat",
-                                    //"lonlat_random_global_10000000.dat",
+                                    "lonlat_random_global_10000000.dat",
 
                                     //"lonlat_random_global_100000.dat",
                                     //"lonlat_random_global_400000.dat",
@@ -880,7 +902,7 @@ const char autogen_grid_name[][64] = {
 
                                     //"lonlat_uniform_global_100000.dat",
                                     //"lonlat_uniform_global_1000000.dat",
-                                    "lonlat_uniform_global_10000000.dat",
+                                    //"lonlat_uniform_global_10000000.dat",
 
                                     //"lonlat_non-uniform_global_100000.dat",
                                     //"lonlat_non-uniform_global_1000000.dat",
