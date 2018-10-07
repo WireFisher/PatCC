@@ -195,7 +195,7 @@ private:
     static int classify_points(double**, int*, int, Boundry, int);
 
     /* Points searching */
-    void extend_search_tree(Search_tree_node*, const Boundry*, const Boundry*);
+    void extend_search_tree(Search_tree_node*, const Boundry*, int);
     void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>*, double **, int*, int*);
 
     /* Consistency checking */

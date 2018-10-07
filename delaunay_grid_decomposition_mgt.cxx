@@ -1999,7 +1999,7 @@ int Delaunay_grid_decomposition::move_together(double* coord[2], int* index, int
 }
 
 
-void Delaunay_grid_decomposition::extend_search_tree(Search_tree_node *node, const Boundry *inner_boundary, const Boundry *outer_boundary)
+void Delaunay_grid_decomposition::extend_search_tree(Search_tree_node *node, const Boundry* outer_boundarys, int num_boundarys)
 {
     double*     c_points_coord[4];
     int*        c_points_index[2];
@@ -2012,7 +2012,6 @@ void Delaunay_grid_decomposition::extend_search_tree(Search_tree_node *node, con
 
     PDASSERT(node->ids_size() > 0);
 
-    Boundry region = *outer_boundary;
     if(node->ids_size() == 1) {
         #pragma omp critical
         all_leaf_nodes.push_back(node);
@@ -2039,19 +2038,29 @@ void Delaunay_grid_decomposition::extend_search_tree(Search_tree_node *node, con
 
     }
 
-    for(int i = 0; i < 3; i ++)
-        if(node->children[i] != NULL) {
+    for (int i = 0; i < 3; i ++) {
+        if(node->children[i] == NULL)
+            continue;
+
+        for (int j = 0; j < num_boundarys; j++) {
+            const Boundry& region = outer_boundarys[j];
+
+            if (region.min_lon == 0 && region.max_lon == 0)
+                continue;
+
             if(do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry)) {
                 if (node->children[i]->num_kernel_points < 2000)
-                    extend_search_tree(node->children[i], inner_boundary, outer_boundary);
+                    extend_search_tree(node->children[i], outer_boundarys, num_boundarys);
                 else {
                     #pragma omp task
-                    extend_search_tree(node->children[i], inner_boundary, outer_boundary);
+                    extend_search_tree(node->children[i], outer_boundarys, num_boundarys);
                 }
+                break;
             }
         }
+    }
 }
 
 
@@ -2076,8 +2085,10 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
         return;
     }
 
-    if(node->children[0] == NULL && node->children[2] == NULL)
+    if(node->children[0] == NULL && node->children[2] == NULL) {
+        assert(false);
         return;
+    }
 
     for(int i = 0; i < 3; i ++)
         if(node->children[i] != NULL) {
@@ -2206,6 +2217,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     bool* is_local_leaf_node_finished = new bool[local_leaf_nodes.size()]();
     unsigned** local_leaf_checksums   = new unsigned*[local_leaf_nodes.size()];
     unsigned** remote_leaf_checksums  = new unsigned*[local_leaf_nodes.size()];
+    Boundry* outer_bound = new Boundry[local_leaf_nodes.size()];
 
 #ifdef DEBUG
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
@@ -2232,21 +2244,24 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
 
-        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
                 Search_tree_node* tree_node = local_leaf_nodes[i];
 
-                Boundry* old_boundry = tree_node->expand_boundry;
-                Boundry  new_boundry = tree_node->expand();
-
-                #pragma omp parallel
-                {
-                    #pragma omp single
-                    {
-                        extend_search_tree(search_tree_root, old_boundry, &new_boundry);
-                    }
-                }
+                outer_bound[i] = tree_node->expand();
+            } else {
+                outer_bound[i].min_lon = 0;
+                outer_bound[i].max_lon = 0;
             }
+        }
+
+        #pragma omp parallel
+        {
+            #pragma omp single
+            {
+                extend_search_tree(search_tree_root, outer_bound, local_leaf_nodes.size());
+            }
+        }
 
         #pragma omp parallel for shared(ret)
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
@@ -2368,6 +2383,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     delete[] remote_leaf_checksums;
 
     delete[] waiting_lists;
+    delete[] outer_bound;
     
     if(global_finish)
         return 0;
