@@ -32,6 +32,7 @@
 #define PDLN_RIGHT  3
 
 using std::vector;
+using std::pair;
 
 void sort_points_in_triangle(Triangle_pack*, int);
 void sort_triangles(Triangle_pack*, int);
@@ -74,6 +75,7 @@ class Delaunay_Voronoi
         Point  bound_vertexes[4];
         double checking_threshold;
         vector<Triangle_pack> bound_triangles[4];
+        vector<pair<pair<Point, Point>, unsigned> > checksum_storage;
 
 #ifdef DEBUG
         const double* x_store;

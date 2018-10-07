@@ -47,6 +47,11 @@
 
 #define PDLN_MAX_NUM_PROCESSING_UNITS 512
 
+/* expanding */
+#define PDLN_SEPARATELY_EXPANDING_COUNT (3)
+#define PDLN_MIN_EXPANDING_QUOTA (400.0)
+
+
 static inline bool is_in_region(double x, double y, Boundry region);
 
 bool operator == (Triangle_ID_Only t1, Triangle_ID_Only t2)
@@ -1360,18 +1365,17 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
 
     leaf_node->init_num_neighbors_on_boundry(0);
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
-        //printf("[%2d] neighbor ID: %2lu\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id);
-
-        /* compute shared boundry of leaf_node and its neighbor */
 #ifdef DEBUG
         PDASSERT(leaf_node->neighbors[i].first->ids_size() == 1);
         PDASSERT(iter <= 0xFF);
         PDASSERT(leaf_node->region_id <= 0xFFF);
         PDASSERT(leaf_node->neighbors[i].first->region_id <= 0xFFF);
 #endif
+        /* compute shared boundry of leaf_node and its neighbor */
         unsigned boundry_type = compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &common_boundary_head, &common_boundary_tail,
                                               &cyclic_common_boundary_head, &cyclic_common_boundary_tail);
         
+        /* calculate checksum */
         local_checksums[i] = 0;
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
             unsigned checksum = leaf_node->triangulation->cal_checksum(common_boundary_head, common_boundary_tail, threshold);
@@ -1384,6 +1388,7 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
         }
         local_checksums[i] = set_boundry_type(local_checksums[i], boundry_type);
 
+        /* send and recv */
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE || cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
             MPI_Request *req = new MPI_Request;
 #ifdef DEBUG
@@ -1743,14 +1748,13 @@ void Search_tree_node::set_groups(int *intervals, int num)
 }
 
 
-#define PDLN_MIN_QUOTA (400.0)
 int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
 {
     int num_found;
     vector<Search_tree_node*> leaf_nodes_found;
 
     for (int i = 0; i < 4; i++)
-        if (tree_node->edge_expanding_count[i] > 3) {
+        if (tree_node->edge_expanding_count[i] > PDLN_SEPARATELY_EXPANDING_COUNT) {
             tree_node->num_neighbors_on_boundry[(i+1)%4] = 1;
             tree_node->num_neighbors_on_boundry[(i+2)%4] = 1;
             tree_node->num_neighbors_on_boundry[(i+3)%4] = 1;
@@ -1771,7 +1775,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     tmp_coord[1] = buf_double[1][thread_id];
     tmp_index = buf_int[thread_id];
 
-    double quota = std::max(average_workload * expanding_ratio, PDLN_MIN_QUOTA) / num_edge_to_expand;
+    double quota = std::max(average_workload * expanding_ratio, PDLN_MIN_EXPANDING_QUOTA) / num_edge_to_expand;
     int fail_count = 0;
     bool go_on[4];
     do {
@@ -2317,8 +2321,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]);
-                //if(iter>=1)
-                //    is_local_leaf_node_finished[i] = true;
+            //if(iter>=1)
+            //    is_local_leaf_node_finished[i] = true;
         }
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);

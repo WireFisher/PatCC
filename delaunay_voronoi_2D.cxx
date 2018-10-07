@@ -9,6 +9,7 @@
 #include <tr1/unordered_map>
 #include <list>
 #include "merge_sort.h"
+#include <utility>
 
 
 /*
@@ -1681,6 +1682,12 @@ int Delaunay_Voronoi::bound_direction(const Point* a, const Point* b)
 
 unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold)
 {
+    /* searching for previously calculated checksums */
+    for (unsigned i = 0; i < checksum_storage.size(); i++)
+        if (head == checksum_storage[i].first.first && tail == checksum_storage[i].first.second)
+            return checksum_storage[i].second;
+
+    /* calculating checksum */
     int dir = bound_direction(&head, &tail);
     PDASSERT(dir > -1);
 
@@ -1699,27 +1706,33 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
         }
     }
 
-    //unsigned size_plot = 0;
-    //Triangle_pack* plot_triangles = new Triangle_pack[bound_triangles[dir].size()];
-    //for(unsigned i = 0; i < bound_triangles[dir].size();) {
-    //    if (bound_triangles[dir][i].is_cyclic) {
-    //        if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
-    //           is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold) )
-    //            plot_triangles[size_plot++] = bound_triangles[dir][i+1];
-    //        i += 3;
-    //    } else {
-    //        if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold))
-    //            plot_triangles[size_plot++] = bound_triangles[dir][i];
-    //        i++;
-    //    }
-    //}
+    /* storing checksum */
+    checksum_storage.push_back(std::make_pair(std::make_pair(head, tail), checksum));
 
-    //char filename[64];
-    //int rank;
-    //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    //snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
-    //plot_triangles_into_file(filename, plot_triangles, size_plot);
-    //delete[] plot_triangles;
+    /* Debug: plot triangles on common edge */
+    /*
+    unsigned size_plot = 0;
+    Triangle_pack* plot_triangles = new Triangle_pack[bound_triangles[dir].size()];
+    for(unsigned i = 0; i < bound_triangles[dir].size();) {
+        if (bound_triangles[dir][i].is_cyclic) {
+            if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
+               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold) )
+                plot_triangles[size_plot++] = bound_triangles[dir][i+1];
+            i += 3;
+        } else {
+            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold))
+                plot_triangles[size_plot++] = bound_triangles[dir][i];
+            i++;
+        }
+    }
+
+    char filename[64];
+    int rank;
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+    snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
+    plot_triangles_into_file(filename, plot_triangles, size_plot);
+    delete[] plot_triangles;
+    */
 
     return checksum;
 }
