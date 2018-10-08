@@ -1682,6 +1682,9 @@ int Delaunay_Voronoi::bound_direction(const Point* a, const Point* b)
 
 unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold)
 {
+    if (float_eq(head.x, tail.x) && float_eq(head.y, tail.y))
+        return 0;
+
     /* searching for previously calculated checksums */
     for (unsigned i = 0; i < checksum_storage.size(); i++)
         if (head == checksum_storage[i].first.first && tail == checksum_storage[i].first.second)
@@ -1700,8 +1703,13 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
                 checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
             i += 3;
         } else {
-            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold))
+            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold)) {
                 checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
+                //printf("TRI [%lf, %lf], [%lf, %lf], [%lf, %lf] cyclic: %d\n", bound_triangles[dir][i].v[0].x, bound_triangles[dir][i].v[0].y, 
+                //                                                   bound_triangles[dir][i].v[1].x, bound_triangles[dir][i].v[1].y,
+                //                                                   bound_triangles[dir][i].v[2].x, bound_triangles[dir][i].v[2].y,
+                //                                                   bound_triangles[dir][i].is_cyclic);
+            }
             i++;
         }
     }
@@ -1711,6 +1719,7 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
 
     /* Debug: plot triangles on common edge */
     /*
+    //printf("head tail [%lf, %lf], [%lf, %lf] %u\n", head.x, head.y, tail.x, tail.y, checksum);
     unsigned size_plot = 0;
     Triangle_pack* plot_triangles = new Triangle_pack[bound_triangles[dir].size()];
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
