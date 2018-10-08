@@ -860,7 +860,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 const int autogen_grid_size[] = {
                                //100000,
                                //1000000,
-                               10000000,
+                               //10000000,
 
                                //100000,
                                //400000,
@@ -881,11 +881,16 @@ const int autogen_grid_size[] = {
 
                                //99225,
                                //998001,
+
+                               0,
+                               //0,
+                               //0,
+                               //0,
                              };
 const char autogen_grid_name[][64] = { 
                                     //"lonlat_random_global_100000.dat",
                                     //"lonlat_random_global_1000000.dat",
-                                    "lonlat_random_global_10000000.dat",
+                                    //"lonlat_random_global_10000000.dat",
 
                                     //"lonlat_random_global_100000.dat",
                                     //"lonlat_random_global_400000.dat",
@@ -906,6 +911,11 @@ const char autogen_grid_name[][64] = {
 
                                     //"lonlat_non-uniform_global_100000.dat",
                                     //"lonlat_non-uniform_global_1000000.dat",
+
+                                    "CUBE_grid_2.5.nc",
+                                    "CUBE_grid_1.nc",
+                                    "CUBE_grid_0.3.nc",
+                                    "CUBE_grid_0.1.nc",
                                   };
 const char autogen_grid_path[] = "gridfile/performence_evaluation/%s";
 void prepare_autogen_grid(const char grid_name[], int grid_size)
@@ -915,46 +925,77 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
 
     if (mpi_rank == 0) {
         snprintf(fullname, 128, autogen_grid_path, grid_name);
-        FILE *fp = fopen(fullname, "r");
-        if(!fp) {
-            fprintf(stderr, "can not find grid file\n");
-            return;
-        }
 
-        coord_values[PDLN_LON] = new double[grid_size];
-        coord_values[PDLN_LAT] = new double[grid_size];
+        if (strstr(grid_name, "CUBE_grid_")) {
+            int num_dims;
+            int *dim_size_ptr;
+            int field_size, field_size2;
+            void *coord_buf0, *coord_buf1;
+            char lon_unit[32];
+            char lat_unit[32];
 
-        if (strstr(grid_name, "lonlat_uniform_global") ||
-            strstr(grid_name, "lonlat_non-uniform_global")) {
-            for(int i = 0; i < grid_size; i++)
-                fscanf(fp, "%lf %lf\n", &coord_values[PDLN_LON][i], &coord_values[PDLN_LAT][i]);
-        } else {
-            double *x = new double[grid_size];
-            double *y = new double[grid_size];
-            double *z = new double[grid_size];
-            for(int i = 0; i < grid_size; i++)
-                fscanf(fp, "%lf %lf %lf\n", &x[i], &y[i], &z[i]);
+            snprintf(fullname, 128, autogen_grid_path, grid_name);
+            read_file_field_as_double(fullname, "grid_center_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size, lon_unit);
+            delete dim_size_ptr;
+            read_file_field_as_double(fullname, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
+            delete dim_size_ptr;
 
-            for(int i = 0; i < grid_size; i++) {
-                coord_values[PDLN_LON][i] = atan2(y[i], x[i]);
-                coord_values[PDLN_LAT][i] = asin(z[i]);
-            }
-            delete[] x;
-            delete[] y;
-            delete[] z;
+            ASSERT_EQ(field_size, field_size2);
+            num_points = field_size;
+            coord_values[PDLN_LON] = (double*)coord_buf0;
+            coord_values[PDLN_LAT] = (double*)coord_buf1;
 
-            for(int i = 0; i < grid_size; i ++) {
-                coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
-                coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
+            for (int i = 0; i < num_points; i++) {
+                coord_values[PDLN_LON][i] = round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
+                coord_values[PDLN_LAT][i] = round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
                 while(coord_values[PDLN_LON][i] >= 360)
                     coord_values[PDLN_LON][i] -= 360;
                 while(coord_values[PDLN_LON][i] < 0)
                     coord_values[PDLN_LON][i] += 360;
             }
-        }
-        fclose(fp);
+            delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+        } else {
+            FILE *fp = fopen(fullname, "r");
+            if(!fp) {
+                fprintf(stderr, "can not find grid file\n");
+                return;
+            }
 
-        num_points = grid_size;
+            coord_values[PDLN_LON] = new double[grid_size];
+            coord_values[PDLN_LAT] = new double[grid_size];
+
+            if (strstr(grid_name, "lonlat_uniform_global") ||
+                strstr(grid_name, "lonlat_non-uniform_global")) {
+                for(int i = 0; i < grid_size; i++)
+                    fscanf(fp, "%lf %lf\n", &coord_values[PDLN_LON][i], &coord_values[PDLN_LAT][i]);
+            } else {
+                double *x = new double[grid_size];
+                double *y = new double[grid_size];
+                double *z = new double[grid_size];
+                for(int i = 0; i < grid_size; i++)
+                    fscanf(fp, "%lf %lf %lf\n", &x[i], &y[i], &z[i]);
+
+                for(int i = 0; i < grid_size; i++) {
+                    coord_values[PDLN_LON][i] = atan2(y[i], x[i]);
+                    coord_values[PDLN_LAT][i] = asin(z[i]);
+                }
+                delete[] x;
+                delete[] y;
+                delete[] z;
+
+                for(int i = 0; i < grid_size; i ++) {
+                    coord_values[PDLN_LON][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LON][i]);
+                    coord_values[PDLN_LAT][i] = RADIAN_TO_DEGREE(coord_values[PDLN_LAT][i]);
+                    while(coord_values[PDLN_LON][i] >= 360)
+                        coord_values[PDLN_LON][i] -= 360;
+                    while(coord_values[PDLN_LON][i] < 0)
+                        coord_values[PDLN_LON][i] += 360;
+                }
+            }
+            fclose(fp);
+
+            num_points = grid_size;
+        }
      
         if(squeeze_ratio > 0) {
             for(int i = 0; i < num_points/squeeze_ratio; i++) {
