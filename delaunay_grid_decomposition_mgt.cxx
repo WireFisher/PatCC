@@ -2225,7 +2225,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     vector<MPI_Request*> *waiting_lists = new vector<MPI_Request*> [local_leaf_nodes.size()];
 
     int iter = 0;
-    bool global_finish = false;
+    unsigned global_finish = 0;
     double expanding_ratio = PDLN_DEFAULT_EXPANGDING_RATIO;
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
         local_leaf_nodes[i]->init_num_neighbors_on_boundry(1);
@@ -2261,7 +2261,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
 
         int all_ret = 0;
-        MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, processing_info->get_mpi_comm());
+        MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_BOR, processing_info->get_mpi_comm());
 
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
@@ -2346,16 +2346,16 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
 
-        bool local_finish = true;
+        unsigned local_finish = 1;
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i])
-                local_finish = false;
+                local_finish = 0;
 
-        MPI_Allreduce(&local_finish, &global_finish, 1, MPI_UNSIGNED, MPI_LAND, processing_info->get_mpi_comm());
+        MPI_Allreduce(&local_finish, &global_finish, 1, MPI_UNSIGNED, MPI_BAND, processing_info->get_mpi_comm());
 #ifdef TIME_PERF
         if (!global_finish || iter == 0) {
             printf("[ - ] %dth check: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-            time_consisty_check += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+            time_consisty_check = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
 

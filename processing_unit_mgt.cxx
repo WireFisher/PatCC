@@ -238,6 +238,8 @@ void Processing_resource::do_thread_send_recv()
             }
         }
     }
+    send_packets.clear();
+    recv_packets.clear();
 }
 
 
