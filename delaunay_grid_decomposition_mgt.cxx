@@ -142,6 +142,8 @@ Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], 
     , midline(Midline{-1, -361.0})
     , group_intervals(NULL)
     , triangulation(NULL)
+    , bind_with(0) /* no one can bind with 0 */
+    , is_bind(false)
     , polars_local_index(NULL)
     , shifted_polar_lat(0)
     , virtual_point_local_index(-1)
@@ -2253,6 +2255,22 @@ bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
 }
 
 
+void Delaunay_grid_decomposition::set_binding_relationship()
+{
+    if (local_leaf_nodes.size() == 0)
+        return;
+
+    int old_unit_id = regionID_to_unitID[local_leaf_nodes[0]->region_id];
+    for (int i = 1; i < local_leaf_nodes.size(); i++) {
+        if (local_leaf_nodes[i]->region_id == old_unit_id) {
+            local_leaf_nodes[i-1]->bind_with = i;
+            local_leaf_nodes[i]->is_bind = true;
+        } else
+            old_unit_id = local_leaf_nodes[i]->region_id;
+    }
+}
+
+
 #define PDLN_MAX_NUM_NEIGHBORS 128
 int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
@@ -2267,6 +2285,9 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         PDASSERT(is_local_leaf_node_finished[i] == false);
     }
 #endif
+
+    /* Bind nodes if needed */
+    set_binding_relationship();
 
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
         local_leaf_checksums[i] = new unsigned[PDLN_MAX_NUM_NEIGHBORS];
@@ -2334,9 +2355,16 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
         if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2])) {
             #pragma omp parallel for
-            for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
-                if(!is_local_leaf_node_finished[i])
-                        local_leaf_nodes[i]->project_grid();
+            for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+                if (local_leaf_nodes[i]->is_bind)
+                    continue;
+                for(unsigned cur = i;;) {
+                    if (!is_local_leaf_node_finished[cur])
+                        local_leaf_nodes[cur]->project_grid();
+                    cur = local_leaf_nodes[cur]->bind_with;
+                    if (cur == 0) break;
+                }
+            }
         }
 
         MPI_Barrier(processing_info->get_mpi_comm());
@@ -2352,9 +2380,16 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         #pragma omp parallel for
-        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
-            if(!is_local_leaf_node_finished[i])
-                local_leaf_nodes[i]->generate_local_triangulation(is_cyclic, num_inserted);
+        for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+            if (local_leaf_nodes[i]->is_bind)
+                continue;
+            for(unsigned cur = i;;) {
+                if (!is_local_leaf_node_finished[cur])
+                    local_leaf_nodes[cur]->generate_local_triangulation(is_cyclic, num_inserted);
+                cur = local_leaf_nodes[cur]->bind_with;
+                if (cur == 0) break;
+            }
+        }
 
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);

@@ -80,6 +80,8 @@ private:
     int expanding_scale[4];
     Neighbors neighbors;
     Delaunay_Voronoi* triangulation;
+    int  bind_with;
+    bool is_bind;
 
     vector<int>* polars_local_index;
     double       shifted_polar_lat;
@@ -183,6 +185,7 @@ private:
     void update_workloads(int, int, int);
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int, int, int);
     bool is_polar_node(Search_tree_node*) const;
+    void set_binding_relationship();
 
     /* Grid Expanding */
     int expand_tree_node_boundry(Search_tree_node*, double);
