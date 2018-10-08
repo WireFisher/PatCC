@@ -49,7 +49,7 @@
 
 /* expanding */
 #define PDLN_SEPARATELY_EXPANDING_COUNT (3)
-#define PDLN_MIN_EXPANDING_QUOTA (400.0)
+#define PDLN_MIN_EXPANDING_QUOTA (1000.0)
 
 
 static inline bool is_in_region(double x, double y, Boundry region);
@@ -1704,28 +1704,28 @@ Boundry Search_tree_node::expand()
     Boundry expanded = *expand_boundry;
 
     if(node_type == PDLN_NODE_TYPE_SPOLAR) {
-        if(num_neighbors_on_boundry[PDLN_UP] > 0) expanded.max_lat += (expanded.max_lat - expanded.min_lat) * expanding_scale[PDLN_UP]++ / 10.;
+        if(num_neighbors_on_boundry[PDLN_UP] > 0) expanded.max_lat += (expanded.max_lat - expanded.min_lat) * expanding_scale[PDLN_UP] / 10.;
         return expanded;
     }
     if(node_type == PDLN_NODE_TYPE_NPOLAR) {
-        if(num_neighbors_on_boundry[PDLN_DOWN] > 0) expanded.min_lat -= (expanded.max_lat - expanded.min_lat) * expanding_scale[PDLN_DOWN]++ / 10.;
+        if(num_neighbors_on_boundry[PDLN_DOWN] > 0) expanded.min_lat -= (expanded.max_lat - expanded.min_lat) * expanding_scale[PDLN_DOWN] / 10.;
         return expanded;
     }
     if(node_type == PDLN_NODE_TYPE_COMMON) {
         if(num_neighbors_on_boundry[PDLN_UP] > 0) {
-            expanded.max_lat += (expanded.max_lat - expanded.min_lat) * expanding_scale[PDLN_UP]++ / 10.;
+            expanded.max_lat += (expanded.max_lat - expanded.min_lat) * expanding_scale[PDLN_UP] / 10.;
             edge_expanding_count[PDLN_UP]++;
         }
         if(num_neighbors_on_boundry[PDLN_LEFT] > 0) { 
-            expanded.min_lon -= (expanded.max_lon - expanded.min_lon) * expanding_scale[PDLN_LEFT]++ / 10.;
+            expanded.min_lon -= (expanded.max_lon - expanded.min_lon) * expanding_scale[PDLN_LEFT] / 10.;
             edge_expanding_count[PDLN_LEFT]++;
         }
         if(num_neighbors_on_boundry[PDLN_DOWN] > 0) {
-            expanded.min_lat -= (expanded.max_lat - expanded.min_lat) * expanding_scale[PDLN_DOWN]++ / 10.;
+            expanded.min_lat -= (expanded.max_lat - expanded.min_lat) * expanding_scale[PDLN_DOWN] / 10.;
             edge_expanding_count[PDLN_DOWN]++;
         }
         if(num_neighbors_on_boundry[PDLN_RIGHT] > 0) {
-            expanded.max_lon += (expanded.max_lon - expanded.min_lon) * expanding_scale[PDLN_RIGHT]++ / 10.;
+            expanded.max_lon += (expanded.max_lon - expanded.min_lon) * expanding_scale[PDLN_RIGHT] / 10.;
             edge_expanding_count[PDLN_RIGHT]++;
         }
     }
