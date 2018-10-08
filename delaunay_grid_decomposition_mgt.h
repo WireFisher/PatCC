@@ -203,6 +203,8 @@ private:
     unsigned compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
     void send_recv_checksums_with_neighbors(Search_tree_node*, unsigned*, unsigned*, vector<MPI_Request*> *, int);
     bool are_checksums_identical(Search_tree_node*, unsigned*, unsigned*);
+    void send_checksum_to_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req);
+    void recv_checksum_from_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req);
     
     /* Process thread communication */
     int recv_triangles_from_remote(int, int, Triangle_pack *, int, int);

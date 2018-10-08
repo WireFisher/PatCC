@@ -208,21 +208,36 @@ void Processing_resource::pick_out_active_processing_units(int num_total_active_
 }
 
 
-bool Processing_resource::send_to_local_thread(const void *buf, int count, int size, int src, int dst, int tag)
+void Processing_resource::send_to_local_thread(void *buf, int count, int size, int src, int dst, int tag)
 {
-    local_thread_comm.push_back(Thread_comm_packet(buf, count*size, src, dst, tag));
-    return true;
+    #pragma omp critical
+    {
+        send_packets.push_back(Thread_comm_packet(buf, count*size, src, dst, tag));
+    }
 }
 
 
-int Processing_resource::recv_from_local_thread(void *buf, int max_count, int size, int src, int dst, int tag)
+void Processing_resource::recv_from_local_thread(void *buf, int max_count, int size, int src, int dst, int tag)
 {
-    for(unsigned int i = 0; i < local_thread_comm.size(); i++)
-        if(local_thread_comm[i].src == src && local_thread_comm[i].dest == dst && local_thread_comm[i].tag == tag) {
-            memcpy(buf, local_thread_comm[i].buf, std::min(max_count, local_thread_comm[i].len));
-            return std::min(max_count, local_thread_comm[i].len);
+    #pragma omp critical
+    {
+        recv_packets.push_back(Thread_comm_packet(buf, max_count*size, src, dst, tag));
+    }
+}
+
+
+void Processing_resource::do_thread_send_recv()
+{
+    for (unsigned i = 0; i < send_packets.size(); i++) {
+        for (unsigned j = 0; j < recv_packets.size(); j++) {
+            if(send_packets[i].src == recv_packets[j].src && send_packets[i].dst == recv_packets[j].dst &&
+               send_packets[i].tag == recv_packets[j].tag) {
+                memcpy(recv_packets[j].buf, send_packets[i].buf, send_packets[i].len);
+                recv_packets[j].src = recv_packets[j].dst = recv_packets[j].tag = -1;
+                break;
+            }
         }
-    return -1;
+    }
 }
 
 

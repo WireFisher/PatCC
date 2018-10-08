@@ -32,16 +32,16 @@ public:
 
 
 struct Thread_comm_packet {
-    const void *buf;
+    void *buf;
     int len;
     int src;
-    int dest;
+    int dst;
     int tag;
 
-    Thread_comm_packet(const void *_buf, int _len, int _src, int _dest, int _tag): buf(_buf),
+    Thread_comm_packet(void *_buf, int _len, int _src, int _dest, int _tag): buf(_buf),
                                                                              len(_len),
                                                                              src(_src),
-                                                                             dest(_dest),
+                                                                             dst(_dest),
                                                                              tag(_tag) {};
 };
 
@@ -60,7 +60,8 @@ private:
     MPI_Comm mpi_comm;
     int num_local_threads;
 
-    vector<Thread_comm_packet> local_thread_comm;
+    vector<Thread_comm_packet> send_packets;
+    vector<Thread_comm_packet> recv_packets;
     
     int identify_processing_units_by_hostname();
     void set_cpu_affinity();
@@ -82,8 +83,9 @@ public:
     void print_all_nodes_info();
 
     /* communication */
-    bool send_to_local_thread(const void *, int, int, int, int, int);
-    int recv_from_local_thread(void *, int, int, int, int, int);
+    void send_to_local_thread(void *, int, int, int, int, int);
+    void recv_from_local_thread(void *, int, int, int, int, int);
+    void do_thread_send_recv();
 };
 
 

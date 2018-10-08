@@ -1277,39 +1277,38 @@ unsigned Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *t
 
 
 /* non-block */
-void Delaunay_grid_decomposition::send_triangles_to_remote(int src_common_id, int dst_common_id, Triangle_pack *triangles_buf, int num_triangles, int tag)
+void Delaunay_grid_decomposition::send_checksum_to_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req)
 {
-    MPI_Request request;
-    if(processing_info->get_local_process_id() == processing_info->get_processing_unit(dst_common_id)->process_id)
-        processing_info->send_to_local_thread(triangles_buf, num_triangles, sizeof(Triangle_pack),
+    if(processing_info->get_local_process_id() == processing_info->get_processing_unit(dst_common_id)->process_id) {
+        *req = NULL;
+        processing_info->send_to_local_thread(checksum, 1, sizeof(unsigned),
                                               processing_info->get_processing_unit(src_common_id)->thread_id,
                                               processing_info->get_processing_unit(dst_common_id)->thread_id, tag);
-    else {
-        MPI_Isend(triangles_buf, num_triangles*sizeof(Triangle_pack), MPI_CHAR,
-                  processing_info->get_processing_unit(dst_common_id)->process_id, 
-                  tag, processing_info->get_mpi_comm(), &request);
+    } else {
+        *req = new MPI_Request;
+        #pragma omp critical
+        {
+            MPI_Isend(checksum, 1, MPI_UNSIGNED, processing_info->get_processing_unit(dst_common_id)->process_id, 
+                      tag, processing_info->get_mpi_comm(), *req);
+        }
     }
 }
 
 
-/* block */
-int Delaunay_grid_decomposition::recv_triangles_from_remote(int src_common_id, int dst_common_id, Triangle_pack *triangles_buf, int num_max_triangles, int tag)
+void Delaunay_grid_decomposition::recv_checksum_from_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req)
 {
     if(processing_info->get_local_process_id() == processing_info->get_processing_unit(src_common_id)->process_id) {
-        PDASSERT(false);
-        return processing_info->recv_from_local_thread(triangles_buf, num_max_triangles, sizeof(Triangle_pack),
-                                                       processing_info->get_processing_unit(src_common_id)->thread_id,
-                                                       processing_info->get_processing_unit(dst_common_id)->thread_id, tag) / sizeof(Triangle_pack);
-    }
-    else {
-        MPI_Status status;
-        int count;
-        MPI_Recv(triangles_buf, num_max_triangles*sizeof(Triangle_pack), MPI_CHAR,
-                 processing_info->get_processing_unit(src_common_id)->process_id, 
-                 tag, processing_info->get_mpi_comm(), &status);
-        MPI_Get_count(&status, MPI_CHAR, &count);
-        PDASSERT(count%sizeof(Triangle_pack) == 0);
-        return count/sizeof(Triangle_pack);
+        *req = NULL;
+        processing_info->recv_from_local_thread(checksum, 1, sizeof(unsigned),
+                                                processing_info->get_processing_unit(src_common_id)->thread_id,
+                                                processing_info->get_processing_unit(dst_common_id)->thread_id, tag);
+    } else {
+        *req = new MPI_Request;
+        #pragma omp critical
+        {
+            MPI_Irecv(checksum, 1, MPI_UNSIGNED, processing_info->get_processing_unit(src_common_id)->process_id, 
+                     tag, processing_info->get_mpi_comm(), *req);
+        }
     }
 }
 
@@ -1375,39 +1374,32 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
                                               &cyclic_common_boundary_head, &cyclic_common_boundary_tail);
         
         /* calculate checksum */
-        local_checksums[i] = 0;
-        if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            unsigned checksum = leaf_node->triangulation->cal_checksum(common_boundary_head, common_boundary_tail, threshold);
-            local_checksums[i] ^= checksum;
-        }
+        unsigned checksum = 0;
+        if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE)
+            checksum ^= leaf_node->triangulation->cal_checksum(common_boundary_head, common_boundary_tail, threshold);
 
-        if(cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            unsigned checksum = leaf_node->triangulation->cal_checksum(cyclic_common_boundary_head, cyclic_common_boundary_tail, threshold);
-            local_checksums[i] ^= checksum;
-        }
-        local_checksums[i] = set_boundry_type(local_checksums[i], boundry_type);
+        if(cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE)
+            checksum ^= leaf_node->triangulation->cal_checksum(cyclic_common_boundary_head, cyclic_common_boundary_tail, threshold);
+
+        checksum = set_boundry_type(checksum, boundry_type);
+        local_checksums[i] = checksum;
 
         /* send and recv */
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE || cyclic_common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE) {
-            MPI_Request *req = new MPI_Request;
-            #pragma omp critical
-            {
+            MPI_Request *req;
+            send_checksum_to_remote(regionID_to_unitID[leaf_node->region_id], regionID_to_unitID[leaf_node->neighbors[i].first->region_id],
+                                    &local_checksums[i], PDLN_SET_TAG(leaf_node->region_id, leaf_node->neighbors[i].first->region_id, iter),
+                                    &req);
 #ifdef DEBUG
+            if (req)
                 waiting_list->push_back(req);
 #endif
-                MPI_Isend(&local_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(regionID_to_unitID[leaf_node->neighbors[i].first->region_id])->process_id,
-                      PDLN_SET_TAG(leaf_node->region_id, leaf_node->neighbors[i].first->region_id, iter),
-                      processing_info->get_mpi_comm(), req); 
-            }
 
-            #pragma omp critical
-            {
-                req = new MPI_Request;
+            recv_checksum_from_remote(regionID_to_unitID[leaf_node->neighbors[i].first->region_id], regionID_to_unitID[leaf_node->region_id],
+                                      &remote_checksums[i], PDLN_SET_TAG(leaf_node->neighbors[i].first->region_id, leaf_node->region_id, iter),
+                                      &req);
+            if (req)
                 waiting_list->push_back(req);
-                MPI_Irecv(&remote_checksums[i], 1, MPI_UNSIGNED, processing_info->get_processing_unit(regionID_to_unitID[leaf_node->neighbors[i].first->region_id])->process_id,
-                      PDLN_SET_TAG(leaf_node->neighbors[i].first->region_id, leaf_node->region_id, iter),
-                      processing_info->get_mpi_comm(), req);
-            }
         }
         else
             remote_checksums[i] = 0;
@@ -2086,7 +2078,7 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
     }
 
     if(node->children[0] == NULL && node->children[2] == NULL) {
-        assert(false);
+        //assert(false);
         return;
     }
 
@@ -2334,6 +2326,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             send_recv_checksums_with_neighbors(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i], &waiting_lists[i], iter);
         }
 
+        processing_info->do_thread_send_recv();
+
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             for(unsigned j = 0; j < waiting_lists[i].size(); j++) {
                 //fprintf(stderr, "waiting %p\n", waiting_lists[i]);
@@ -2361,7 +2355,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 #ifdef TIME_PERF
         if (!global_finish || iter == 0) {
             printf("[ - ] %dth check: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-            time_consisty_check = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+            time_consisty_check += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
 
