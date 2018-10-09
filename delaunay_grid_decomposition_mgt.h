@@ -138,6 +138,7 @@ public:
     void clear_expanding_count(unsigned);
 
     friend class Delaunay_grid_decomposition;
+    friend bool node_ptr_comp(Search_tree_node*, Search_tree_node*);
 };
 
 class Delaunay_grid_decomposition {

@@ -2255,10 +2255,18 @@ bool Delaunay_grid_decomposition::is_polar_node(Search_tree_node *node) const
 }
 
 
+bool node_ptr_comp(Search_tree_node* a, Search_tree_node* b)
+{
+        return a->region_id < b->region_id;
+}
+
+
 void Delaunay_grid_decomposition::set_binding_relationship()
 {
     if (local_leaf_nodes.size() == 0)
         return;
+
+    std::sort(local_leaf_nodes.begin(), local_leaf_nodes.end(), node_ptr_comp);
 
     int old_unit_id = regionID_to_unitID[local_leaf_nodes[0]->region_id];
     for (int i = 1; i < local_leaf_nodes.size(); i++) {
