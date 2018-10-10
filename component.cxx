@@ -56,7 +56,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
         gettimeofday(&end, NULL);
 #ifdef TIME_PERF
         printf("[ - ] Grid Decomposition: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-        time_decomose = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+        time_decomose += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
         //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
 

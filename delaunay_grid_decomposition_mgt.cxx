@@ -1606,6 +1606,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 #ifdef TIME_PERF
         printf("[ - ] Pseudo Point 1&2: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
         time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+        time_decomose -= (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
     }
     
@@ -1663,6 +1664,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 #ifdef TIME_PERF
         printf("[ - ] Pseudo Point 1&2: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
         time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+        time_decomose -= (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
     }
 
