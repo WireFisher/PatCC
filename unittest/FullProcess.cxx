@@ -882,7 +882,11 @@ const int autogen_grid_size[] = {
                                //99225,
                                //998001,
 
-                               0,
+                               64800,
+                               720000,
+                               6480000,
+
+                               //0,
                                //0,
                                //0,
                                //0,
@@ -912,10 +916,14 @@ const char autogen_grid_name[][64] = {
                                     //"lonlat_non-uniform_global_100000.dat",
                                     //"lonlat_non-uniform_global_1000000.dat",
 
-                                    "CUBE_grid_2.5.nc",
-                                    "CUBE_grid_1.nc",
-                                    "CUBE_grid_0.3.nc",
-                                    "CUBE_grid_0.1.nc",
+                                    "lonlat_grid_1.dat",
+                                    "lonlat_grid_0.3.dat",
+                                    "lonlat_grid_0.1.dat",
+
+                                    //"CUBE_grid_2.5.nc",
+                                    //"CUBE_grid_1.nc",
+                                    //"CUBE_grid_0.3.nc",
+                                    //"CUBE_grid_0.1.nc",
                                   };
 const char autogen_grid_path[] = "gridfile/performence_evaluation/%s";
 void prepare_autogen_grid(const char grid_name[], int grid_size)
@@ -965,7 +973,8 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
             coord_values[PDLN_LAT] = new double[grid_size];
 
             if (strstr(grid_name, "lonlat_uniform_global") ||
-                strstr(grid_name, "lonlat_non-uniform_global")) {
+                strstr(grid_name, "lonlat_non-uniform_global") ||
+                strstr(grid_name, "lonlat_grid_")) {
                 for(int i = 0; i < grid_size; i++)
                     fscanf(fp, "%lf %lf\n", &coord_values[PDLN_LON][i], &coord_values[PDLN_LAT][i]);
             } else {
