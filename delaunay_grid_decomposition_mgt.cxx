@@ -814,29 +814,84 @@ void Search_tree_node::add_neighbors(vector<Search_tree_node*> ns)
 }
 
 
+static inline void lonlat2xyz(double lon, double lat, double *x, double *y, double *z)
+{
+    *x = cos(DEGREE_TO_RADIAN(lat)) * sin(DEGREE_TO_RADIAN(lon));
+    *y = sin(DEGREE_TO_RADIAN(lat));
+    *z = cos(DEGREE_TO_RADIAN(lat)) * cos(DEGREE_TO_RADIAN(lon));
+}
+
+
+static inline void normalize_vector(double *x, double *y, double *z)
+{
+    double length = std::sqrt(*x * *x + *y * *y + *z * *z);
+    *x /= length;
+    *y /= length;
+    *z /= length;
+}
+
+
+static inline void calculate_unit_vectors(double lon_tan, double lat_tan,
+                                          double *v1_x, double *v1_y, double *v1_z,
+                                          double *v2_x, double *v2_y, double *v2_z)
+{
+    double t_x, t_y, t_z;
+
+    lonlat2xyz(lon_tan, lat_tan, &t_x, &t_y, &t_z);
+    double min_dir = std::min(std::abs(t_x),std::min(std::abs(t_y),std::abs(t_z)));
+
+    double axis_x = 1.0;
+    double axis_y = 0.0;
+    double axis_z = 0.0;
+
+    *v1_x = t_y * axis_z - t_z * axis_y;
+    *v1_y = t_z * axis_x - t_x * axis_z;
+    *v1_z = t_x * axis_y - t_y * axis_x;
+
+    normalize_vector(v1_x, v1_y, v1_z);
+
+    *v2_x = t_y * *v1_z - t_z * *v1_y;
+    *v2_y = t_z * *v1_x - t_x * *v1_z;
+    *v2_z = t_x * *v1_y - t_y * *v1_x;
+
+    normalize_vector(v2_x, v2_y, v2_z);
+}
+
+
 void Search_tree_node::project_grid()
 {
     //timeval start, end;
     //gettimeofday(&start, NULL);
+
+    /* (x, y, z) of Unit Vector on projecting surface */
+    double uv1_x, uv1_y, uv1_z;
+    double uv2_x, uv2_y, uv2_z;
+    double center_x, center_y, center_z;
+    lonlat2xyz(center[PDLN_LON], center[PDLN_LAT], &center_x, &center_y, &center_z);
+    calculate_unit_vectors(center[PDLN_LON], center[PDLN_LAT], &uv1_x, &uv1_y, &uv1_z, &uv2_x, &uv2_y, &uv2_z);
+
     if(projected_coord[0] == NULL) {
         projected_coord[0] = new double[num_kernel_points + len_expand_coord_buf];
         projected_coord[1] = new double[num_kernel_points + len_expand_coord_buf];
 
         for(int i = 0; i < num_kernel_points; i++) {
-            calculate_stereographic_projection(kernel_coord[PDLN_LON][i], kernel_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
-                                               projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
+            fast_stereographic_projection(kernel_coord[PDLN_LON][i], kernel_coord[PDLN_LAT][i],
+                                          center_x, center_y, center_z, uv1_x, uv1_y, uv1_z, uv2_x, uv2_y, uv2_z,
+                                          projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
         }
 
         for(int i = 0; i < num_expand_points; i++) {
-            calculate_stereographic_projection(expand_coord[PDLN_LON][i], expand_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
-                                               projected_coord[PDLN_LON][i+num_kernel_points], projected_coord[PDLN_LAT][i+num_kernel_points]);
+            fast_stereographic_projection(expand_coord[PDLN_LON][i], expand_coord[PDLN_LAT][i],
+                                          center_x, center_y, center_z, uv1_x, uv1_y, uv1_z, uv2_x, uv2_y, uv2_z,
+                                          projected_coord[PDLN_LON][i+num_kernel_points], projected_coord[PDLN_LAT][i+num_kernel_points]);
         }
 
         num_projected_points = num_kernel_points + num_expand_points;
     } else {
         for(int i = num_projected_points - num_kernel_points; i < num_expand_points; i++) {
-            calculate_stereographic_projection(expand_coord[PDLN_LON][i], expand_coord[PDLN_LAT][i], center[PDLN_LON], center[PDLN_LAT],
-                                               projected_coord[PDLN_LON][i+num_kernel_points], projected_coord[PDLN_LAT][i+num_kernel_points]);
+            fast_stereographic_projection(expand_coord[PDLN_LON][i], expand_coord[PDLN_LAT][i],
+                                          center_x, center_y, center_z, uv1_x, uv1_y, uv1_z, uv2_x, uv2_y, uv2_z,
+                                          projected_coord[PDLN_LON][i+num_kernel_points], projected_coord[PDLN_LAT][i+num_kernel_points]);
         }
 
         num_projected_points = num_kernel_points + num_expand_points;
