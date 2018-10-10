@@ -68,12 +68,14 @@ max_lon = 360.0
 min_lat = -90.0
 max_lat = 90.0
 
-fp = open("lonlat_uniform_global_%d.dat" % num_points, "w")
-edge_points = int(math.sqrt(num_points))
-for i in xrange(edge_points):
-    for j in xrange(1, edge_points):
-        lon = min_lon + (max_lon - min_lon) * i / edge_points
-        lat = min_lat + (max_lat - min_lat) * j / edge_points
+res = 1.0
+fp = open("lonlat_grid_%.1f.dat" % res, "w")
+lon_points = int((max_lon - min_lon) / res)
+lat_points = int((max_lat - min_lat) / res)
+for i in xrange(lon_points):
+    for j in xrange(lat_points):
+        lon = min_lon + (max_lon - min_lon) * i / lon_points
+        lat = min_lat + (max_lat - min_lat) * j / (lat_points-1)
         #x, y, z = lonlat2xyz(math.radians(lon), math.radians(lat))
         fp.write("%.10lf %.10lf\n" % (lon, lat))
 fp.close()
