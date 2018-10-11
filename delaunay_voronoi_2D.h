@@ -82,7 +82,7 @@ class Delaunay_Voronoi
         const double* y_store;
 #endif
 
-        void triangulating_process(Triangle*, unsigned);
+        unsigned triangulating_process(Triangle*, unsigned);
         void map_buffer_index_to_point_index();
         void push(unsigned *, Triangle*);
 

@@ -1001,7 +1001,7 @@ inline bool is_triangle_intersecting_with_segment(Triangle_pack* triangle, Point
 }
 
 
-void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_base)
+unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_base)
 {
     unsigned stack_top = stack_base;
 
@@ -1009,7 +1009,7 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
     PDASSERT(triangle->is_leaf);
 #endif
     if (triangle->remained_points_tail == -1)
-        return;
+        return stack_top;
 
     triangle->is_leaf = false;
 
@@ -1134,6 +1134,8 @@ void Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned stack_
             triangle_allocator.deleteElement(killed);
         }
     }
+
+    return stack_top;
 }
 
 void Delaunay_Voronoi::clean_triangle(Triangle* t)
@@ -1242,7 +1244,20 @@ unsigned Delaunay_Voronoi::generate_initial_triangles()
     triangle_stack[stack_top-1]->edge[1]->twin_edge = triangle_stack[stack_top]->edge[1];
     triangle_stack[stack_top]->edge[1]->twin_edge = triangle_stack[stack_top-1]->edge[1];
 
-    distribute_points_into_triangles(0, num_points-1, stack_base, stack_top);
+    if (vpolar_local_index != -1) {
+        swap_points(0, vpolar_local_index);
+        all_points[0].next = -1;
+        all_points[1].prev = -1;
+        distribute_points_into_triangles(0, 0, stack_base, stack_top);
+
+        for (unsigned i = stack_base+1; i <= stack_top; i++)
+            if(triangle_stack[i] && triangle_stack[i]->is_leaf)
+                stack_top = triangulating_process(triangle_stack[i], stack_top);
+        distribute_points_into_triangles(1, num_points-1, stack_base, stack_top);
+    } else {
+        distribute_points_into_triangles(0, num_points-1, stack_base, stack_top);
+    }
+
 
     return stack_top;
 }
