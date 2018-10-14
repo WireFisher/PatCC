@@ -190,7 +190,7 @@ private:
 
     /* Grid Expanding */
     int expand_tree_node_boundry(Search_tree_node*, double);
-    vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double, double**, int*, bool*, int*);
+    vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double*, double**, int*, bool*, int*);
     bool do_two_regions_overlap(Boundry, Boundry);
     static void adjust_subrectangle(double, double, double**, int*, int, int, Boundry*, int, int, int*, int*);
     static int move_together(double**, int*, int*, int*, Boundry);

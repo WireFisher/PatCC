@@ -1855,10 +1855,22 @@ void Search_tree_node::set_groups(int *intervals, int num)
 }
 
 
+#define PDLN_EXPANDING_LAYERS (8)
 int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree_node, double expanding_ratio)
 {
     int num_found;
     vector<Search_tree_node*> leaf_nodes_found;
+
+    Boundry* bound = tree_node->kernel_boundry;
+    double height_length_ratio = (bound->max_lat - bound->min_lat) / (bound->max_lon - bound->min_lon);
+    double quota[4];
+    if (is_polar_node(tree_node)) {
+        quota[PDLN_LEFT] = quota[PDLN_RIGHT] = sqrt(tree_node->num_kernel_points * height_length_ratio) * 2;
+        quota[PDLN_UP] = quota[PDLN_DOWN] = sqrt(tree_node->num_kernel_points / height_length_ratio) * 2;
+    } else {
+        quota[PDLN_LEFT] = quota[PDLN_RIGHT] = sqrt(tree_node->num_kernel_points * height_length_ratio) * PDLN_EXPANDING_LAYERS;
+        quota[PDLN_UP] = quota[PDLN_DOWN] = sqrt(tree_node->num_kernel_points / height_length_ratio) * PDLN_EXPANDING_LAYERS;
+    }
 
     for (int i = 0; i < 4; i++)
         if (tree_node->edge_expanding_count[i] > PDLN_SEPARATELY_EXPANDING_COUNT) {
@@ -1868,12 +1880,21 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
             break;
         }
 
-    int num_edge_to_expand = 0;
+    int    num_edge_needing_expand = 0;
+    double unassigned_quota = 0;
     for (int i = 0; i < 4; i++)
         if (tree_node->num_neighbors_on_boundry[i] > 0)
-            num_edge_to_expand++;
+            num_edge_needing_expand++;
+        else {
+            unassigned_quota += quota[i];
+            quota[i] = 0;
+        }
+    unassigned_quota /= num_edge_needing_expand;
+    for (int i = 0; i < 4; i++)
+        if (tree_node->num_neighbors_on_boundry[i] > 0)
+            quota[i] += unassigned_quota;
 
-    PDASSERT(num_edge_to_expand > 0);
+    PDASSERT(num_edge_needing_expand > 0);
 
     int thread_id = omp_get_thread_num();
     double* tmp_coord[2];
@@ -1882,7 +1903,6 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     tmp_coord[1] = buf_double[1][thread_id];
     tmp_index = buf_int[thread_id];
 
-    double quota = std::max(average_workload * expanding_ratio, PDLN_MIN_EXPANDING_QUOTA) / num_edge_to_expand;
     int fail_count = 0;
     bool go_on[4];
     do {
@@ -2034,7 +2054,7 @@ void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double
 }
 
 
-vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(const Boundry* inner, Boundry* outer, double quota,
+vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(const Boundry* inner, Boundry* outer, double quota[4],
                                                                                 double *expanded_coord[2], int *expanded_index, 
                                                                                 bool go_on[4], int *total_num)
 {
@@ -2059,9 +2079,9 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
         num_points_picked[i] = num;
         if (num <= 0 && sub_rectangles[i].min_lat != sub_rectangles[i].max_lat && sub_rectangles[i].min_lon != sub_rectangles[i].max_lon)
             go_on[i] = true;
-        if (num > quota) {
-            double l_num = i<2 ? num - quota : quota;
-            double r_num = i<2 ? quota : num - quota;
+        if (num > quota[i]) {
+            double l_num = i<2 ? num - quota[i] : quota[i];
+            double r_num = i<2 ? quota[i] : num - quota[i];
             int linetype = i%2 ? PDLN_LAT : PDLN_LON;
             int savetype = i<2 ? PDLN_SAVE_R : PDLN_SAVE_L;
             adjust_subrectangle(l_num, r_num, expanded_coord, expanded_index, sorted, num,

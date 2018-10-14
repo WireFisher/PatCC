@@ -26,10 +26,10 @@
 
 #define PDLN_CHECKSUM_FALSE (0xFFFFFFFF)
 
-#define PDLN_UP     0
-#define PDLN_LEFT   1
-#define PDLN_DOWN   2
-#define PDLN_RIGHT  3
+#define PDLN_UP     3
+#define PDLN_LEFT   0
+#define PDLN_DOWN   1
+#define PDLN_RIGHT  2
 
 using std::vector;
 using std::pair;
