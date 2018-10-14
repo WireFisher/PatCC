@@ -10,6 +10,8 @@
 
 #include <cmath>
 
+#define ROUND_VALUE (10000000.0)
+
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
 
@@ -637,7 +639,6 @@ const char dim1_global_grid_name[][64] = {
 };
 
 
-#define ROUND_VALUE (10000000.0)
 void prepare_dim1_grid(const char grid_name[])
 {
     char fullname[128];
