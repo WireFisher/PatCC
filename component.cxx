@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <sys/time.h>
 #include "timer.h"
-#define DEFAULT_MIN_NUM_POINTS 100
-#define MULTIPLICATION_COEFFICIENT 2
+#define DEFAULT_MIN_NUM_POINTS (1000)
+#define MULTIPLICATION_COEFFICIENT (2)
 
 long time_proc_mgt = 0;
 long time_pretreat = 0;
