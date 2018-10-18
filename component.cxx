@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <sys/time.h>
 #include "timer.h"
-#define DEFAULT_MIN_NUM_POINTS (1000)
-#define MULTIPLICATION_COEFFICIENT (2)
+
+#define PDLN_DEFAULT_MIN_NUM_POINTS (1000)
 
 long time_proc_mgt = 0;
 long time_pretreat = 0;
@@ -30,66 +30,36 @@ Grid::~Grid()
 
 int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
 {
-    int min_num_points_per_chunk, ret;
-    bool do_sequentially = false;
-    if(delaunay_triangulation)
-        return 0;
+    delaunay_triangulation = new Delaunay_grid_decomposition(grid_id, proc_resource, PDLN_DEFAULT_MIN_NUM_POINTS);
 
-    min_num_points_per_chunk = DEFAULT_MIN_NUM_POINTS;
-    do {
-        min_num_points_per_chunk *= MULTIPLICATION_COEFFICIENT;
-        if(delaunay_triangulation) {
-            delete delaunay_triangulation;
-            delaunay_triangulation = NULL;
-        }
-        delaunay_triangulation = new Delaunay_grid_decomposition(this->grid_id, proc_resource, min_num_points_per_chunk);
-
-        timeval start, end;
-        MPI_Barrier(proc_resource->get_mpi_comm());
-        gettimeofday(&start, NULL);
-        if(delaunay_triangulation->generate_grid_decomposition()) {
-            do_sequentially = true;
-            break;
-        }
-
-        MPI_Barrier(proc_resource->get_mpi_comm());
-        gettimeofday(&end, NULL);
-#ifdef TIME_PERF
-        printf("[ - ] Grid Decomposition: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-        time_decomose += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-#endif
-        //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
-
-        gettimeofday(&start, NULL);
-        ret = delaunay_triangulation->generate_trianglulation_for_local_decomp();
-        MPI_Barrier(proc_resource->get_mpi_comm());
-        gettimeofday(&end, NULL);
-        int all_ret = 0;
-        MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
-        ret = all_ret;
-#ifdef TIME_PERF
-        printf("[ - ] All Trianglulation: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-#endif
-        /* Return Values: 0 - success
-         *                1 - fail, normal decomp's expanded_boundry exceeded too large (expanding fail)
-         *                2 - fail, polar  decomp's expanded_boundry exceeded threshold */
-        if(ret == 1)
-            return -1;
-        if(ret == 2) {
-            do_sequentially = true;
-            break;
-        }
-    } while(ret);
-
-    //mpi allgather do_sequentially
-    if(do_sequentially) { 
-        if(delaunay_triangulation) {
-            delete delaunay_triangulation;
-            delaunay_triangulation = NULL;
-        }
-        this->delaunay_triangulation = new Delaunay_grid_decomposition(this->grid_id, NULL, 0);
-        assert(false);
+    timeval start, end;
+    MPI_Barrier(proc_resource->get_mpi_comm());
+    gettimeofday(&start, NULL);
+    if(delaunay_triangulation->generate_grid_decomposition()) {
+        return -1;
     }
+
+    MPI_Barrier(proc_resource->get_mpi_comm());
+    gettimeofday(&end, NULL);
+#ifdef TIME_PERF
+    printf("[ - ] Grid Decomposition: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    time_decomose += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+#endif
+    //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
+
+    gettimeofday(&start, NULL);
+    int ret = delaunay_triangulation->generate_trianglulation_for_local_decomp();
+
+    MPI_Barrier(proc_resource->get_mpi_comm());
+    gettimeofday(&end, NULL);
+    int all_ret = 0;
+    MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
+#ifdef TIME_PERF
+    printf("[ - ] All Trianglulation: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+#endif
+    if(all_ret == 1)
+        return -1;
+
     return 0;
 }
 
@@ -129,32 +99,6 @@ void Component::grid_pretreatment(int grid_id)
     num_points = grid_info_mgr->get_grid_num_points(grid_id);
     is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
 
-    //int count = 0;
-    //for(int i = 0; i < num_points; i++) {//(0.000000, -90.000000), (315.000000, -88.827445), (360.000000, -89.170820)
-    //    //if(coord_values[PDLN_LON][i] < 348.5 && coord_values[PDLN_LON][i] > 344.7 && coord_values[PDLN_LAT][i] > 3.2 && coord_values[PDLN_LAT][i] < 4.1) {
-    //    if(fabs(coord_values[PDLN_LON][i] - 0) < 1e-5 && fabs(coord_values[PDLN_LAT][i] - -90.000000) < 1e-5) {
-    //        global_p_lon[0] = coord_values[PDLN_LON][i];
-    //        global_p_lat[0] = coord_values[PDLN_LAT][i];
-    //        printf("found1\n");
-    //    }
-    //    if(fabs(coord_values[pdln_lon][i] - 315.000000) < 1e-5 && fabs(coord_values[pdln_lat][i] - -88.827445) < 1e-5) {
-    //        global_p_lon[1] = coord_values[pdln_lon][i];
-    //        global_p_lat[1] = coord_values[pdln_lat][i];
-    //        printf("found2\n");
-    //    }
-    //    if(fabs(coord_values[pdln_lon][i] - 360.000000) < 1e-5 && fabs(coord_values[pdln_lat][i] - -89.170820) < 1e-5) {
-    //        global_p_lon[2] = coord_values[pdln_lon][i];
-    //        global_p_lat[2] = coord_values[pdln_lat][i];
-    //        printf("found3\n");
-    //    }
-    //}
-            //printf("coord: %lf, %lf\n", coord_values[pdln_lon][i], coord_values[pdln_lat][i]);
-            //global_p_lon[count] = coord_values[pdln_lon][i];
-            //global_p_lat[count++] = coord_values[pdln_lat][i];
-            //PDASSERT(count <= 4);
-    //double tmp;
-    //swap(global_p_lon[2], global_p_lon[3]);
-    //swap(global_p_lat[2], global_p_lat[3]);
     if(is_cyclic) {
         if(!(min_lon >= 0 && min_lon <=360 && max_lon >=0 && max_lon <= 360)) {
             for(int i = 0; i < num_points; i++) {
