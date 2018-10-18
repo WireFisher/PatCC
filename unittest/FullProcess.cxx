@@ -859,72 +859,48 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
 
 const int autogen_grid_size[] = {
-                               //100000,
-                               //1000000,
-                               //10000000,
+                               10000,
+                               100000,
+                               1000000,
+                               10000000,
 
-                               //100000,
-                               //400000,
-                               //800000,
-                               //1200000,
-                               //2400000,
-                               //3200000,
-                               //3600000,
-                               //6400000,
+                               100000,
+                               1000000,
+                               10000000,
 
-                               //100000,
-                               //1000000,
-                               //10000000,
-
-                               //99540,
-                               //999000,
-                               //9995082,
-
-                               //99225,
-                               //998001,
+                               99225,
+                               998001,
 
                                64800,
                                720000,
                                6480000,
 
-                               //0,
-                               //0,
-                               //0,
-                               //0,
+                               0,
+                               0,
+                               0,
+                               0,
                              };
 const char autogen_grid_name[][64] = { 
-                                    //"lonlat_random_global_100000.dat",
-                                    //"lonlat_random_global_1000000.dat",
-                                    //"lonlat_random_global_10000000.dat",
+                                    "lonlat_random_global_10000.dat",
+                                    "lonlat_random_global_100000.dat",
+                                    "lonlat_random_global_1000000.dat",
+                                    "lonlat_random_global_10000000.dat",
 
-                                    //"lonlat_random_global_100000.dat",
-                                    //"lonlat_random_global_400000.dat",
-                                    //"lonlat_random_global_800000.dat",
-                                    //"lonlat_random_global_1200000.dat",
-                                    //"lonlat_random_global_2400000.dat",
-                                    //"lonlat_random_global_3200000.dat",
-                                    //"lonlat_random_global_3600000.dat",
-                                    //"lonlat_random_global_6400000.dat",
+                                    "MonteCarlo_100000.dat",
+                                    "MonteCarlo_1000000.dat",
+                                    "MonteCarlo_10000000.dat",
 
-                                    //"MonteCarlo_100000.dat",
-                                    //"MonteCarlo_1000000.dat",
-                                    //"MonteCarlo_10000000.dat",
-
-                                    //"lonlat_uniform_global_100000.dat",
-                                    //"lonlat_uniform_global_1000000.dat",
-                                    //"lonlat_uniform_global_10000000.dat",
-
-                                    //"lonlat_non-uniform_global_100000.dat",
-                                    //"lonlat_non-uniform_global_1000000.dat",
+                                    "lonlat_non-uniform_global_100000.dat",
+                                    "lonlat_non-uniform_global_1000000.dat",
 
                                     "lonlat_grid_1.dat",
                                     "lonlat_grid_0.3.dat",
                                     "lonlat_grid_0.1.dat",
 
-                                    //"CUBE_grid_2.5.nc",
-                                    //"CUBE_grid_1.nc",
-                                    //"CUBE_grid_0.3.nc",
-                                    //"CUBE_grid_0.1.nc",
+                                    "CUBE_grid_2.5.nc",
+                                    "CUBE_grid_1.nc",
+                                    "CUBE_grid_0.3.nc",
+                                    "CUBE_grid_0.1.nc",
                                   };
 const char autogen_grid_path[] = "gridfile/performence_evaluation/%s";
 void prepare_autogen_grid(const char grid_name[], int grid_size)
