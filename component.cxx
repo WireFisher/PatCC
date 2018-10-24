@@ -4,7 +4,7 @@
 #include <sys/time.h>
 #include "timer.h"
 
-#define PDLN_DEFAULT_MIN_NUM_POINTS (1000)
+#define PDLN_DEFAULT_MIN_NUM_POINTS (150)
 
 long time_proc_mgt = 0;
 long time_pretreat = 0;

@@ -173,7 +173,7 @@ private:
     int**    buf_int;
 
     /* Main processes */
-    void initialze_workload();
+    void initialze_workload(bool, bool);
     void initialze_buffer();
     int assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*, bool =true);

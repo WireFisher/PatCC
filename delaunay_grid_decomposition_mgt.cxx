@@ -47,6 +47,8 @@
 
 #define PDLN_MAX_NUM_PROCESSING_UNITS 512
 
+#define PDLN_POLAR_WORKLOAD_RATE (0.09)
+
 /* expanding */
 #define PDLN_SEPARATELY_EXPANDING_COUNT (3)
 #define PDLN_MIN_EXPANDING_QUOTA (1000.0)
@@ -406,9 +408,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 
     //gettimeofday(&end, NULL);
     //if(node_type == PDLN_NODE_TYPE_COMMON)
-    //    fprintf(stderr, "[%3d] one local triangle: %ld us, points: %d, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, sched_getcpu());
+    //    fprintf(stderr, "[%03d] one local triangle: %ld us, points: %d, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, sched_getcpu());
     //else
-    //    fprintf(stderr, "[%3d] one polar triangle: %ld us, points: %d, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, sched_getcpu());
+    //    fprintf(stderr, "[%03d] one polar triangle: %ld us, points: %d, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, sched_getcpu());
 }
 
 
@@ -1097,7 +1099,7 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], Bo
 }
 
 
-void Delaunay_grid_decomposition::initialze_workload()
+void Delaunay_grid_decomposition::initialze_workload(bool south_pole, bool north_pole)
 {
     int max_punits   = (num_points + min_points_per_chunk - 1) / min_points_per_chunk;
     int total_punits = processing_info->get_num_total_processing_units();
@@ -1108,6 +1110,15 @@ void Delaunay_grid_decomposition::initialze_workload()
     delete[] regionID_to_unitID;
     delete[] workloads;
 
+    double polar_workload = average_workload * (1 - PDLN_POLAR_WORKLOAD_RATE);;
+
+    if (south_pole && north_pole)
+        average_workload += 2 * average_workload * PDLN_POLAR_WORKLOAD_RATE / (num_regions - 2);
+    else if (south_pole)
+        average_workload += average_workload * PDLN_POLAR_WORKLOAD_RATE / (num_regions - 1);
+    else if (north_pole)
+        average_workload += average_workload * PDLN_POLAR_WORKLOAD_RATE / (num_regions - 1);
+
     /* +2: space for extra regions of polars' processes */
     regionID_to_unitID = new int[num_regions+2];
     workloads          = new double[num_regions+2];
@@ -1117,6 +1128,11 @@ void Delaunay_grid_decomposition::initialze_workload()
     int regions_id_end = num_regions+1;
     for(int i = 1; i < num_regions+1; i++)
         workloads[i] = average_workload;
+
+    if (north_pole)
+        workloads[num_regions] = polar_workload;
+    if (south_pole)
+        workloads[1] = polar_workload;
 
     processing_info->pick_out_active_processing_units(num_regions, active_processing_units_flag);
 
@@ -1699,13 +1715,16 @@ bool Delaunay_grid_decomposition::have_local_region_ids(int start, int end)
 
 int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
 {
-    initialze_workload();
-    current_tree_node = search_tree_root;
-
     double min_lon, max_lon, min_lat, max_lat;
     grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
 
-    if(assign_polars(float_eq(min_lat, -90.0), float_eq(max_lat, 90.0)))
+    bool south_pole = float_eq(min_lat, -90.0);
+    bool north_pole = float_eq(max_lat,  90.0);
+
+    initialze_workload(south_pole, north_pole);
+    current_tree_node = search_tree_root;
+
+    if(assign_polars(south_pole, north_pole))
         return 1;
 
     int num_computing_nodes = processing_info->get_num_computing_nodes();
@@ -1921,16 +1940,16 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
             fail_count = 0;
 
         if(fail_count > 5) {
-            printf("expanding failed too many times\n");
+            fprintf(stderr, "[%03d] expanding failed too many times\n", tree_node->region_id);
             return -1;
         }
         if(new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
            new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
-            printf("expanded too large\n");
+            fprintf(stderr, "[%03d] expanded too large\n", tree_node->region_id);
             return -1;
         }
         if(new_boundry == *search_tree_root->kernel_boundry || new_boundry.max_lon - new_boundry.min_lon > 360.0) {
-            printf("expanded to the max\n");
+            fprintf(stderr, "[%03d] expanded to the max\n", tree_node->region_id);
             return -1;
         }
 
@@ -2691,6 +2710,13 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_pack 
         fprintf(fp, "%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
     fclose(fp);
 #endif
+
+    //char file_fmt1[] = "log/global_triangles_coord_%d";
+    //snprintf(filename, 64, file_fmt1, processing_info->get_num_total_processing_units());
+    //fp = fopen(filename, "w");
+    //for(int i = 0; i < num_different_triangles; i++)
+    //    fprintf(fp, "%lf, %lf, %lf, %lf, %lf, %lf\n", triangles[i].v[0].x, triangles[i].v[0].y, triangles[i].v[1].x, triangles[i].v[1].y, triangles[i].v[2].x, triangles[i].v[2].y);
+    //fclose(fp);
 
 #ifdef OPENCV
     char file_fmt2[] = "log/image_global_triangles_%d";
