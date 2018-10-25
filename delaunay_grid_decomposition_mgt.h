@@ -162,6 +162,7 @@ private:
     Processing_resource* processing_info;
     int       num_regions;
     bool*     active_processing_units_flag;
+    bool      is_local_proc_active;
     double*   workloads;
     double    average_workload;
     int*      regionID_to_unitID;
@@ -173,18 +174,19 @@ private:
     int**    buf_int;
 
     /* Main processes */
-    void initialze_workload(bool, bool);
+    int  initialze_workload(bool, bool);
     void initialze_buffer();
-    int assign_polars(bool, bool);
+    int  assign_polars(bool, bool);
     void decompose_common_node_recursively(Search_tree_node*, bool =true);
 
     /* Pre-treatment */
+    int calculate_num_inserted_points(Boundry *boundry, int num_points);
     int dup_inserted_points(double *coord_values[2], Boundry *boundry, int num_points);
 
     /* Helper */
     bool have_local_region_ids(int, int);
-    void update_workloads(int, int, int);
-    Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int, int, int);
+    void update_workloads(int, int, int, bool);
+    Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int, int, int, bool=true);
     bool is_polar_node(Search_tree_node*) const;
     void set_binding_relationship();
 

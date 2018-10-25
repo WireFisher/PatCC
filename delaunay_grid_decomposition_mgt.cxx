@@ -840,7 +840,6 @@ static inline void calculate_unit_vectors(double lon_tan, double lat_tan,
     double t_x, t_y, t_z;
 
     lonlat2xyz(lon_tan, lat_tan, &t_x, &t_y, &t_z);
-    double min_dir = std::min(std::abs(t_x),std::min(std::abs(t_y),std::abs(t_z)));
 
     double axis_x = 1.0;
     double axis_y = 0.0;
@@ -918,14 +917,21 @@ void Search_tree_node::project_grid()
 
 
 Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing_resource *proc_info, int min_points_per_chunk)
-    : min_points_per_chunk(min_points_per_chunk)
+    : search_tree_root(NULL)
+    , min_points_per_chunk(min_points_per_chunk)
     , original_grid(grid_id)
+    , global_index(NULL)
     , processing_info(proc_info)
+    , active_processing_units_flag(NULL)
+    , is_local_proc_active(false)
     , workloads(NULL)
     , average_workload(0)
     , regionID_to_unitID(NULL)
     , all_group_intervals(NULL)
+    , buf_int(NULL)
 {
+    buf_double[0] = buf_double[1] = NULL;
+
     timeval start, end;
     double **coords;
     Boundry boundry;
@@ -939,17 +945,28 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     coord_values[0] = coords[0];
     coord_values[1] = coords[1];
 
+    num_inserted = calculate_num_inserted_points(&boundry, num_points);
+    num_points += num_inserted;
+
+    bool south_pole = float_eq(boundry.min_lat, -90.0);
+    bool north_pole = float_eq(boundry.max_lat,  90.0);
+    int regions_id_end = initialze_workload(south_pole, north_pole);
+
     MPI_Barrier(processing_info->get_mpi_comm());
     gettimeofday(&start, NULL);
-    num_inserted = dup_inserted_points(coord_values, &boundry, num_points);
+    if (is_local_proc_active)
+        dup_inserted_points(coord_values, &boundry, num_points-num_inserted);
+    else
+        coord_values[0] = coord_values[1] = NULL;
     MPI_Barrier(processing_info->get_mpi_comm());
     gettimeofday(&end, NULL);
-    num_points += num_inserted;
 
 #ifdef TIME_PERF
     printf("[ - ] Pseudo Point 3: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
+    if (!is_local_proc_active)
+        return;
 
     global_index = new int[num_points];
     for(int i = 0; i < num_points; i++)
@@ -962,8 +979,8 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     PDASSERT(boundry.max_lon - boundry.min_lon <= 360.0);
     search_tree_root = new Search_tree_node(NULL, coord_values, global_index, num_points, boundry, PDLN_NODE_TYPE_COMMON);
     search_tree_root->calculate_real_boundary();
-
-    active_processing_units_flag = new bool[processing_info->get_num_total_processing_units()];
+    search_tree_root->update_region_ids(1, regions_id_end);
+    PDASSERT(search_tree_root->ids_size() > 0);
     
     //if(processing_info->get_local_process_id() == 0) {
     //    char filename[64];
@@ -986,11 +1003,12 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
     delete[] all_group_intervals;
 
     int num_local_threads = processing_info->get_num_local_threads();
-    for (int i = 0; i < num_local_threads; i++) {
-        delete[] buf_double[0][i];
-        delete[] buf_double[1][i];
-        delete[] buf_int[i];
-    }
+    if (buf_int)
+        for (int i = 0; i < num_local_threads; i++) {
+            delete[] buf_double[0][i];
+            delete[] buf_double[1][i];
+            delete[] buf_int[i];
+        }
     delete[] buf_double[0];
     delete[] buf_double[1];
     delete[] buf_int;
@@ -1087,7 +1105,7 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], Bo
         if(boundry->min_lon > r_minx) boundry->min_lon = r_minx;
         if(boundry->max_lon < r_maxx) boundry->max_lon = r_maxx;
     }
-    PDASSERT(num_inserted <= 2*num_x + 2*num_y);
+    PDASSERT((unsigned)num_inserted <= 2*num_x + 2*num_y);
 
     /* Then original points follow */
     memcpy(inserted_coord[PDLN_LON]+num_inserted, coord_values[PDLN_LON], num_points*sizeof(double));
@@ -1099,7 +1117,56 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], Bo
 }
 
 
-void Delaunay_grid_decomposition::initialze_workload(bool south_pole, bool north_pole)
+int Delaunay_grid_decomposition::calculate_num_inserted_points(Boundry *boundry, int num_points)
+{
+    if(is_cyclic && float_eq(boundry->max_lat, 90) && float_eq(boundry->min_lat, -90))
+        return 0;
+
+    double minX = coord_values[PDLN_LON][0];
+    double maxX = coord_values[PDLN_LON][0];
+    double minY = coord_values[PDLN_LAT][0];
+    double maxY = coord_values[PDLN_LAT][0];
+    for(int i = 0; i < num_points; i++)
+    {
+        if (coord_values[PDLN_LON][i] < minX) minX = coord_values[PDLN_LON][i];
+        if (coord_values[PDLN_LON][i] > maxX) maxX = coord_values[PDLN_LON][i];
+        if (coord_values[PDLN_LAT][i] < minY) minY = coord_values[PDLN_LAT][i];
+        if (coord_values[PDLN_LAT][i] > maxY) maxY = coord_values[PDLN_LAT][i];
+    }
+
+    double dx   = maxX - minX;
+    double dy   = maxY - minY;
+    double dMax = std::max(dx, dy);
+
+    double v_miny = minY-dMax*PDLN_INSERT_EXPAND_RATIO;
+    double v_maxy = maxY+dMax*PDLN_INSERT_EXPAND_RATIO;
+    
+    /*
+     * x * y = num_points
+     * x : y = dx : dy
+     */
+    unsigned num_x = (unsigned)sqrt(num_points * dx / (double)dy);
+    unsigned num_y = num_x * dy / dx;
+    num_x /= PDLN_GVPOINT_DENSITY;
+    num_y /= PDLN_GVPOINT_DENSITY;
+
+    int num_inserted = 0;
+
+    if(!float_eq(boundry->max_lat, 90) && v_maxy < 90)
+        num_inserted += num_x - 2;
+
+    if(!float_eq(boundry->min_lat, -90) && v_miny > -90)
+        num_inserted += num_x - 2;
+
+    if(!is_cyclic)
+        num_inserted += 2* (num_y - 2);
+
+    PDASSERT((unsigned)num_inserted <= 2*num_x + 2*num_y);
+    return num_inserted;
+}
+
+
+int Delaunay_grid_decomposition::initialze_workload(bool south_pole, bool north_pole)
 {
     int max_punits   = (num_points + min_points_per_chunk - 1) / min_points_per_chunk;
     int total_punits = processing_info->get_num_total_processing_units();
@@ -1107,10 +1174,8 @@ void Delaunay_grid_decomposition::initialze_workload(bool south_pole, bool north
     average_workload = (double)num_points / num_regions;
 
     PDASSERT(min_points_per_chunk > 0);
-    delete[] regionID_to_unitID;
-    delete[] workloads;
 
-    double polar_workload = average_workload * (1 - PDLN_POLAR_WORKLOAD_RATE);;
+    double polar_workload = average_workload * (1 - PDLN_POLAR_WORKLOAD_RATE);
 
     if (south_pole && north_pole)
         average_workload += 2 * average_workload * PDLN_POLAR_WORKLOAD_RATE / (num_regions - 2);
@@ -1124,7 +1189,6 @@ void Delaunay_grid_decomposition::initialze_workload(bool south_pole, bool north
     workloads          = new double[num_regions+2];
 
     /* the first and the last ID(0 and num_regions+1) are preserved, for the same purpose */
-    int regions_id_start = 1;
     int regions_id_end = num_regions+1;
     for(int i = 1; i < num_regions+1; i++)
         workloads[i] = average_workload;
@@ -1134,7 +1198,16 @@ void Delaunay_grid_decomposition::initialze_workload(bool south_pole, bool north
     if (south_pole)
         workloads[1] = polar_workload;
 
+    active_processing_units_flag = new bool[processing_info->get_num_total_processing_units()];
     processing_info->pick_out_active_processing_units(num_regions, active_processing_units_flag);
+
+    int  num_local_punits = processing_info->get_num_local_threads();
+    int* local_punits_id = processing_info->get_local_proc_common_id();
+    for (int i = 0; i < num_local_punits; i++)
+        if (active_processing_units_flag[local_punits_id[i]]) {
+            is_local_proc_active = true;
+            break;
+        }
 
     /* offset for the same purpose above */
     const int offset = 1;
@@ -1155,12 +1228,11 @@ void Delaunay_grid_decomposition::initialze_workload(bool south_pole, bool north
         regionID_to_unitID[3+offset] = 2;
     }
 
-    search_tree_root->update_region_ids(regions_id_start, regions_id_end);
-    PDASSERT(search_tree_root->ids_size() > 0);
+    return regions_id_end;
 }
 
 
-void Delaunay_grid_decomposition::update_workloads(int total_workload, int start, int end)
+void Delaunay_grid_decomposition::update_workloads(int total_workload, int start, int end, bool kill_tiny_region)
 {
     /* NOTE: This will make the final workload of leaf node not exactly more than min_points_per_chunk */
     int size = end - start;
@@ -1173,8 +1245,12 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, int start
     for (int i = start; i < end; i++)
         old_total_workload += workloads[i];
 
+    double ratio = total_workload / old_total_workload;
     for (int i = start; i < end; i++)
-        workloads[i] = workloads[i] * total_workload / old_total_workload;
+        workloads[i] *= ratio;
+
+    if (!kill_tiny_region)
+        return;
 
     int non_zero_regions = size;
     for (int i = start; i < end; i++)
@@ -1280,13 +1356,14 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
 
 
 Search_tree_node* Delaunay_grid_decomposition::alloc_search_tree_node(Search_tree_node* parent, double *coord_values[2], int *index, 
-                                                                      int num_points, Boundry boundary, int ids_start, int ids_end, int type)
+                                                                      int num_points, Boundry boundary, int ids_start, int ids_end,
+                                                                      int type, bool kill_tiny_region)
 {
     PDASSERT(ids_end - ids_start > 0);
     Search_tree_node *new_node = new Search_tree_node(parent, coord_values, index, num_points, boundary, type);
 
     #pragma omp critical
-    update_workloads(num_points, ids_start, ids_end);
+    update_workloads(num_points, ids_start, ids_end, kill_tiny_region);
 
     new_node->update_region_ids(ids_start, ids_end);
     if(ids_end - ids_start == 1)
@@ -1602,7 +1679,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         search_tree_root->children[0] = alloc_search_tree_node(search_tree_root, c_points_coord,   c_points_index[0], c_num_points[0],
                                                                c_boundry[0], c_ids_start[0], c_ids_end[0], PDLN_NODE_TYPE_SPOLAR);
         search_tree_root->children[1] = alloc_search_tree_node(search_tree_root, c_points_coord+2, c_points_index[1], c_num_points[1],
-                                                               c_boundry[1], c_ids_start[1], c_ids_end[1], PDLN_NODE_TYPE_COMMON);
+                                                               c_boundry[1], c_ids_start[1], c_ids_end[1], PDLN_NODE_TYPE_COMMON, false);
 
         current_tree_node = search_tree_root->children[1];
         
@@ -1611,10 +1688,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         all_leaf_nodes.push_back(search_tree_root->children[0]);
 
         /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
-        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         double shifted_polar_lat = search_tree_root->children[0]->load_polars_info();
-        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->min_lat = shifted_polar_lat;
@@ -1669,10 +1744,8 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             local_leaf_nodes.push_back(search_tree_root->children[2]);
         all_leaf_nodes.push_back(search_tree_root->children[2]);
         /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
-        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         double shifted_polar_lat = search_tree_root->children[2]->load_polars_info();
-        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->max_lat = shifted_polar_lat;
@@ -1715,13 +1788,15 @@ bool Delaunay_grid_decomposition::have_local_region_ids(int start, int end)
 
 int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
 {
+    if (!is_local_proc_active)
+        return 0;
+
     double min_lon, max_lon, min_lat, max_lat;
     grid_info_mgr->get_grid_boundry(original_grid, &min_lon, &max_lon, &min_lat, &max_lat);
 
     bool south_pole = float_eq(min_lat, -90.0);
     bool north_pole = float_eq(max_lat,  90.0);
 
-    initialze_workload(south_pole, north_pole);
     current_tree_node = search_tree_root;
 
     if(assign_polars(south_pole, north_pole))
@@ -1745,13 +1820,13 @@ int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
     PDASSERT(cur_group+1 <= num_computing_nodes);
 
     current_tree_node->set_groups(all_group_intervals, cur_group+1);
-#pragma omp parallel
-{
-    #pragma omp single
+    #pragma omp parallel
     {
-        decompose_common_node_recursively(current_tree_node, lazy_mode);
+        #pragma omp single
+        {
+            decompose_common_node_recursively(current_tree_node, lazy_mode);
+        }
     }
-}
     return 0;
 }
 
@@ -2084,7 +2159,6 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
         search_down_for_points_in_halo(search_tree_root, inner, outer, &leaf_nodes_found, expanded_coord, expanded_index, total_num);
 
     PDASSERT(!have_redundent_points(expanded_coord[PDLN_LON], expanded_coord[PDLN_LAT], *total_num));
-    Boundry old_outer = *outer;
     Boundry sub_rectangles[4];
     int offset_picked[4];
     int num_points_picked[4];
@@ -2365,7 +2439,7 @@ void Delaunay_grid_decomposition::set_binding_relationship()
     std::sort(local_leaf_nodes.begin(), local_leaf_nodes.end(), node_ptr_comp);
 
     int old_unit_id = regionID_to_unitID[local_leaf_nodes[0]->region_id];
-    for (int i = 1; i < local_leaf_nodes.size(); i++) {
+    for (unsigned i = 1; i < local_leaf_nodes.size(); i++) {
         if (local_leaf_nodes[i]->region_id == old_unit_id) {
             local_leaf_nodes[i-1]->bind_with = i;
             local_leaf_nodes[i]->is_bind = true;
@@ -2407,8 +2481,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         local_leaf_nodes[i]->init_num_neighbors_on_boundry(1);
 
     while(iter < 10) {
-        int ret = 0;
-
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
 
@@ -2423,14 +2495,17 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             }
         }
 
-        #pragma omp parallel
-        {
-            #pragma omp single
+        if (local_leaf_nodes.size() > 0) {
+            #pragma omp parallel
             {
-                extend_search_tree(search_tree_root, outer_bound, local_leaf_nodes.size());
+                #pragma omp single
+                {
+                    extend_search_tree(search_tree_root, outer_bound, local_leaf_nodes.size());
+                }
             }
         }
 
+        int ret = 0;
         #pragma omp parallel for shared(ret)
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i])
@@ -2457,19 +2532,20 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
 
-        if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2])) {
-            #pragma omp parallel for
-            for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
-                if (local_leaf_nodes[i]->is_bind)
-                    continue;
-                for(unsigned cur = i;;) {
-                    if (!is_local_leaf_node_finished[cur])
-                        local_leaf_nodes[cur]->project_grid();
-                    cur = local_leaf_nodes[cur]->bind_with;
-                    if (cur == 0) break;
+        if (local_leaf_nodes.size() > 0)
+            if (is_polar_node(search_tree_root->children[0]) || is_polar_node(search_tree_root->children[2])) {
+                #pragma omp parallel for
+                for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+                    if (local_leaf_nodes[i]->is_bind)
+                        continue;
+                    for(unsigned cur = i;;) {
+                        if (!is_local_leaf_node_finished[cur])
+                            local_leaf_nodes[cur]->project_grid();
+                        cur = local_leaf_nodes[cur]->bind_with;
+                        if (cur == 0) break;
+                    }
                 }
             }
-        }
 
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
@@ -2549,7 +2625,9 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         }
 #endif
 
-        if(!global_finish)
+        if(global_finish)
+            break;
+        else
             expanding_ratio += 0.1;
         iter++;
     }
