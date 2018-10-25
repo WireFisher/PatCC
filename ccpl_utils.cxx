@@ -62,7 +62,6 @@ static inline void calculate_unit_vectors(double lon_tan, double lat_tan,
     double t_x, t_y, t_z;
 
     lonlat2xyz(lon_tan, lat_tan, &t_x, &t_y, &t_z);
-    double min_dir = std::min(std::abs(t_x),std::min(std::abs(t_y),std::abs(t_z)));
 
     double axis_x = 1.0;
     double axis_y = 0.0;
@@ -86,8 +85,6 @@ static inline void calculate_unit_vectors(double t_x, double t_y, double t_z,
                                           double *v1_x, double *v1_y, double *v1_z,
                                           double *v2_x, double *v2_y, double *v2_z)
 {
-    double min_dir = std::min(std::abs(t_x),std::min(std::abs(t_y),std::abs(t_z)));
-
     double axis_x = 1.0;
     double axis_y = 0.0;
     double axis_z = 0.0;
