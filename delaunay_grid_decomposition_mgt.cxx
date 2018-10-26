@@ -300,6 +300,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     //        fprintf(stderr, "[%3d] ratio: %lf\n", region_id, l[1]/l[0]);
     //    fprintf(stderr, "[%3d] num points: %d\n", region_id, num_kernel_points + num_expand_points);
     //}
+
     //timeval start, end;
     //gettimeofday(&start, NULL);
 
@@ -407,10 +408,16 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     }
 
     //gettimeofday(&end, NULL);
+    //
+    //double len_long  = expand_boundry->max_lon - expand_boundry->min_lon;
+    //double len_short = expand_boundry->max_lat - expand_boundry->min_lat;
+    //if (len_long < len_short)
+    //    std::swap(len_long, len_short);
+    //double ratio = len_long / len_short;
     //if(node_type == PDLN_NODE_TYPE_COMMON)
-    //    fprintf(stderr, "[%03d] one local triangle: %ld us, points: %d, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, sched_getcpu());
+    //    fprintf(stderr, "[%03d] local triangle: %ld us, points: %d, ratio: %lf, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, ratio, sched_getcpu());
     //else
-    //    fprintf(stderr, "[%03d] one polar triangle: %ld us, points: %d, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, sched_getcpu());
+    //    fprintf(stderr, "[%03d] polar triangle: %ld us, points: %d, ratio: %lf, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, ratio, sched_getcpu());
 }
 
 
