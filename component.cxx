@@ -3,8 +3,9 @@
 #include <cstdio>
 #include <sys/time.h>
 #include "timer.h"
+#include <omp.h>
 
-#define PDLN_DEFAULT_MIN_NUM_POINTS (150)
+#define PDLN_DEFAULT_MIN_NUM_POINTS (100)
 
 long time_proc_mgt = 0;
 long time_pretreat = 0;
@@ -99,11 +100,19 @@ void Component::grid_pretreatment(int grid_id)
     num_points = grid_info_mgr->get_grid_num_points(grid_id);
     is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
 
+    int total_threads = omp_get_max_threads();
+
     if(is_cyclic) {
         if(!(min_lon >= 0 && min_lon <=360 && max_lon >=0 && max_lon <= 360)) {
-            for(int i = 0; i < num_points; i++) {
-                while(coord_values[PDLN_LON][i] >= 360) coord_values[PDLN_LON][i] -= 360;
-                while(coord_values[PDLN_LON][i] < 0) coord_values[PDLN_LON][i] += 360;
+            #pragma omp parallel for
+            for (int k = 0; k < total_threads; k++) {
+                int local_start = k * (num_points / total_threads);
+                int local_num   = k==total_threads-1 ? num_points/total_threads+num_points%total_threads : num_points / total_threads;
+
+                for(int i = local_start; i < local_start+local_num; i++) {
+                    while(coord_values[PDLN_LON][i] >= 360) coord_values[PDLN_LON][i] -= 360;
+                    while(coord_values[PDLN_LON][i] < 0) coord_values[PDLN_LON][i] += 360;
+                }
             }
             min_lon = 0;
             max_lon = 360;
@@ -116,8 +125,13 @@ void Component::grid_pretreatment(int grid_id)
         PDASSERT(max_lon >= 0 && max_lon <= 360);
 
         double split_line = (min_lon + max_lon) * 0.5;
-        for(int i = 0; i < num_points; i++) {
-            if(coord_values[PDLN_LON][i] > split_line) coord_values[PDLN_LON][i] -= 360;
+        #pragma omp parallel for
+        for (int k = 0; k < total_threads; k++) {
+            int local_start = k * (num_points / total_threads);
+            int local_num   = k==total_threads-1 ? num_points/total_threads+num_points%total_threads : num_points / total_threads;
+
+            for(int i = local_start; i < local_start+local_num; i++)
+                if(coord_values[PDLN_LON][i] > split_line) coord_values[PDLN_LON][i] -= 360;
         }
         min_lon -= 360;
         grid_info_mgr->set_grid_boundry(grid_id, min_lon, max_lon, min_lat, max_lat);
