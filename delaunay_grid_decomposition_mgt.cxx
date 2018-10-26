@@ -657,7 +657,7 @@ void Search_tree_node::divide_points(double* coord[2], int* index, double left_e
     PDASSERT(tmp_num[1] >= 0);
     PDASSERT(tmp_num[1] <= num_points);
 
-    if (count > 10 || fabs(left_expt/rite_expt - (double)tmp_num[0]/tmp_num[1]) < 0.3) {
+    if (count > 10 || fabs(left_expt/rite_expt - (double)tmp_num[0]/tmp_num[1]) < 0.1) {
         c_num_points[0] += tmp_num[0];
         c_num_points[1] += tmp_num[1];
         return;
