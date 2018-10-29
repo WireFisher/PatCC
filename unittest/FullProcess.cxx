@@ -589,7 +589,6 @@ TEST_F(FullProcess, ThreePolar) {
 
 #define CHECK_PARALLEL_CONSISTENCY (true)
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
-//"V3_Greenland_pole_x1_T_grid.nc", //md5sum wrong
 const char dim1_grid_name[][64] = {
     /*
     */
