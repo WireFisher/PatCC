@@ -1,5 +1,4 @@
 #include "opencv_utils.h"
-#include "delaunay_voronoi_2D.h"
 #include <opencv2/opencv.hpp>
 
 void plot_edge_into_file(const char *filename, double *head_coord[2], double *tail_coord[2], int num_edges,
@@ -8,7 +7,6 @@ void plot_edge_into_file(const char *filename, double *head_coord[2], double *ta
     int x_shift = 200;
     int y_shift = 900;
     int scale = 10;
-    std::vector<Edge*> edges;
 
     cv::Mat mat = cv::Mat::zeros(180*10, 400*10, CV_8UC3); /* rows, columns*/
 
@@ -35,7 +33,6 @@ void plot_edge_into_file(const char *filename, double *head_coord[2], double *ta
 void plot_projected_edge_into_file(const char *filename, double *head_coord[2], double *tail_coord[2], int num_edges,
                                    int color, int filemode)
 {
-    std::vector<Edge*> edges;
     int x_shift = 1500;
     int y_shift = 1500;
     int scale = 10;
