@@ -593,25 +593,25 @@ const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
     /*
     */
-    "ne30np4-t2.nc",  //assert false | 360point: not assert but false | got wrong fake cyclic triangles: OK | md5sum wrong | 15 pass 5 assert false|md5sum wrong: OK by 1e-10
-    "ne60np4_pentagons_100408.nc", //x assert false | 360point: OK | md5sum wrong |15 pass 5 assert false|md5sum wrong: OK by 1e-10
-    "gx3v5_Present_DP_x3.nc", //x | md5sum wrong: OK
-    "Gamil_360x180_Grid.nc", // x ok
-    "licom_eq1x1_degree_Grid.nc", //x ok
-    "licom_gr1x1_degree_Grid.nc", //x ok
+    "ne30np4-t2.nc",
+    "ne60np4_pentagons_100409.nc",
+    "gx3v5_Present_DP_x3.nc",
+    "Gamil_360x180_Grid.nc",
+    "licom_eq1x1_degree_Grid.nc",
+    "licom_gr1x1_degree_Grid.nc",
     "LICOM_P5_Grid.nc",
     "ll1deg_grid.nc",
     "ll2.5deg_grid.nc",
     "R42_Gaussian_Grid.nc",
     "T85_Gaussian_Grid.nc",
-    "Gamil_128x60_Grid.nc", // x | deleting outter triangle: ok
-    "fv1.9x2.5_050503.nc", // x ok
+    "Gamil_128x60_Grid.nc",
+    "fv1.9x2.5_050503.nc",
     "T42_Gaussian_Grid.nc",
     "T42_grid.nc",
     "T62_Gaussian_Grid.nc",
-    "ar9v4_100920.nc", // x can't pass check cause extreme triangles: introducing threshold OK | md5sum wrong: virtual p
-    "wr50a_090301.nc", //assert length false: wrong support for non-0~360 grid| can't pass check cause extreme triangles|15 pass 5 max|grid preteatment: OK
-    "Version_3_of_Greenland_pole_x1_T-grid.nc", //x | md5sum wrong
+    "ar9v4_100920.nc",
+    "wr50a_090301.nc",
+    "Version_3_of_Greenland_pole_x1_T-grid.nc",
     "R05_Grid.nc",
     "CUBE_grid_2.5.nc",
     "CUBE_grid_1.nc",
