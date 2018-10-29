@@ -103,6 +103,9 @@ class Delaunay_Voronoi
         void relegalize_triangles(Point*, Edge*);
         void remove_leaf_triangle(Triangle*);
         void update_virtual_polar_info();
+        bool is_delaunay_legal(const Point *pt, const Edge *edge);
+        bool is_delaunay_legal(const Triangle *);
+        void validate_result();
 
         Triangle_pack pack_triangle(Triangle*);
         void add_to_bound_triangles(Triangle_pack&, unsigned);

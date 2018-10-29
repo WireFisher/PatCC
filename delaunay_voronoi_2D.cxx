@@ -365,11 +365,14 @@ extern double global_p_lat[4];
     }
 */
 
+
 enum REASON {
     SUCCESS,
     IN_CIRCUMCIRCLE,
     AMBIGUOUS
 } reason;
+
+
 bool Delaunay_Voronoi::is_triangle_legal(const Point *pt, const Edge *edge)
 {
 #ifdef DEBUG
@@ -509,6 +512,37 @@ bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
         return false;
 }
 
+
+bool Delaunay_Voronoi::is_delaunay_legal(const Triangle *t)
+{
+    for(int i = 0; i < 3; i++)
+        if(!is_delaunay_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i]))
+            return false;
+    return true;
+}
+
+
+bool Delaunay_Voronoi::is_delaunay_legal(const Point *pt, const Edge *edge)
+{
+    PDASSERT(edge->triangle->is_leaf);
+    if (!edge->twin_edge) {
+        return true;
+    }
+
+    if(!edge->twin_edge->triangle) {
+        return true;
+    }
+
+    if(!edge->twin_edge->triangle->is_leaf) {
+        return true;
+    }
+
+    int ret = edge->triangle->circum_circle_contains(edge->twin_edge->prev_edge_in_triangle->head, 1e-6);
+    if (ret == 1)
+        return false;
+    
+    return true;
+}
 
 /*
  *
@@ -1409,12 +1443,46 @@ void Delaunay_Voronoi::triangulate()
     clear_triangle_containing_virtual_point();
 
     update_virtual_polar_info();
+
+#ifdef DEBUG
+    validate_result();
+#endif
 }
+
 
 void Delaunay_Voronoi::make_final_triangle()
 {
     all_leaf_triangles.clear();
     triangle_allocator.get_all_leaf_triangle(all_leaf_triangles);
+}
+
+
+void Delaunay_Voronoi::validate_result()
+{
+    bool valid = true;
+    for (unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
+        if (!all_leaf_triangles[i]->is_leaf)
+            continue;
+
+        if (!is_delaunay_legal(all_leaf_triangles[i])) {
+            valid = false;
+            break;
+        }
+    }
+    assert(valid);
+
+    bool* have_triangle = new bool[num_points]();
+    for (unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
+        if (!all_leaf_triangles[i]->is_leaf)
+            continue;
+
+        have_triangle[all_leaf_triangles[i]->v[0]->id] = true;
+        have_triangle[all_leaf_triangles[i]->v[1]->id] = true;
+        have_triangle[all_leaf_triangles[i]->v[2]->id] = true;
+    }
+
+    for (int i = 0; i < num_points; i ++)
+        assert(have_triangle[i]);
 }
 
 
