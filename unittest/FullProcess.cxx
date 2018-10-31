@@ -593,7 +593,7 @@ const char dim1_grid_name[][64] = {
     /*
     */
     "ne30np4-t2.nc",
-    "ne60np4_pentagons_100409.nc",
+    "ne60np4_pentagons_100408.nc",
     "gx3v5_Present_DP_x3.nc",
     "Gamil_360x180_Grid.nc",
     "licom_eq1x1_degree_Grid.nc",
@@ -638,6 +638,7 @@ const char dim1_global_grid_name[][64] = {
 };
 
 
+void save_dim1_grid(const char grid_name[]);
 void prepare_dim1_grid(const char grid_name[])
 {
     char fullname[128];
@@ -748,6 +749,18 @@ void prepare_dim1_grid(const char grid_name[])
             is_cyclic = true;
         else
             is_cyclic = false;
+
+        for (int i = 0; i < num_points; i++) {
+            coord_values[PDLN_LON][i] = round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
+            coord_values[PDLN_LAT][i] = round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
+            while(coord_values[PDLN_LON][i] >= 360)
+                coord_values[PDLN_LON][i] -= 360;
+            while(coord_values[PDLN_LON][i] < 0)
+                coord_values[PDLN_LON][i] += 360;
+        }
+
+        assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+        save_dim1_grid(grid_name);
     }
 
     MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -767,6 +780,25 @@ void prepare_dim1_grid(const char grid_name[])
     printf("[ - ] Total points: %d\n", num_points);
 #endif
 };
+
+
+const char dim1_grid_save_path[] = "gridfile/for_scvt/%s";
+void save_dim1_grid(const char grid_name[])
+{
+    char fullname[128];
+
+    snprintf(fullname, 128, dim1_grid_save_path, grid_name);
+
+    FILE* fp = fopen(fullname, "w");
+    for (int i = 0; i < num_points; i++) {
+        double x = cos(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+        double y = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+        double z = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+        fprintf(fp, "%.20lf %.20lf %.20lf\n", x, y, z);
+    }
+    fclose(fp);
+    printf("File writen\n");
+}
 
 
 #include <unistd.h>
@@ -938,6 +970,16 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
                     coord_values[PDLN_LON][i] += 360;
             }
             delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+
+            FILE* fp = fopen("CUBE_grid_for_SCVT_0.1.dat", "w");
+            for (int i = 0; i < num_points; i++) {
+                double x = cos(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+                double y = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+                double z = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+                fprintf(fp, "%.20lf %.20lf %.20lf\n", x, y, z);
+            }
+            fclose(fp);
+            printf("File writen\n");
         } else {
             FILE *fp = fopen(fullname, "r");
             if(!fp) {
