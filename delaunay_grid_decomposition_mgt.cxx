@@ -657,10 +657,18 @@ void Search_tree_node::divide_points(double* coord[2], int* index, double left_e
     PDASSERT(tmp_num[1] >= 0);
     PDASSERT(tmp_num[1] <= num_points);
 
-    if (count > 10 || fabs(left_expt/rite_expt - (double)tmp_num[0]/tmp_num[1]) < 0.1) {
-        c_num_points[0] += tmp_num[0];
-        c_num_points[1] += tmp_num[1];
-        return;
+    if (left_expt > rite_expt) {
+        if (count > 10 || fabs(left_expt/rite_expt - (double)tmp_num[0]/tmp_num[1]) < 0.1) {
+            c_num_points[0] += tmp_num[0];
+            c_num_points[1] += tmp_num[1];
+            return;
+        }
+    } else {
+        if (count > 10 || fabs(rite_expt/left_expt - (double)tmp_num[1]/tmp_num[0]) < 0.1) {
+            c_num_points[0] += tmp_num[0];
+            c_num_points[1] += tmp_num[1];
+            return;
+        }
     }
 
     if (tmp_num[0] > left_expt) {
@@ -2632,8 +2640,11 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         }
 #endif
 
-        if(global_finish)
+        if(global_finish) {
+            //for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+            //    fprintf(stderr, "Region %2d: kernel %d, expand %d\n", local_leaf_nodes[i]->region_id, local_leaf_nodes[i]->num_kernel_points, local_leaf_nodes[i]->num_expand_points);
             break;
+        }
         else
             expanding_ratio += 0.1;
         iter++;
