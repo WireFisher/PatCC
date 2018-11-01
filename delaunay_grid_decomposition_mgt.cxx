@@ -967,13 +967,11 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     bool north_pole = float_eq(boundry.max_lat,  90.0);
     int regions_id_end = initialze_workload(south_pole, north_pole);
 
-    MPI_Barrier(processing_info->get_mpi_comm());
     gettimeofday(&start, NULL);
     if (is_local_proc_active)
         dup_inserted_points(coord_values, &boundry, num_points-num_inserted);
     else
         coord_values[0] = coord_values[1] = NULL;
-    MPI_Barrier(processing_info->get_mpi_comm());
     gettimeofday(&end, NULL);
 
 #ifdef TIME_PERF
@@ -2529,7 +2527,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         int all_ret = 0;
         MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_BOR, processing_info->get_mpi_comm());
 
-        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
 
 #ifdef TIME_PERF
@@ -2562,7 +2559,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 }
             }
 
-        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
 
 #ifdef TIME_PERF
@@ -2586,7 +2582,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             }
         }
 
-        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
 
 #ifdef TIME_PERF
@@ -2624,7 +2619,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             //if(iter>=1)
             //    is_local_leaf_node_finished[i] = true;
         }
-        MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&end, NULL);
 
         unsigned local_finish = 1;
@@ -2636,7 +2630,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 #ifdef TIME_PERF
         if (!global_finish || iter == 0) {
             printf("[ - ] %dth check: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-            time_consisty_check = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
+            time_consisty_check += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
 
