@@ -42,7 +42,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
 
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-    printf("[ - ] Grid Decomposition: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    printf("[ - ] Grid Decomposition: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_decomose += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
     //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
@@ -54,7 +54,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource)
     int all_ret = 0;
     MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
 #ifdef TIME_PERF
-    printf("[ - ] All Trianglulation: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    printf("[ - ] All Trianglulation: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
 #endif
     if(all_ret == 1)
         return -1;
@@ -172,7 +172,7 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     grid_pretreatment(grid_id);
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-    printf("[ - ] Gri Pre-treatment: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    printf("[ - ] Gri Pre-treatment: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
 
@@ -185,7 +185,7 @@ int Component::generate_delaunay_trianglulation(int grid_id, bool sort)
     operating_grid->merge_all_triangles(sort);
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF
-    printf("[ - ] Total Time Elapsed: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    printf("[ - ] Total Time Elapsed: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_total = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
 

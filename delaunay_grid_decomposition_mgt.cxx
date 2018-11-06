@@ -927,7 +927,7 @@ void Search_tree_node::project_grid()
     }
     rotated_expand_boundry = new Boundry(left, right, bot, top);
     //gettimeofday(&end, NULL);
-    //fprintf(stderr, "[%3d] one project: %ld ms\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    //fprintf(stderr, "[%3d] one project: %ld us\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
 }
 
 
@@ -975,7 +975,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     gettimeofday(&end, NULL);
 
 #ifdef TIME_PERF
-    printf("[ - ] Pseudo Point 3: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+    printf("[ - ] Pseudo Point 3: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
     if (!is_local_proc_active)
@@ -1708,7 +1708,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             search_tree_root->real_boundry->min_lat = shifted_polar_lat;
 
 #ifdef TIME_PERF
-        printf("[ - ] Pseudo Point 1&2: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+        printf("[ - ] Pseudo Point 1&2: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
         time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         time_decomose -= (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
@@ -1764,7 +1764,7 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             search_tree_root->real_boundry->max_lat = shifted_polar_lat;
 
 #ifdef TIME_PERF
-        printf("[ - ] Pseudo Point 1&2: %ld ms\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+        printf("[ - ] Pseudo Point 1&2: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
         time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         time_decomose -= (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 #endif
@@ -2531,7 +2531,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
 #ifdef TIME_PERF
         if (!global_finish) {
-            printf("[ - ] %dth expand: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+            printf("[ - ] %dth expand: %ld us\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
             time_expand += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
@@ -2563,7 +2563,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
 #ifdef TIME_PERF
         if (!global_finish) {
-            printf("[ - ] %dth project: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+            printf("[ - ] %dth project: %ld us\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
             time_expand += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
@@ -2586,7 +2586,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
 #ifdef TIME_PERF
         if (!global_finish || iter == 0) {
-            printf("[ - ] %dth triangulize: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+            printf("[ - ] %dth triangulize: %ld us\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
             long tmp = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
             time_local_tri = std::max(time_local_tri, tmp);
         }
@@ -2629,7 +2629,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         MPI_Allreduce(&local_finish, &global_finish, 1, MPI_UNSIGNED, MPI_BAND, processing_info->get_mpi_comm());
 #ifdef TIME_PERF
         if (!global_finish || iter == 0) {
-            printf("[ - ] %dth check: %ld ms\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
+            printf("[ - ] %dth check: %ld us\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
             time_consisty_check += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
