@@ -17,7 +17,7 @@
 
 #define PDLN_FLOAT_EQ_ERROR_LOW ((double) 1e-8)
 #define PDLN_FLOAT_EQ_ERROR ((double) 1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
-#define PDLN_FLOAT_EQ_ERROR_HI ((double) 1e-10) // normal grid less than 1e-11
+#define PDLN_FLOAT_EQ_ERROR_HI ((double) 1e-11) // normal grid less than 1e-11
 
 #define float_eq(a, b)     (fabs(a - b) <= PDLN_FLOAT_EQ_ERROR)
 #define float_eq_low(a, b) (fabs(a - b) <= PDLN_FLOAT_EQ_ERROR_LOW)
