@@ -1,4 +1,4 @@
-# PDLN: A Common, Consistent and Efficient Parallel Triangulation Algorithm for Spherical and Planar Grids
+# PatCC1: an Efficient Parallel Triangulation Algorithm for Spherical and Planar Grids with Commonality and Parallel Consistency
 
 ## Feature
 
