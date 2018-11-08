@@ -1,4 +1,6 @@
-# PatCC1: an Efficient Parallel Triangulation Algorithm for Spherical and Planar Grids with Commonality and Parallel Consistency
+# PatCC
+
+An Efficient Parallel Triangulation Algorithm for Spherical and Planar Grids with Commonality and Parallel Consistency
 
 ## Feature
 
