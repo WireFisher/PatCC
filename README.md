@@ -1,6 +1,6 @@
 # PatCC
 
-An Efficient Parallel Triangulation Algorithm for Spherical and Planar Grids with Commonality and Parallel Consistency
+An Efficient **Pa**rallel **T**riangulation Algorithm for Spherical and Planar Grids with **C**ommonality and Parallel **C**onsistency
 
 ## Feature
 
@@ -8,7 +8,7 @@ An Efficient Parallel Triangulation Algorithm for Spherical and Planar Grids wit
 - Support for spherical grids and planar grids.
 - Dynamic expansion.
 - Low computing redundancy.
-- Compatible with earth system model grids.
 - High efficiency.
+- Compatible with earth system model grids.
 
 > This project runs as part of [C-Coupler](https://github.com/C-Coupler-Group/c-coupler-lib)
