@@ -80,7 +80,7 @@ void setup_dependency(void(*func)(char*, int), int num_threads)
 void general_check(Processing_resource *processing_info, int total_num_threads)
 {
     ASSERT_GT(processing_info->get_num_total_processing_units(), 0);
-    ASSERT_LE(processing_info->get_num_total_processing_units(), total_num_threads);
+    ASSERT_EQ(processing_info->get_num_total_processing_units(), total_num_threads);
     ASSERT_NE(processing_info->get_processing_units(), (void*)NULL);
 };
 
