@@ -34,8 +34,8 @@
 using std::vector;
 using std::pair;
 
-void sort_points_in_triangle(Triangle_pack*, int);
-void sort_triangles(Triangle_pack*, int);
+void sort_points_in_triangle(Triangle_inline*, int);
+void sort_triangles(Triangle_inline*, int);
 
 bool have_redundent_points(const double*, const double*, int);
 void delete_redundent_points(double *&x, double *&y, int &num);
@@ -74,7 +74,7 @@ class Delaunay_Voronoi
         bool   have_bound;
         Point  bound_vertexes[4];
         double checking_threshold;
-        vector<Triangle_pack> bound_triangles[4];
+        vector<Triangle_inline> bound_triangles[4];
         vector<pair<pair<Point, Point>, unsigned> > checksum_storage;
 
 #ifdef DEBUG
@@ -107,8 +107,8 @@ class Delaunay_Voronoi
         bool is_delaunay_legal(const Triangle *);
         void validate_result();
 
-        Triangle_pack pack_triangle(Triangle*);
-        void add_to_bound_triangles(Triangle_pack&, unsigned);
+        Triangle_inline pack_triangle(Triangle*);
+        void add_to_bound_triangles(Triangle_inline&, unsigned);
 
         void legalize_triangles(Point *pt, Edge *edge, unsigned, unsigned*);
 
@@ -141,7 +141,7 @@ class Delaunay_Voronoi
         bool is_all_leaf_triangle_legal();
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
-        void get_triangles_in_region(double, double, double, double, Triangle_pack *, int *, int);
+        void get_triangles_in_region(double, double, double, double, Triangle_inline *, int *, int);
         void update_all_points_coord(double *, double *, int);
         void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
@@ -176,9 +176,9 @@ class Delaunay_Voronoi
 };
 
 #ifdef OPENCV
-void plot_triangles_into_file(const char *filename, Triangle_pack *t, int num, bool plot_cyclic_triangles=true);
+void plot_triangles_into_file(const char *filename, Triangle_inline *t, int num, bool plot_cyclic_triangles=true);
 void plot_triangles_into_file(const char *filename, std::vector<Triangle*>);
 #endif
-void save_triangles_info_file(const char *filename, Triangle_pack *t, int num);
+void save_triangles_info_file(const char *filename, Triangle_inline *t, int num);
 
 #endif

@@ -8,7 +8,7 @@
 
 
 class Triangle;
-class Triangle_pack;
+class Triangle_inline;
 
 class Point
 {
@@ -26,7 +26,7 @@ class Point
         double calculate_distance(double, double) const;
         int position_to_edge(const Point*, const Point*) const;
         int position_to_triangle(const Triangle*) const;
-        int position_to_triangle(const Triangle_pack*) const;
+        int position_to_triangle(const Triangle_inline*) const;
         int is_in_region(double min_x, double max_x, double min_y, double max_y) const;
 };
 
@@ -93,15 +93,15 @@ class Triangle
 };
 
 
-class Triangle_pack
+class Triangle_inline
 {
     public:
         Point v[3];
         bool is_cyclic;
-        Triangle_pack() {};
-        Triangle_pack(Point, Point, Point, bool = false);
+        Triangle_inline() {};
+        Triangle_inline(Point, Point, Point, bool = false);
         void check_cyclic();
-        friend bool operator == (Triangle_pack, Triangle_pack);
+        friend bool operator == (Triangle_inline, Triangle_inline);
 };
 
 #endif

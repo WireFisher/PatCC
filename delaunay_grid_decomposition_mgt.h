@@ -213,12 +213,12 @@ private:
     void recv_checksum_from_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req);
     
     /* Process thread communication */
-    int recv_triangles_from_remote(int, int, Triangle_pack *, int, int);
-    void send_triangles_to_remote(int, int, Triangle_pack *, int, int);
+    int recv_triangles_from_remote(int, int, Triangle_inline *, int, int);
+    void send_triangles_to_remote(int, int, Triangle_inline *, int, int);
 
     /* Debug */
     void print_tree_node_info_recursively(Search_tree_node*);
-    void save_unique_triangles_into_file(Triangle_pack *&, int, bool);
+    void save_unique_triangles_into_file(Triangle_inline *&, int, bool);
 
 public:
     Delaunay_grid_decomposition(int, Processing_resource*, int);

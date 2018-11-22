@@ -106,7 +106,7 @@ void Triangle_pool::get_all_leaf_triangle(std::vector<Triangle*>& all/*, std::ve
             if (begin->is_leaf) {
                 all.push_back(begin);
 
-                //Triangle_pack tp = pack_triangle(triangle);
+                //Triangle_inline tp = pack_triangle(triangle);
                 //if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold) ||
                 //    is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold) ||
                 //    is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold) ||

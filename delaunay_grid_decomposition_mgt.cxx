@@ -1540,9 +1540,9 @@ namespace std
         };
 
         template <>  
-        struct hash<Triangle_pack>  
+        struct hash<Triangle_inline>  
         {  
-            std::size_t operator()(const Triangle_pack &t) const  
+            std::size_t operator()(const Triangle_inline &t) const  
             {  
                 return hash<Point>()(t.v[0]) ^ hash<Point>()(t.v[1]) ^ hash<Point>()(t.v[2]);
             }
@@ -2717,22 +2717,22 @@ void Delaunay_grid_decomposition::plot_local_triangles(const char *perfix)
 #endif
 
 
-static inline bool on_a_line(Triangle_pack* t)
+static inline bool on_a_line(Triangle_inline* t)
 {
     return (float_eq(t->v[0].y, t->v[1].y) && float_eq(t->v[1].y, t->v[2].y)) ||
            (float_eq(t->v[0].x, t->v[1].x) && float_eq(t->v[1].x, t->v[2].x));
 }
 
 
-void delete_redundent_triangles(Triangle_pack *&all_triangles, int &num)
+void delete_redundent_triangles(Triangle_inline *&all_triangles, int &num)
 {
-    std::tr1::unordered_map<Triangle_pack, std::list<int> > hash_table;
-    std::tr1::unordered_map<Triangle_pack, std::list<int> >::iterator it_hash;
+    std::tr1::unordered_map<Triangle_inline, std::list<int> > hash_table;
+    std::tr1::unordered_map<Triangle_inline, std::list<int> >::iterator it_hash;
 
     if(num == 0)
         return;
 
-    Triangle_pack *tmp_triangles = new Triangle_pack[num];
+    Triangle_inline *tmp_triangles = new Triangle_inline[num];
 
     int count = 0;
     for(int i = 0; i < num; i++) {
@@ -2768,7 +2768,7 @@ void delete_redundent_triangles(Triangle_pack *&all_triangles, int &num)
 }
 
 
-void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_pack *&triangles, int num_triangles, bool sort)
+void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_inline *&triangles, int num_triangles, bool sort)
 {
     int num_different_triangles;
     if (sort) {
@@ -2827,7 +2827,7 @@ void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
         local_buf_len += local_leaf_nodes[i]->num_kernel_points * 3 * 2;
 
-    Triangle_pack* local_triangles = new Triangle_pack[local_buf_len];
+    Triangle_inline* local_triangles = new Triangle_inline[local_buf_len];
     int num_local_triangles = 0;
     int num_triangles = 0;
     for(unsigned int i = 0; i < local_leaf_nodes.size(); i++) {
@@ -2851,37 +2851,37 @@ void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
             //PDASSERT(num_remote_triangles[i] > min_points_per_chunk/2);
             remote_buf_len += num_remote_triangles[i];
         }
-        Triangle_pack *remote_triangles = new Triangle_pack[remote_buf_len + num_local_triangles];
+        Triangle_inline *remote_triangles = new Triangle_inline[remote_buf_len + num_local_triangles];
 
         int count = 0;
         for(int i = 1; i < processing_info->get_num_total_processes(); i++) {
-            MPI_Recv(remote_triangles + count, num_remote_triangles[i] * sizeof(Triangle_pack), MPI_CHAR, i, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm(), &status);
+            MPI_Recv(remote_triangles + count, num_remote_triangles[i] * sizeof(Triangle_inline), MPI_CHAR, i, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm(), &status);
             int tmp_count;
             MPI_Get_count(&status, MPI_CHAR, &tmp_count);
             
             /*
             char filename[64];
             snprintf(filename, 64, "log/process_local_triangles%d", i);
-            plot_triangles_into_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_pack));
+            plot_triangles_into_file(filename, remote_triangles+count, tmp_count/sizeof(Triangle_inline));
 
-            for(int j = 0; j < tmp_count/sizeof(Triangle_pack); j++)
+            for(int j = 0; j < tmp_count/sizeof(Triangle_inline); j++)
                 printf("%d, %d, %d\n", (remote_triangles + count)[j].v[0].id, (remote_triangles + count)[j].v[1].id, (remote_triangles + count)[j].v[2].id);
             printf("==============\n");
             */
 #ifdef DEBUG
-            PDASSERT(tmp_count % sizeof(Triangle_pack) == 0);
+            PDASSERT(tmp_count % sizeof(Triangle_inline) == 0);
 #endif
-            count += tmp_count / sizeof(Triangle_pack);
+            count += tmp_count / sizeof(Triangle_inline);
         }
         PDASSERT(count == remote_buf_len);
-        memcpy(remote_triangles + remote_buf_len, local_triangles, num_local_triangles * sizeof(Triangle_pack));
+        memcpy(remote_triangles + remote_buf_len, local_triangles, num_local_triangles * sizeof(Triangle_inline));
         save_unique_triangles_into_file(remote_triangles, remote_buf_len + num_local_triangles, sort);
         delete[] remote_triangles;
         delete[] num_remote_triangles;
     }
     else {
         MPI_Send(&num_local_triangles, 1, MPI_INT, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
-        MPI_Send(local_triangles, num_local_triangles * sizeof(Triangle_pack), MPI_CHAR, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
+        MPI_Send(local_triangles, num_local_triangles * sizeof(Triangle_inline), MPI_CHAR, 0, PDLN_MERGE_TAG_MASK, processing_info->get_mpi_comm());
     }
 
     delete[] local_triangles;
