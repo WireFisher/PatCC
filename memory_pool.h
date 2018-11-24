@@ -43,7 +43,7 @@ class Edge_pool {
 
         Edge* alloc();
         void  free(Edge*);
-        Edge* newElement(Point*, Point*);
+        Edge* newElement();
         void  deleteElement(Edge*);
 
     private:

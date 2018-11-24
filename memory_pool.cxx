@@ -175,10 +175,10 @@ void Edge_pool::free(Edge* chunk)
     bins = bin;
 }
 
-Edge* Edge_pool::newElement(Point* p1, Point* p2)
+Edge* Edge_pool::newElement()
 {
     Edge* result = alloc();
-    new (result) Edge(p1, p2);
+    new (result) Edge();
     return result;
 }
 

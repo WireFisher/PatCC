@@ -92,15 +92,15 @@ class Delaunay_Voronoi
 
         unsigned generate_initial_triangles();
         void clear_triangle_containing_virtual_point();
-        bool is_angle_too_large(const Point *pt, const Edge *edge);
-        bool is_angle_ambiguous(const Point *pt, const Edge *edge);
-        const Point *get_lowest_point_of_four(const Point *, const Point *, const Point *, const Point *);
+        bool is_angle_too_large(int, const Edge *edge);
+        bool is_angle_ambiguous(int, const Edge *edge);
+        int  get_lowest_point_of_four(int, int, int, int);
         Edge* generate_twins_edge(Edge*);
 
-        bool is_triangle_legal(const Point *pt, const Edge *edge);
+        bool is_triangle_legal(int, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
-        bool is_triangle_ambiguous(Point *pt, Edge *edge);
-        void relegalize_triangles(Point*, Edge*);
+        bool is_triangle_ambiguous(int, Edge *edge);
+        void relegalize_triangles(int, Edge*);
         void remove_leaf_triangle(Triangle*);
         void update_virtual_polar_info();
         bool is_delaunay_legal(const Point *pt, const Edge *edge);
@@ -110,11 +110,12 @@ class Delaunay_Voronoi
         Triangle_inline pack_triangle(Triangle*);
         void add_to_bound_triangles(Triangle_inline&, unsigned);
 
-        void legalize_triangles(Point *pt, Edge *edge, unsigned, unsigned*);
+        void legalize_triangles(int, Edge *edge, unsigned, unsigned*);
 
-        Edge* allocate_edge(Point *head, Point *tail);
+        Edge* allocate_edge(int, int);
         Triangle* allocate_Triangle(Edge*, Edge*, Edge*);
         void initialize_triangle_with_edges(Triangle*, Edge*, Edge*, Edge*, bool force=false);
+        void initialize_edge(Edge* e, int head, int tail);
 
         inline void ref_inc(Edge* e) {e->ref_count++;};
         inline void ref_dec(Edge* e) {
@@ -126,6 +127,10 @@ class Delaunay_Voronoi
             }
         };
         void clean_triangle(Triangle*);
+
+        inline Point* vertex(const Triangle* t, int i) { return &all_points[t->v[i]]; };
+        inline Point* head(const Edge* e) { return &all_points[e->head]; };
+        inline Point* tail(const Edge* e) { return &all_points[e->tail]; };
 
     public:
         Delaunay_Voronoi();
@@ -177,7 +182,7 @@ class Delaunay_Voronoi
 
 #ifdef OPENCV
 void plot_triangles_into_file(const char *filename, Triangle_inline *t, int num, bool plot_cyclic_triangles=true);
-void plot_triangles_into_file(const char *filename, std::vector<Triangle*>);
+void plot_triangles_into_file(const char *filename, std::vector<Triangle*>, Point*);
 #endif
 void save_triangles_info_file(const char *filename, Triangle_inline *t, int num);
 
