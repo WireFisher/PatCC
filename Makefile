@@ -2,6 +2,7 @@ CXX := mpicxx
 MPI_PATH := /opt/intel/impi/3.2.0.011
 #PDLN_USE_OPENCV := true
 #PDLN_USE_NETCDF := true
+#PDLN_TIMING := true
 NETCDF_PATH := /opt/netCDF-gcc4.4.7
 OPENCV_PATH := /home/yanghy/opt/opencv
 CXXFLAGS :=
@@ -23,12 +24,23 @@ core_objs = ccpl_utils.o \
 			delaunay_voronoi_2D.o \
 			memory_pool.o
 
-test_objs = DelaunayVoronoi2D.o \
+test_objs = \
 			FullProcess.o \
 			GridDecomposition.o \
 			ProcessingResourceTest.o
+			#DelaunayVoronoi2D.o
 
-COMMON_FLAGS := -Wall -g -fopenmp -pthread #-O3 -DTIME_PERF
+COMMON_FLAGS := -Wall -g -fopenmp -pthread
+
+ifeq ($(PDLN_TIMING),true)
+	COMMON_FLAGS += -DTIME_PERF
+endif
+
+ifeq ($(PDLN_DEBUG),true)
+	COMMON_FLAGS += -DDEBUG -g
+else
+	COMMON_FLAGS += -O3
+endif
 
 ifeq ($(PDLN_USE_NETCDF),true)
 	COMMON_FLAGS += -DNETCDF
@@ -44,10 +56,6 @@ ifeq ($(PDLN_USE_OPENCV),true)
 	LIB += -L$(OPENCV_PATH)/lib64
 	LIBS += -lopencv_core -lopencv_imgproc -lopencv_highgui
 	core_objs += opencv_utils.o
-endif
-
-ifeq ($(PDLN_DEBUG),true)
-	COMMON_FLAGS += -DDEBUG -g
 endif
 
 COMMON_FLAGS += $(INC)
@@ -78,4 +86,4 @@ all :
 
 .PHONY : clean
 clean :
-	-rm run_all_test pDelaunay *.o
+	-rm run_all_test pDelaunay *.o 2>/dev/null

@@ -91,7 +91,7 @@ class Delaunay_Voronoi
         void swap_points(int, int);
 
         unsigned generate_initial_triangles();
-        void clear_triangle_containing_virtual_point();
+        void mark_triangle_containing_virtual_point();
         bool is_angle_too_large(int, const Edge *edge);
         bool is_angle_ambiguous(int, const Edge *edge);
         int  get_lowest_point_of_four(int, int, int, int);
@@ -144,8 +144,6 @@ class Delaunay_Voronoi
         void set_polar_mode(bool);
 
         bool is_all_leaf_triangle_legal();
-        vector<Edge*> get_all_delaunay_edge();
-        vector<Edge*> get_all_legal_delaunay_edge();
         void get_triangles_in_region(double, double, double, double, Triangle_inline *, int *, int);
         void update_all_points_coord(double *, double *, int);
         void relegalize_all_triangles();
@@ -170,8 +168,13 @@ class Delaunay_Voronoi
         void make_final_triangle_pack();
         void make_bounding_triangle_pack();
 
-        /* debug */
+        /* Debug */
         void save_original_points_into_file();
+
+        /* Test */
+        vector<Edge*> get_all_delaunay_edge();
+        vector<Edge*> get_all_legal_delaunay_edge();
+        Point* get_all_points() { return all_points; };
 #ifdef OPENCV
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void plot_projection_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);

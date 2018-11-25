@@ -434,6 +434,10 @@ bool Delaunay_Voronoi::is_triangle_ambiguous(int p_idx, Edge *edge)
         return false;
     }
 
+    if(edge->twin_edge->triangle->is_virtual) {
+        return false;
+    }
+
     Point* p[4];
     bool modified[4] = {0};
     p[0] = &all_points[p_idx];
@@ -501,7 +505,7 @@ bool Delaunay_Voronoi::is_all_leaf_triangle_legal()
 
     bool is_legal = true;
     for(unsigned i = 0; i < all_leaf_triangles.size(); i++)
-        if(all_leaf_triangles[i]->is_leaf)
+        if(all_leaf_triangles[i]->is_leaf && !all_leaf_triangles[i]->is_virtual)
             if(!is_triangle_legal(all_leaf_triangles[i])) {
                 is_legal = false;
                 //printf("illegal reason: %d\n", reason);
@@ -654,6 +658,10 @@ void Triangle::calulate_circum_circle(const Point* v0, const Point* v1, const Po
 void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, Edge *edge2, Edge *edge3, bool force)
 {
     Point *pt1, *pt2, *pt3;
+
+    t->is_leaf = true;
+    t->is_cyclic = false;
+    t->is_virtual = false;
     if(force) {
         t->v[0] = edge1->head;
         t->v[1] = edge2->head;
@@ -665,10 +673,6 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
         pt2 = vertex(t, 1);
         pt3 = vertex(t, 2);
     } else {
-
-        t->is_leaf = true;
-        t->is_cyclic = false;
-        
         pt1 = head(edge1);
         pt2 = head(edge2);
         pt3 = head(edge3);
@@ -936,22 +940,22 @@ inline Triangle_inline Delaunay_Voronoi::pack_triangle(Triangle* t)
 {
     if (polar_mode) {
         Triangle_inline a = Triangle_inline(Point(x_ref[vertex(t, 0)->id], y_ref[vertex(t, 0)->id], global_index[vertex(t, 0)->id]),
-                                        Point(x_ref[vertex(t, 1)->id], y_ref[vertex(t, 1)->id], global_index[vertex(t, 1)->id]),
-                                        Point(x_ref[vertex(t, 2)->id], y_ref[vertex(t, 2)->id], global_index[vertex(t, 2)->id]),
-                                        false);
+                                            Point(x_ref[vertex(t, 1)->id], y_ref[vertex(t, 1)->id], global_index[vertex(t, 1)->id]),
+                                            Point(x_ref[vertex(t, 2)->id], y_ref[vertex(t, 2)->id], global_index[vertex(t, 2)->id]),
+                                            false);
         a.check_cyclic();
         return a;
     }
     else if (x_ref)
         return Triangle_inline(Point(x_ref[vertex(t, 0)->id], y_ref[vertex(t, 0)->id], global_index[vertex(t, 0)->id]),
-                             Point(x_ref[vertex(t, 1)->id], y_ref[vertex(t, 1)->id], global_index[vertex(t, 1)->id]),
-                             Point(x_ref[vertex(t, 2)->id], y_ref[vertex(t, 2)->id], global_index[vertex(t, 2)->id]),
-                             false);
+                               Point(x_ref[vertex(t, 1)->id], y_ref[vertex(t, 1)->id], global_index[vertex(t, 1)->id]),
+                               Point(x_ref[vertex(t, 2)->id], y_ref[vertex(t, 2)->id], global_index[vertex(t, 2)->id]),
+                               false);
     else {
         return Triangle_inline(Point(vertex(t, 0)->x, vertex(t, 0)->y, global_index[vertex(t, 0)->id]),
-                             Point(vertex(t, 1)->x, vertex(t, 1)->y, global_index[vertex(t, 1)->id]),
-                             Point(vertex(t, 2)->x, vertex(t, 2)->y, global_index[vertex(t, 2)->id]),
-                             false);
+                               Point(vertex(t, 1)->x, vertex(t, 1)->y, global_index[vertex(t, 1)->id]),
+                               Point(vertex(t, 2)->x, vertex(t, 2)->y, global_index[vertex(t, 2)->id]),
+                               false);
     }
 }
 
@@ -1279,6 +1283,9 @@ unsigned Delaunay_Voronoi::generate_initial_triangles()
     all_points[2].x = all_points[3].x = maxX+deltaMax*ratio;
     all_points[0].y = all_points[2].y = minY-deltaMax*ratio;
     all_points[1].y = all_points[3].y = maxY+deltaMax*ratio;
+
+    /* NOTE: Must be very careful of treating virtual point, of which id is -1.
+     * Indexing with -1 will cause out of bound read or write of array. */
     for (int i = 0; i < PAT_NUM_LOCAL_VPOINTS; i++) {
         all_points[i].id   = -1;
         all_points[i].next = -1;
@@ -1332,23 +1339,28 @@ void Delaunay_Voronoi::map_buffer_index_to_point_index()
 }
 
 
-void Delaunay_Voronoi::clear_triangle_containing_virtual_point()
+void Delaunay_Voronoi::mark_triangle_containing_virtual_point()
 {
-    for(vector<Triangle*>::iterator t = all_leaf_triangles.begin(); t != all_leaf_triangles.end(); ) {
-        bool contain = false;
-        for(unsigned i = 0; i < PAT_NUM_LOCAL_VPOINTS; i++)
-            if((*t)->is_leaf && (*t)->contain_vertex(i)) {
-                for(unsigned j = 0; j < 3; j++) {
-                    (*t)->edge[j]->triangle = NULL;
-                    if((*t)->edge[j]->twin_edge)
-                        (*t)->edge[j]->twin_edge->twin_edge = NULL;
-                }
-                (*t)->is_leaf = false;
-                contain = true;
-                break;
-            }
-        if(!contain)
-            t++;
+    //for(vector<Triangle*>::iterator t = all_leaf_triangles.begin(); t != all_leaf_triangles.end(); ) {
+    //    bool contain = false;
+    //    for(unsigned i = 0; i < PAT_NUM_LOCAL_VPOINTS; i++)
+    //        if((*t)->is_leaf && (*t)->contain_vertex(i)) {
+    //            for(unsigned j = 0; j < 3; j++) {
+    //                (*t)->edge[j]->triangle = NULL;
+    //                if((*t)->edge[j]->twin_edge)
+    //                    (*t)->edge[j]->twin_edge->twin_edge = NULL;
+    //            }
+    //            (*t)->is_leaf = false;
+    //            contain = true;
+    //            break;
+    //        }
+    //    if(!contain)
+    //        t++;
+    //}
+    for (unsigned i = 0; i < all_leaf_triangles.size(); i++) {
+        for(unsigned j = 0; j < PAT_NUM_LOCAL_VPOINTS; j++)
+            if(all_leaf_triangles[i]->is_leaf && all_leaf_triangles[i]->contain_vertex(j))
+                all_leaf_triangles[i]->is_virtual = true;
     }
 }
 
@@ -1453,7 +1465,7 @@ void Delaunay_Voronoi::triangulate()
 
     make_final_triangle();
 
-    clear_triangle_containing_virtual_point();
+    mark_triangle_containing_virtual_point();
 
     update_virtual_polar_info();
 
@@ -1474,7 +1486,7 @@ void Delaunay_Voronoi::validate_result()
 {
     bool valid = true;
     for (unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
-        if (!all_leaf_triangles[i]->is_leaf)
+        if (!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
             continue;
 
         if (!is_delaunay_legal(all_leaf_triangles[i])) {
@@ -1486,7 +1498,7 @@ void Delaunay_Voronoi::validate_result()
 
     bool* have_triangle = new bool[num_points]();
     for (unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
-        if (!all_leaf_triangles[i]->is_leaf)
+        if (!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
             continue;
 
         have_triangle[vertex(all_leaf_triangles[i], 0)->id] = true;
@@ -1619,7 +1631,7 @@ vector<Edge*> Delaunay_Voronoi::get_all_delaunay_edge()
     vector<Edge*> all_edges;
 
     for(unsigned i = 0; i < all_leaf_triangles.size(); i ++)
-        if(all_leaf_triangles[i]->is_leaf) {
+        if(all_leaf_triangles[i]->is_leaf && !all_leaf_triangles[i]->is_virtual) {
             all_edges.push_back(all_leaf_triangles[i]->edge[0]);
             all_edges.push_back(all_leaf_triangles[i]->edge[1]);
             all_edges.push_back(all_leaf_triangles[i]->edge[2]);
@@ -1634,7 +1646,7 @@ vector<Edge*> Delaunay_Voronoi::get_all_legal_delaunay_edge()
     vector<Edge*> all_edges;
 
     for(unsigned i = 0; i < all_leaf_triangles.size(); i ++)
-        if(all_leaf_triangles[i]->is_leaf)
+        if(all_leaf_triangles[i]->is_leaf && !all_leaf_triangles[i]->is_virtual)
             if(is_triangle_legal(all_leaf_triangles[i])) {
                 all_edges.push_back(all_leaf_triangles[i]->edge[0]);
                 all_edges.push_back(all_leaf_triangles[i]->edge[1]);
@@ -1706,7 +1718,7 @@ void Delaunay_Voronoi::remove_triangles_in_circle(Point center, double radius)
 void Delaunay_Voronoi::recognize_cyclic_triangles()
 {
     for(unsigned i = 0; i < all_leaf_triangles.size(); i++)
-        if(all_leaf_triangles[i]->is_leaf) {
+        if(all_leaf_triangles[i]->is_leaf && !all_leaf_triangles[i]->is_virtual) {
             if (vertex(all_leaf_triangles[i], 0)->calculate_distance(vertex(all_leaf_triangles[i], 1)) > 180 ||
                 vertex(all_leaf_triangles[i], 1)->calculate_distance(vertex(all_leaf_triangles[i], 2)) > 180 ||
                 vertex(all_leaf_triangles[i], 2)->calculate_distance(vertex(all_leaf_triangles[i], 0)) > 180 )
@@ -1726,7 +1738,7 @@ inline void Delaunay_Voronoi::remove_leaf_triangle(Triangle* t)
 void Delaunay_Voronoi::relegalize_all_triangles()
 {
     for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        if (!all_leaf_triangles[i]->is_leaf)
+        if (!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
             continue;
 
         for(unsigned j = 0; j < 3; j++) {
@@ -1852,7 +1864,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
 
     if(x_ref) {
         for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-            if(!all_leaf_triangles[i]->is_leaf)
+            if(!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
                 continue;
 
             bool in = true;
@@ -1872,7 +1884,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
         }
     } else {
         for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-            if(!all_leaf_triangles[i]->is_leaf)
+            if(!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
                 continue;
 
             bool in = true;
@@ -1902,7 +1914,7 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
 void Delaunay_Voronoi::update_virtual_polar_info()
 {
     for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        if(!all_leaf_triangles[i]->is_leaf)
+        if(!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
             continue;
         if(all_leaf_triangles[i]->contain_vertex(point_idx_to_buf_idx[vpolar_local_index]))
             triangles_containing_vpolar.push_back(all_leaf_triangles[i]);
@@ -1920,10 +1932,10 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
 {
     if (polar_mode) {
         for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-            Triangle_inline tp = pack_triangle(all_leaf_triangles[i]);
-            if(!all_leaf_triangles[i]->is_leaf)
+            if(!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
                 continue;
 
+            Triangle_inline tp = pack_triangle(all_leaf_triangles[i]);
             sort_points_in_triangle(tp);
             if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
                 add_to_bound_triangles(tp, PDLN_DOWN);
@@ -1936,10 +1948,10 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
         }
     } else {
         for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-            Triangle_inline tp = pack_triangle(all_leaf_triangles[i]);
-            if(!all_leaf_triangles[i]->is_leaf)
+            if(!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
                 continue;
 
+            Triangle_inline tp = pack_triangle(all_leaf_triangles[i]);
             sort_points_in_triangle(tp);
             if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
                 bound_triangles[PDLN_DOWN].push_back(tp);
@@ -2265,11 +2277,13 @@ void Delaunay_Voronoi::update_all_points_coord(double *x_values, double *y_value
         all_points[point_idx_to_buf_idx[i]].y = y_values[i];
     }
 
-    for(unsigned i = 0; i < all_leaf_triangles.size(); i++)
-        if(all_leaf_triangles[i]->is_leaf) {
-            Triangle* lt = all_leaf_triangles[i];
-            lt->calulate_circum_circle(vertex(lt, 0), vertex(lt, 1), vertex(lt, 2));
-        }
+    for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
+        if(!all_leaf_triangles[i]->is_leaf)
+            continue;
+
+        Triangle* lt = all_leaf_triangles[i];
+        lt->calulate_circum_circle(vertex(lt, 0), vertex(lt, 1), vertex(lt, 2));
+    }
 }
 
 

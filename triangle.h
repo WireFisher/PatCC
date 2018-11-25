@@ -59,16 +59,16 @@ class Edge
 class Triangle
 {
     private:
-        int    v[3];    /* index of vertexes */
-        Edge*  edge[3];
-        bool   is_leaf;
-        bool   is_cyclic;
-        int    remained_points_head;
-        int    remained_points_tail;
-        double circum_center[2];
-        double circum_radius;
-        bool   contain_virtual_polar;
-        int    stack_ref_count;
+        int      v[3];    /* index of vertexes */
+        Edge*    edge[3];
+        unsigned is_leaf:1;
+        unsigned is_cyclic:1;
+        unsigned is_virtual:1;
+        int      remained_points_head;
+        int      remained_points_tail;
+        double   circum_center[2];
+        double   circum_radius;
+        int      stack_ref_count;
 
         int  circum_circle_contains(Point*, Point*, double tolerance=PDLN_FLOAT_EQ_ERROR);
         bool really_on_circum_circle(Point*, Point*, double);
