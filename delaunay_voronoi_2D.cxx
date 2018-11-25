@@ -142,6 +142,13 @@ double Point::calculate_distance(double pt_x, double pt_y) const
 }
 
 
+static inline double calculate_distance(double x0, double y0, double x1, double y1)
+{
+    double dx = x0 - x1;
+    double dy = y0 - y1;
+    return sqrt(dx * dx + dy * dy);
+}
+
 Point::~Point()
 {
 }
@@ -1339,7 +1346,7 @@ void Delaunay_Voronoi::map_buffer_index_to_point_index()
 }
 
 
-void Delaunay_Voronoi::mark_triangle_containing_virtual_point()
+void Delaunay_Voronoi::mark_virtual_triangle()
 {
     //for(vector<Triangle*>::iterator t = all_leaf_triangles.begin(); t != all_leaf_triangles.end(); ) {
     //    bool contain = false;
@@ -1465,7 +1472,7 @@ void Delaunay_Voronoi::triangulate()
 
     make_final_triangle();
 
-    mark_triangle_containing_virtual_point();
+    mark_virtual_triangle();
 
     update_virtual_polar_info();
 
@@ -1715,24 +1722,32 @@ void Delaunay_Voronoi::remove_triangles_in_circle(Point center, double radius)
 }
 
 
-void Delaunay_Voronoi::recognize_cyclic_triangles()
+void Delaunay_Voronoi::mark_cyclic_triangles()
 {
+    PDASSERT(x_ref && y_ref);
+
     for(unsigned i = 0; i < all_leaf_triangles.size(); i++)
         if(all_leaf_triangles[i]->is_leaf && !all_leaf_triangles[i]->is_virtual) {
-            if (vertex(all_leaf_triangles[i], 0)->calculate_distance(vertex(all_leaf_triangles[i], 1)) > 180 ||
-                vertex(all_leaf_triangles[i], 1)->calculate_distance(vertex(all_leaf_triangles[i], 2)) > 180 ||
-                vertex(all_leaf_triangles[i], 2)->calculate_distance(vertex(all_leaf_triangles[i], 0)) > 180 )
-                all_leaf_triangles[i]->is_cyclic = true;
+            int id[3];
+            for (int j = 0; j < 3; j++)
+                id[j] = vertex(all_leaf_triangles[i], j)->id;
+
+            for (int j = 0; j < 3; j++)
+                if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > 180) {
+                    all_leaf_triangles[i]->is_cyclic = true;
+                    break;
+                }
         }
 }
 
 
 inline void Delaunay_Voronoi::remove_leaf_triangle(Triangle* t)
 {
-    for (unsigned j = 0; j < 3; j++)
-        if (t->edge[j]->twin_edge != NULL)
-            t->edge[j]->twin_edge->twin_edge = NULL;
-    t->is_leaf = false;
+    //for (unsigned j = 0; j < 3; j++)
+    //    if (t->edge[j]->twin_edge != NULL)
+    //        t->edge[j]->twin_edge->twin_edge = NULL;
+    //t->is_leaf = false;
+    t->is_virtual = true;
 }
 
 void Delaunay_Voronoi::relegalize_all_triangles()

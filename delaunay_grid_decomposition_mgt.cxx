@@ -322,8 +322,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         if(node_type != PDLN_NODE_TYPE_COMMON) {
             //triangulation->plot_original_points_into_file(filename);
 
-            triangulation->update_all_points_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
-            triangulation->recognize_cyclic_triangles();
+            triangulation->mark_cyclic_triangles();
             triangulation->relegalize_all_triangles();
             triangulation->set_polar_mode(true);
 

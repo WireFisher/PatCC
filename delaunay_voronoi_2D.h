@@ -91,7 +91,7 @@ class Delaunay_Voronoi
         void swap_points(int, int);
 
         unsigned generate_initial_triangles();
-        void mark_triangle_containing_virtual_point();
+        void mark_virtual_triangle();
         bool is_angle_too_large(int, const Edge *edge);
         bool is_angle_ambiguous(int, const Edge *edge);
         int  get_lowest_point_of_four(int, int, int, int);
@@ -157,7 +157,7 @@ class Delaunay_Voronoi
 
         void remove_triangles_in_circle(Point, double);
         void remove_triangles_on_segment(Point, Point);
-        void recognize_cyclic_triangles();
+        void mark_cyclic_triangles();
 
         void update_points_coord_y(double, vector<int> *);
         void remove_triangles_only_containing_virtual_polar();
