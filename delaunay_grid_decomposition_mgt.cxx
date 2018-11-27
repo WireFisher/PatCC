@@ -306,7 +306,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
 
     if(rotated_expand_boundry != NULL) {
         triangulation = new Delaunay_Voronoi();
-        triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], ori_idx, num_kernel_points + num_expand_points);
+        triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], num_kernel_points + num_expand_points);
+        triangulation->map_global_index(ori_idx);
         triangulation->set_virtual_polar_index(virtual_point_local_index);
         triangulation->set_origin_coord(ori_lon, ori_lat);
 
@@ -393,7 +394,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         triangulation->make_bounding_triangle_pack();
     } else {
         triangulation = new Delaunay_Voronoi();
-        triangulation->add_points(ori_lon, ori_lat, ori_idx, num_kernel_points + num_expand_points);
+        triangulation->add_points(ori_lon, ori_lat, num_kernel_points + num_expand_points);
+        triangulation->map_global_index(ori_idx);
         triangulation->set_virtual_polar_index(virtual_point_local_index);
         triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
         triangulation->triangulate();
@@ -1460,8 +1462,8 @@ unsigned Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *t
             coord_value[1][PDLN_LAT] = std::min(tree_node->kernel_boundry->max_lat, neighbor_node->kernel_boundry->max_lat);
         }
     }
-    *boundry_head = Point(coord_value[0][PDLN_LON], coord_value[0][PDLN_LAT]);
-    *boundry_tail = Point(coord_value[1][PDLN_LON], coord_value[1][PDLN_LAT]);
+    *boundry_head = Point(coord_value[0][PDLN_LON], coord_value[0][PDLN_LAT], -1);
+    *boundry_tail = Point(coord_value[1][PDLN_LON], coord_value[1][PDLN_LAT], -1);
 
     /* cyclic boundry detecting */
     coord_value[0][PDLN_LAT] = coord_value[0][PDLN_LON] = coord_value[1][PDLN_LAT] = coord_value[1][PDLN_LON] = PDLN_DOUBLE_INVALID_VALUE;
@@ -1482,8 +1484,8 @@ unsigned Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *t
             boundry_type |= PDLN_BOUNDRY_TYPE_R;
         }
     }
-    *cyclic_boundry_head = Point(coord_value[0][PDLN_LON], coord_value[0][PDLN_LAT]);
-    *cyclic_boundry_tail = Point(coord_value[1][PDLN_LON], coord_value[1][PDLN_LAT]);
+    *cyclic_boundry_head = Point(coord_value[0][PDLN_LON], coord_value[0][PDLN_LAT], -1);
+    *cyclic_boundry_tail = Point(coord_value[1][PDLN_LON], coord_value[1][PDLN_LAT], -1);
     return boundry_type;
 }
 

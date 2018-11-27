@@ -20,7 +20,8 @@ class Point
         int    prev;
 
         Point();
-        Point(double, double, int id=-1);
+        Point(double, double);
+        Point(double, double, int, int = -1, int = -1);
         ~Point();
         double calculate_distance(const Point*) const;
         double calculate_distance(double, double) const;

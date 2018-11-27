@@ -45,7 +45,7 @@ class Delaunay_Voronoi
     private:
         /* Storage */
         vector<Triangle*> all_leaf_triangles;
-        Point*            all_points;
+        vector<Point>     all_points;
 
         /* Memory management */
         Triangle_pool triangle_allocator;
@@ -69,6 +69,8 @@ class Delaunay_Voronoi
         int*   point_idx_to_buf_idx;
         vector<Point*>    extra_virtual_point;
         vector<Triangle*> triangles_containing_vpolar;
+        unsigned dirty;
+        bool point_in_triangle(double x, double y, Triangle* t);
 
         /* Consistency checking boundary */
         bool   have_bound;
@@ -86,16 +88,19 @@ class Delaunay_Voronoi
         void map_buffer_index_to_point_index();
         void push(unsigned *, Triangle*);
 
+        /* preparing function */
+        void distribute_initial_points(const double* x, const double* y, int num, int** output_nexts, int** output_heads);
+        void enlarge_super_rectangle(const double* x, const double* y, int num);
+
         void distribute_points_into_triangles(int, int, unsigned, unsigned);
         void link_remained_list(unsigned, unsigned, int*, int*);
         void swap_points(int, int);
 
-        unsigned generate_initial_triangles();
         void mark_virtual_triangle();
         bool is_angle_too_large(int, const Edge *edge);
         bool is_angle_ambiguous(int, const Edge *edge);
         int  get_lowest_point_of_four(int, int, int, int);
-        Edge* generate_twins_edge(Edge*);
+        Edge* make_twins_edge(Edge*);
 
         bool is_triangle_legal(int, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
@@ -136,7 +141,8 @@ class Delaunay_Voronoi
         Delaunay_Voronoi();
         ~Delaunay_Voronoi();
 
-        void add_points(const double* x, const double* y, const int* global_idx, int num);
+        void add_points(const double* x, const double* y, int num);
+        void map_global_index(const int* global_idx);
         void set_virtual_polar_index(int idx);
         void set_origin_coord(const double *x_origin, const double *y_origin);
         void triangulate();
@@ -174,7 +180,6 @@ class Delaunay_Voronoi
         /* Test */
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
-        Point* get_all_points() { return all_points; };
 #ifdef OPENCV
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void plot_projection_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
