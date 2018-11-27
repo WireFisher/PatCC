@@ -274,8 +274,10 @@ extern double global_p_lat[4];
 #define PDLN_REMOVE_UNNECESSARY_TRIANGLES (true)
 void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inserted)
 {
-    delete triangulation;
+    timeval start, end;
+    gettimeofday(&start, NULL);
 
+    /* Before triangulating */
     double* ori_lon = new double[num_kernel_points + num_expand_points];
     double* ori_lat = new double[num_kernel_points + num_expand_points];
     int*    ori_idx = new int[num_kernel_points + num_expand_points];
@@ -290,42 +292,51 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     //snprintf(filename, 64, "log/original_input_points_%d.png", region_id);
     //plot_points_into_file(filename, ori_lon, ori_lat, num_kernel_points + num_expand_points, PDLN_PLOT_GLOBAL);
 
-    //if(node_type == PDLN_NODE_TYPE_COMMON) {
-    //    double l[2];
-    //    l[0] = expand_boundry->max_lon - expand_boundry->min_lon;
-    //    l[1] = expand_boundry->max_lat - expand_boundry->min_lat;
-    //    if (l[0] > l[1])
-    //        fprintf(stderr, "[%3d] ratio: %lf\n", region_id, l[0]/l[1]);
-    //    else
-    //        fprintf(stderr, "[%3d] ratio: %lf\n", region_id, l[1]/l[0]);
-    //    fprintf(stderr, "[%3d] num points: %d\n", region_id, num_kernel_points + num_expand_points);
-    //}
-
-    //timeval start, end;
-    //gettimeofday(&start, NULL);
-
-    if(rotated_expand_boundry != NULL) {
+    if (triangulation == NULL) {
         triangulation = new Delaunay_Voronoi();
-        triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], num_kernel_points + num_expand_points);
-        triangulation->map_global_index(ori_idx);
-        triangulation->set_virtual_polar_index(virtual_point_local_index);
-        triangulation->set_origin_coord(ori_lon, ori_lat);
 
-        if(PDLN_INSERT_VIRTUAL_POINT && node_type != PDLN_NODE_TYPE_COMMON && polars_local_index->size() > 1) {
-            if (node_type == PDLN_NODE_TYPE_SPOLAR)
-                triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, shifted_polar_lat, kernel_boundry->max_lat, 0);
-            else
-                triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, shifted_polar_lat, 0);
-        } else
+        if (rotated_expand_boundry) {
+            triangulation->set_polar_mode(true);
+            triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], num_kernel_points+num_expand_points);
+            triangulation->set_virtual_polar_index(virtual_point_local_index);
+            if (PDLN_INSERT_VIRTUAL_POINT && node_type != PDLN_NODE_TYPE_COMMON && polars_local_index->size() > 1) {
+                if (node_type == PDLN_NODE_TYPE_SPOLAR)
+                    triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, shifted_polar_lat, kernel_boundry->max_lat, 0);
+                else
+                    triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, shifted_polar_lat, 0);
+            } else
+                triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
+        } else {
+            triangulation->add_points(ori_lon, ori_lat, num_kernel_points+num_expand_points);
+            triangulation->set_virtual_polar_index(virtual_point_local_index);
             triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
-        triangulation->triangulate();
+        }
 
+        num_old_points = num_expand_points;
+    } else {
+        if (rotated_expand_boundry)
+            triangulation->add_points(projected_coord[PDLN_LON]+num_kernel_points+num_old_points, projected_coord[PDLN_LAT]+num_kernel_points+num_old_points, num_expand_points-num_old_points);
+        else
+            triangulation->add_points(expand_coord[PDLN_LON]+num_old_points, expand_coord[PDLN_LAT]+num_old_points, num_expand_points-num_old_points);
+
+        num_old_points = num_expand_points;
+    }
+
+    if (rotated_expand_boundry)
+        triangulation->set_origin_coord(ori_lon, ori_lat);
+    triangulation->map_global_index(ori_idx);
+
+    /* Triangulating */
+    triangulation->triangulate();
+
+
+    /* After triangulating */
+    if(rotated_expand_boundry != NULL) {
         if(node_type != PDLN_NODE_TYPE_COMMON) {
             //triangulation->plot_original_points_into_file(filename);
 
             triangulation->mark_cyclic_triangles();
             triangulation->relegalize_all_triangles();
-            triangulation->set_polar_mode(true);
 
             if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
                 reset_polars(ori_lat);
@@ -383,42 +394,37 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
                 }
             }
         }
-        //char filename[64];
-        //int rank, mpi_size;
-        //MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-        //MPI_Comm_size(process_thread_mgr->get_mpi_comm(), &mpi_size);
-        //snprintf(filename, 64, "log/projected_triangles_%d-%d.png", mpi_size, region_id);
-        //triangulation->plot_projection_into_file(filename);
-        if(num_inserted > 0)
-            triangulation->remove_triangles_till(num_inserted);
-        triangulation->make_bounding_triangle_pack();
     } else {
-        triangulation = new Delaunay_Voronoi();
-        triangulation->add_points(ori_lon, ori_lat, num_kernel_points + num_expand_points);
-        triangulation->map_global_index(ori_idx);
-        triangulation->set_virtual_polar_index(virtual_point_local_index);
-        triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
-        triangulation->triangulate();
-       
         //triangulation->uncyclic_all_points();
         //triangulation->recognize_cyclic_triangles();
-        if(num_inserted > 0)
-            triangulation->remove_triangles_till(num_inserted);
-        //triangulation->make_final_triangle_pack();
-        triangulation->make_bounding_triangle_pack();
     }
 
-    //gettimeofday(&end, NULL);
-    //
-    //double len_long  = expand_boundry->max_lon - expand_boundry->min_lon;
-    //double len_short = expand_boundry->max_lat - expand_boundry->min_lat;
-    //if (len_long < len_short)
-    //    std::swap(len_long, len_short);
-    //double ratio = len_long / len_short;
-    //if(node_type == PDLN_NODE_TYPE_COMMON)
-    //    fprintf(stderr, "[%03d] local triangle: %ld us, points: %d, ratio: %lf, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, ratio, sched_getcpu());
-    //else
-    //    fprintf(stderr, "[%03d] polar triangle: %ld us, points: %d, ratio: %lf, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, ratio, sched_getcpu());
+    /*
+    char filename[64];
+    int rank, mpi_size;
+    MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+    MPI_Comm_size(process_thread_mgr->get_mpi_comm(), &mpi_size);
+    snprintf(filename, 64, "log/projected_triangles_%d-%d.png", mpi_size, region_id);
+    triangulation->plot_projection_into_file(filename);
+    */
+
+    if(num_inserted > 0)
+        triangulation->remove_triangles_till(num_inserted);
+    triangulation->make_bounding_triangle_pack();
+
+    gettimeofday(&end, NULL);
+
+    /*
+    double len_long  = expand_boundry->max_lon - expand_boundry->min_lon;
+    double len_short = expand_boundry->max_lat - expand_boundry->min_lat;
+    if (len_long < len_short)
+        std::swap(len_long, len_short);
+    double ratio = len_long / len_short;
+    if(node_type == PDLN_NODE_TYPE_COMMON)
+        fprintf(stderr, "[%03d] local triangle: %ld us, points: %d, ratio: %lf, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, ratio, sched_getcpu());
+    else
+        fprintf(stderr, "[%03d] polar triangle: %ld us, points: %d, ratio: %lf, CPU ID: %d\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec), num_kernel_points+num_expand_points, ratio, sched_getcpu());
+    */
 }
 
 

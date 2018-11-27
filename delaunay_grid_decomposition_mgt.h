@@ -69,6 +69,7 @@ private:
     int     num_kernel_points;
     int     num_expand_points;
     int     num_projected_points; /* number of points already been projected, kernel + part of expanded */
+    int     num_old_points;
     bool    non_monotonic;
     Midline midline;
 
