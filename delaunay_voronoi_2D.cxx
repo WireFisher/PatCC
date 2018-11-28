@@ -1377,6 +1377,12 @@ struct Bound {
 };
 
 
+inline bool Delaunay_Voronoi::point_in_bound(double x, double y, Bound* b)
+{
+    return x >= b->min_x && x <= b->max_x && y >= b->min_y && y <= b->max_y;
+}
+
+
 Bound* Delaunay_Voronoi::make_bounding_box()
 {
     unsigned num_triangles = all_leaf_triangles.size();
@@ -1531,6 +1537,9 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
                 for (unsigned j = 0; j < t_num; j++) {
                     unsigned t_idx = t_idxs[j];
                     if (!all_leaf_triangles[t_idx]->is_leaf)
+                        continue;
+
+                    if (!point_in_bound(x[p_idx], y[p_idx], &bound[t_idx]))
                         continue;
 
                     if (point_in_triangle(x[p_idx], y[p_idx], all_leaf_triangles[t_idx])) {
