@@ -1369,9 +1369,74 @@ inline bool Delaunay_Voronoi::point_in_triangle(double x, double y, Triangle* t)
 }
 
 
+struct Bound {
+    double min_x;
+    double max_x;
+    double min_y;
+    double max_y;
+};
+
+
+Bound* Delaunay_Voronoi::make_bounding_box()
+{
+    unsigned num_triangles = all_leaf_triangles.size();
+    Bound* bound = new Bound[num_triangles];
+
+    for (unsigned i = 0; i < num_triangles; i++){
+        Triangle* lf = all_leaf_triangles[i];
+        double x[3], y[3];
+        for (int j = 0; j < 3; j++) {
+            x[j] = vertex(lf, j)->x;
+            y[j] = vertex(lf, j)->y;
+        }
+        if (x[0] > x[1]) std::swap(x[0], x[1]);
+        if (x[1] > x[2]) std::swap(x[1], x[2]);
+        if (x[0] > x[1]) std::swap(x[0], x[1]);
+        if (y[0] > y[1]) std::swap(y[0], y[1]);
+        if (y[1] > y[2]) std::swap(y[1], y[2]);
+        if (y[0] > y[1]) std::swap(y[0], y[1]);
+
+        bound[i].min_x = x[0];
+        bound[i].max_x = x[2];
+        bound[i].min_y = y[0];
+        bound[i].max_y = y[2];
+    }
+
+    return bound;
+}
+
+
+static inline unsigned hash(double x, double y, double mesh_size, double min_x, double len_x, double min_y, double len_y)
+{
+    unsigned x_idx = (x-min_x) / len_x * mesh_size;
+    unsigned y_idx = (y-min_y) / len_y * mesh_size;
+    return x_idx+y_idx*mesh_size;
+    PDASSERT(x_idx < mesh_size && y_idx < mesh_size);
+}
+
+
+static inline void hash(const Bound* bound, double mesh_size, double min_x, double len_x, double min_y, double len_y,
+                   unsigned* x_idx_bgn, unsigned* x_idx_end, unsigned* y_idx_bgn, unsigned* y_idx_end)
+{
+    *x_idx_bgn = (bound->min_x-min_x) / len_x * mesh_size; // FIXME: optimise
+    *y_idx_bgn = (bound->min_y-min_y) / len_y * mesh_size;
+    *x_idx_end = (bound->max_x-min_x) / len_x * mesh_size;
+    *y_idx_end = (bound->max_y-min_y) / len_y * mesh_size;
+    if (*x_idx_end == mesh_size) (*x_idx_end)--;
+    if (*y_idx_end == mesh_size) (*y_idx_end)--;
+}
+
 
 void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* y, int num, int** output_nexts, int** output_heads)
 {
+    double min_x = all_points[0].x;
+    double max_y = all_points[0].y;
+    double max_x = all_points[2].x;
+    double min_y = all_points[2].y;
+
+    double len_x = max_x - min_x;
+    double len_y = max_y - min_y;
+
     unsigned num_triangles = all_leaf_triangles.size();
     int* nexts = new int[num];
     int* heads = new int[num_triangles];
@@ -1381,18 +1446,127 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
     memset(heads, -1, num_triangles*sizeof(int));
     memset(tails, -1, num_triangles*sizeof(int));
 
-    for (int i = 0; i < num; i++) {
-        for (int j = 0; j < num_triangles; j++) {
-           if (!all_leaf_triangles[j]->is_leaf)
-               continue;
+    const unsigned mesh_size = 10;
 
-           if (point_in_triangle(x[i], y[i], all_leaf_triangles[j])) {
-               if (heads[j] == -1)
-                   heads[j] = tails[j] = i;
-               else
-                   tails[j] = nexts[tails[j]] = i;
-               break;
-           }
+    if (mesh_size*mesh_size < all_leaf_triangles.size() * 2) {
+        Bound* bound = make_bounding_box();
+
+        for (unsigned i = 0; i < num_triangles; i++) {
+            PDASSERT(bound[i].min_x >= min_x);
+            PDASSERT(bound[i].max_x <= max_x);
+            PDASSERT(bound[i].min_y >= min_y);
+            PDASSERT(bound[i].max_y <= max_y);
+        }
+
+        unsigned* num_including_points = new unsigned[mesh_size*mesh_size]();
+        unsigned* num_including_triangles = new unsigned[mesh_size*mesh_size]();
+
+        /* first scan: counting */
+        for (int i = 0; i < num; i++) {
+            unsigned idx = hash(x[i], y[i], mesh_size, min_x, len_x, min_y, len_y);
+            num_including_points[idx]++;
+        }
+
+        for (unsigned i = 0; i < num_triangles; i++) {
+            unsigned x_idx_bgn, y_idx_bgn, x_idx_end, y_idx_end;
+            hash(&bound[i], mesh_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
+            for (unsigned j = y_idx_bgn; j <= y_idx_end; j++)
+                for (unsigned k = x_idx_bgn; k <= x_idx_end; k++) {
+                    unsigned idx = k + j * mesh_size;
+                    PDASSERT(j < mesh_size);
+                    PDASSERT(k < mesh_size);
+                    PDASSERT(idx < mesh_size*mesh_size);
+                    num_including_triangles[idx]++;
+                }
+        }
+
+        /* allocing memory */
+        unsigned* including_points[mesh_size*mesh_size];
+        unsigned* including_triangles[mesh_size*mesh_size];
+        for (unsigned i = 0; i < mesh_size*mesh_size; i++) {
+            if (num_including_points[i] > 0) {
+                including_points[i] = new unsigned[num_including_points[i]];
+                including_triangles[i] = new unsigned[num_including_triangles[i]];
+            } else {
+                including_points[i] = NULL;
+                including_triangles[i] = NULL;
+            }
+        }
+
+        /* second scan: distributing points and triangles into mesh */
+        memset(num_including_points, 0, sizeof(unsigned)*mesh_size*mesh_size);
+        memset(num_including_triangles, 0, sizeof(unsigned)*mesh_size*mesh_size);
+
+        for (int i = 0; i < num; i++) {
+            unsigned idx = hash(x[i], y[i], mesh_size, min_x, len_x, min_y, len_y);
+            including_points[idx][num_including_points[idx]] = i;
+            num_including_points[idx]++;
+        }
+
+        for (unsigned i = 0; i < num_triangles; i++) {
+            unsigned x_idx_bgn, y_idx_bgn, x_idx_end, y_idx_end;
+            hash(&bound[i], mesh_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
+            for (unsigned j = y_idx_bgn; j <= y_idx_end; j++)
+                for (unsigned k = x_idx_bgn; k <= x_idx_end; k++) {
+                    unsigned idx = k + j * mesh_size;
+                    if (including_triangles[idx]) {
+                        including_triangles[idx][num_including_triangles[idx]] = i;
+                        num_including_triangles[idx]++;
+                    }
+                }
+        }
+
+        /* distributing points into triangles in the same mesh */
+        for (unsigned m = 0; m < mesh_size*mesh_size; m++) {
+            if (including_points[m] == NULL)
+                continue;
+
+            unsigned* p_idxs = including_points[m];
+            unsigned* t_idxs = including_triangles[m];
+            unsigned  p_num = num_including_points[m];
+            unsigned  t_num = num_including_triangles[m];
+
+            for (unsigned i = 0; i < p_num; i++) {
+                unsigned p_idx = p_idxs[i];
+                for (unsigned j = 0; j < t_num; j++) {
+                    unsigned t_idx = t_idxs[j];
+                    if (!all_leaf_triangles[t_idx]->is_leaf)
+                        continue;
+
+                    if (point_in_triangle(x[p_idx], y[p_idx], all_leaf_triangles[t_idx])) {
+                        if (heads[t_idx] == -1)
+                            heads[t_idx] = tails[t_idx] = p_idx;
+                        else
+                            tails[t_idx] = nexts[tails[t_idx]] = p_idx;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /* freeing memory */
+        for (unsigned i = 0; i < mesh_size*mesh_size; i++) {
+            delete[] including_points[i];
+            delete[] including_triangles[i];
+        }
+
+        delete[] num_including_points;
+        delete[] num_including_triangles;
+        delete[] bound;
+    } else {
+        for (int i = 0; i < num; i++) {
+            for (unsigned j = 0; j < num_triangles; j++) {
+               if (!all_leaf_triangles[j]->is_leaf)
+                   continue;
+
+               if (point_in_triangle(x[i], y[i], all_leaf_triangles[j])) {
+                   if (heads[j] == -1)
+                       heads[j] = tails[j] = i;
+                   else
+                       tails[j] = nexts[tails[j]] = i;
+                   break;
+               }
+            }
         }
     }
 
@@ -1427,17 +1601,14 @@ void Delaunay_Voronoi::enlarge_super_rectangle(const double* x, const double* y,
     min_y -= delta;
     max_y += delta;
 
-    all_points[0].x = min_x;
-    all_points[0].y = max_y;
-
-    all_points[1].x = min_x;
-    all_points[1].y = min_y;
-
-    all_points[2].x = max_x;
-    all_points[2].y = min_y;
-
-    all_points[3].x = max_x;
-    all_points[3].y = max_y;
+    all_points[0].x = std::min(min_x, all_points[0].x);
+    all_points[0].y = std::max(max_y, all_points[0].y);
+    all_points[1].x = std::min(min_x, all_points[1].x);
+    all_points[1].y = std::min(min_y, all_points[1].y);
+    all_points[2].x = std::max(max_x, all_points[2].x);
+    all_points[2].y = std::min(min_y, all_points[2].y);
+    all_points[3].x = std::max(max_x, all_points[3].x);
+    all_points[3].y = std::max(max_y, all_points[3].y);
 }
 
 
@@ -1471,7 +1642,7 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
     dirty = 0;
     int idx_cur = all_points.size();
     int idx_start = idx_cur - PAT_NUM_LOCAL_VPOINTS;
-    for (int i = 0; i < all_leaf_triangles.size(); i++) {
+    for (unsigned i = 0; i < all_leaf_triangles.size(); i++) {
         int head = idx_cur;
         for (int p = heads[i]; p != -1; p = nexts[p]) {
             all_points.push_back(Point(x[p], y[p], idx_start+p, idx_cur+1, idx_cur-1));
@@ -1558,6 +1729,12 @@ void Delaunay_Voronoi::make_final_triangle()
 
 void Delaunay_Voronoi::validate_result()
 {
+    for (unsigned i = 0; i < all_leaf_triangles.size(); i ++)
+        if (all_leaf_triangles[i]->is_virtual) {
+            Triangle* lt = all_leaf_triangles[i];
+            all_leaf_triangles[i]->calulate_circum_circle(vertex(lt, 0), vertex(lt, 1), vertex(lt, 2));
+        }
+
     bool valid = true;
     for (unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
         if (!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)

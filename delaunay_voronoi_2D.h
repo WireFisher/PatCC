@@ -40,6 +40,8 @@ void sort_triangles(Triangle_inline*, int);
 bool have_redundent_points(const double*, const double*, int);
 void delete_redundent_points(double *&x, double *&y, int &num);
 
+struct Bound;
+
 class Delaunay_Voronoi
 {
     private:
@@ -91,6 +93,7 @@ class Delaunay_Voronoi
         /* preparing function */
         void distribute_initial_points(const double* x, const double* y, int num, int** output_nexts, int** output_heads);
         void enlarge_super_rectangle(const double* x, const double* y, int num);
+        Bound* make_bounding_box();
 
         void distribute_points_into_triangles(int, int, unsigned, unsigned);
         void link_remained_list(unsigned, unsigned, int*, int*);
