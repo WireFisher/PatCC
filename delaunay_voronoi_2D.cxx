@@ -1433,7 +1433,7 @@ static inline void hash(const Bound* bound, double mesh_size, double min_x, doub
 }
 
 
-void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* y, int num, int** output_nexts, int** output_heads)
+void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* y, int num, int** output_nexts)
 {
     double min_x = all_points[0].x;
     double max_y = all_points[0].y;
@@ -1445,12 +1445,8 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
 
     unsigned num_triangles = all_leaf_triangles.size();
     int* nexts = new int[num];
-    int* heads = new int[num_triangles];
-    int* tails = new int[num_triangles];
 
     memset(nexts, -1, num*sizeof(int));
-    memset(heads, -1, num_triangles*sizeof(int));
-    memset(tails, -1, num_triangles*sizeof(int));
 
     const unsigned mesh_size = 10;
 
@@ -1543,10 +1539,10 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
                         continue;
 
                     if (point_in_triangle(x[p_idx], y[p_idx], all_leaf_triangles[t_idx])) {
-                        if (heads[t_idx] == -1)
-                            heads[t_idx] = tails[t_idx] = p_idx;
+                        if (all_leaf_triangles[t_idx]->remained_points_head == -1)
+                            all_leaf_triangles[t_idx]->remained_points_head = all_leaf_triangles[t_idx]->remained_points_tail = p_idx;
                         else
-                            tails[t_idx] = nexts[tails[t_idx]] = p_idx;
+                            all_leaf_triangles[t_idx]->remained_points_tail = nexts[all_leaf_triangles[t_idx]->remained_points_tail] = p_idx;
                         break;
                     }
                 }
@@ -1569,10 +1565,10 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
                    continue;
 
                if (point_in_triangle(x[i], y[i], all_leaf_triangles[j])) {
-                   if (heads[j] == -1)
-                       heads[j] = tails[j] = i;
+                   if (all_leaf_triangles[j]->remained_points_head == -1)
+                       all_leaf_triangles[j]->remained_points_head = all_leaf_triangles[j]->remained_points_tail = i;
                    else
-                       tails[j] = nexts[tails[j]] = i;
+                       all_leaf_triangles[j]->remained_points_tail = nexts[all_leaf_triangles[j]->remained_points_tail] = i;
                    break;
                }
             }
@@ -1580,9 +1576,6 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
     }
 
     *output_nexts = nexts;
-    *output_heads = heads;
-
-    delete[] tails;
 }
 
 
@@ -1644,16 +1637,16 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
 
     enlarge_super_rectangle(x, y, num);
 
-    int *nexts, *heads;
+    int *nexts;
 
-    distribute_initial_points(x, y, num, &nexts, &heads);
+    distribute_initial_points(x, y, num, &nexts);
 
     dirty = 0;
     int idx_cur = all_points.size();
     int idx_start = idx_cur - PAT_NUM_LOCAL_VPOINTS;
     for (unsigned i = 0; i < all_leaf_triangles.size(); i++) {
         int head = idx_cur;
-        for (int p = heads[i]; p != -1; p = nexts[p]) {
+        for (int p = all_leaf_triangles[i]->remained_points_head; p != -1; p = nexts[p]) {
             all_points.push_back(Point(x[p], y[p], idx_start+p, idx_cur+1, idx_cur-1));
             idx_cur++;
         }
@@ -1679,7 +1672,6 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
 #endif
 
     delete[] nexts;
-    delete[] heads;
 }
 
 

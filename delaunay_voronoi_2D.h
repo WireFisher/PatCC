@@ -90,7 +90,7 @@ class Delaunay_Voronoi
         void push(unsigned *, Triangle*);
 
         /* preparing function */
-        void distribute_initial_points(const double* x, const double* y, int num, int** output_nexts, int** output_heads);
+        void distribute_initial_points(const double* x, const double* y, int num, int** output_nexts);
         void enlarge_super_rectangle(const double* x, const double* y, int num);
         Bound* make_bounding_box();
         bool point_in_triangle(double x, double y, Triangle* t);
