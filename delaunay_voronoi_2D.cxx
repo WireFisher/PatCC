@@ -1412,27 +1412,29 @@ Bound* Delaunay_Voronoi::make_bounding_box()
 }
 
 
-static inline unsigned hash(double x, double y, double mesh_size, double min_x, double len_x, double min_y, double len_y)
+static inline unsigned hash(double x, double y, double block_size, double min_x, double len_x, double min_y, double len_y)
 {
-    unsigned x_idx = (x-min_x) / len_x * mesh_size;
-    unsigned y_idx = (y-min_y) / len_y * mesh_size;
-    return x_idx+y_idx*mesh_size;
-    PDASSERT(x_idx < mesh_size && y_idx < mesh_size);
+    unsigned x_idx = (x-min_x) / len_x * block_size;
+    unsigned y_idx = (y-min_y) / len_y * block_size;
+    return x_idx+y_idx*block_size;
+    PDASSERT(x_idx < block_size && y_idx < block_size);
 }
 
 
-static inline void hash(const Bound* bound, double mesh_size, double min_x, double len_x, double min_y, double len_y,
+static inline void hash(const Bound* bound, double block_size, double min_x, double len_x, double min_y, double len_y,
                    unsigned* x_idx_bgn, unsigned* x_idx_end, unsigned* y_idx_bgn, unsigned* y_idx_end)
 {
-    *x_idx_bgn = (bound->min_x-min_x) / len_x * mesh_size; // FIXME: optimise
-    *y_idx_bgn = (bound->min_y-min_y) / len_y * mesh_size;
-    *x_idx_end = (bound->max_x-min_x) / len_x * mesh_size;
-    *y_idx_end = (bound->max_y-min_y) / len_y * mesh_size;
-    if (*x_idx_end == mesh_size) (*x_idx_end)--;
-    if (*y_idx_end == mesh_size) (*y_idx_end)--;
+    *x_idx_bgn = (bound->min_x-min_x) / len_x * block_size; // FIXME: optimise
+    *y_idx_bgn = (bound->min_y-min_y) / len_y * block_size;
+    *x_idx_end = (bound->max_x-min_x) / len_x * block_size;
+    *y_idx_end = (bound->max_y-min_y) / len_y * block_size;
+    if (*x_idx_end == block_size) (*x_idx_end)--;
+    if (*y_idx_end == block_size) (*y_idx_end)--;
 }
 
 
+#define PAT_TRIANGLES_PER_BLOCK (100)
+#define PAT_MAX_BLOCK (100)
 void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* y, int num, int** output_nexts)
 {
     double min_x = all_points[0].x;
@@ -1448,9 +1450,9 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
 
     memset(nexts, -1, num*sizeof(int));
 
-    const unsigned mesh_size = 10;
+    unsigned block_size = std::sqrt(std::min(num_triangles / PAT_TRIANGLES_PER_BLOCK, (unsigned)PAT_MAX_BLOCK));
 
-    if (mesh_size*mesh_size < all_leaf_triangles.size() * 2) {
+    if (block_size*block_size > 2) {
         Bound* bound = make_bounding_box();
 
         for (unsigned i = 0; i < num_triangles; i++) {
@@ -1460,32 +1462,32 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
             PDASSERT(bound[i].max_y <= max_y);
         }
 
-        unsigned* num_including_points = new unsigned[mesh_size*mesh_size]();
-        unsigned* num_including_triangles = new unsigned[mesh_size*mesh_size]();
+        unsigned* num_including_points = new unsigned[block_size*block_size]();
+        unsigned* num_including_triangles = new unsigned[block_size*block_size]();
 
         /* first scan: counting */
         for (int i = 0; i < num; i++) {
-            unsigned idx = hash(x[i], y[i], mesh_size, min_x, len_x, min_y, len_y);
+            unsigned idx = hash(x[i], y[i], block_size, min_x, len_x, min_y, len_y);
             num_including_points[idx]++;
         }
 
         for (unsigned i = 0; i < num_triangles; i++) {
             unsigned x_idx_bgn, y_idx_bgn, x_idx_end, y_idx_end;
-            hash(&bound[i], mesh_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
+            hash(&bound[i], block_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
             for (unsigned j = y_idx_bgn; j <= y_idx_end; j++)
                 for (unsigned k = x_idx_bgn; k <= x_idx_end; k++) {
-                    unsigned idx = k + j * mesh_size;
-                    PDASSERT(j < mesh_size);
-                    PDASSERT(k < mesh_size);
-                    PDASSERT(idx < mesh_size*mesh_size);
+                    unsigned idx = k + j * block_size;
+                    PDASSERT(j < block_size);
+                    PDASSERT(k < block_size);
+                    PDASSERT(idx < block_size*block_size);
                     num_including_triangles[idx]++;
                 }
         }
 
         /* allocing memory */
-        unsigned* including_points[mesh_size*mesh_size];
-        unsigned* including_triangles[mesh_size*mesh_size];
-        for (unsigned i = 0; i < mesh_size*mesh_size; i++) {
+        unsigned** including_points = new unsigned*[block_size*block_size];
+        unsigned** including_triangles = new unsigned*[block_size*block_size];
+        for (unsigned i = 0; i < block_size*block_size; i++) {
             if (num_including_points[i] > 0) {
                 including_points[i] = new unsigned[num_including_points[i]];
                 including_triangles[i] = new unsigned[num_including_triangles[i]];
@@ -1496,21 +1498,21 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
         }
 
         /* second scan: distributing points and triangles into mesh */
-        memset(num_including_points, 0, sizeof(unsigned)*mesh_size*mesh_size);
-        memset(num_including_triangles, 0, sizeof(unsigned)*mesh_size*mesh_size);
+        memset(num_including_points, 0, sizeof(unsigned)*block_size*block_size);
+        memset(num_including_triangles, 0, sizeof(unsigned)*block_size*block_size);
 
         for (int i = 0; i < num; i++) {
-            unsigned idx = hash(x[i], y[i], mesh_size, min_x, len_x, min_y, len_y);
+            unsigned idx = hash(x[i], y[i], block_size, min_x, len_x, min_y, len_y);
             including_points[idx][num_including_points[idx]] = i;
             num_including_points[idx]++;
         }
 
         for (unsigned i = 0; i < num_triangles; i++) {
             unsigned x_idx_bgn, y_idx_bgn, x_idx_end, y_idx_end;
-            hash(&bound[i], mesh_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
+            hash(&bound[i], block_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
             for (unsigned j = y_idx_bgn; j <= y_idx_end; j++)
                 for (unsigned k = x_idx_bgn; k <= x_idx_end; k++) {
-                    unsigned idx = k + j * mesh_size;
+                    unsigned idx = k + j * block_size;
                     if (including_triangles[idx]) {
                         including_triangles[idx][num_including_triangles[idx]] = i;
                         num_including_triangles[idx]++;
@@ -1519,7 +1521,7 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
         }
 
         /* distributing points into triangles in the same mesh */
-        for (unsigned m = 0; m < mesh_size*mesh_size; m++) {
+        for (unsigned m = 0; m < block_size*block_size; m++) {
             if (including_points[m] == NULL)
                 continue;
 
@@ -1550,10 +1552,12 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
         }
 
         /* freeing memory */
-        for (unsigned i = 0; i < mesh_size*mesh_size; i++) {
+        for (unsigned i = 0; i < block_size*block_size; i++) {
             delete[] including_points[i];
             delete[] including_triangles[i];
         }
+        delete[] including_points;
+        delete[] including_triangles;
 
         delete[] num_including_points;
         delete[] num_including_triangles;
