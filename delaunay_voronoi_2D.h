@@ -70,7 +70,6 @@ class Delaunay_Voronoi
         Point* virtual_point[4];
         int*   point_idx_to_buf_idx;
         vector<Point*>    extra_virtual_point;
-        vector<Triangle*> triangles_containing_vpolar;
         unsigned dirty;
 
         /* Consistency checking boundary */
@@ -83,6 +82,7 @@ class Delaunay_Voronoi
 #ifdef DEBUG
         const double* x_store;
         const double* y_store;
+        vector<Triangle*> triangles_containing_vpolar;
 #endif
 
         unsigned triangulating_process(Triangle*, unsigned);
@@ -100,7 +100,7 @@ class Delaunay_Voronoi
         void link_remained_list(unsigned, unsigned, int*, int*);
         void swap_points(int, int);
 
-        void mark_virtual_triangle();
+        void mark_special_triangles();
         bool is_angle_too_large(int, const Edge *edge);
         bool is_angle_ambiguous(int, const Edge *edge);
         int  get_lowest_point_of_four(int, int, int, int);
@@ -111,7 +111,6 @@ class Delaunay_Voronoi
         bool is_triangle_ambiguous(int, Edge *edge);
         void relegalize_triangles(int, Edge*);
         void remove_leaf_triangle(Triangle*);
-        void update_virtual_polar_info();
         bool is_delaunay_legal(const Point *pt, const Edge *edge);
         bool is_delaunay_legal(const Triangle *);
         void validate_result();

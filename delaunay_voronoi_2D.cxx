@@ -1293,28 +1293,26 @@ void Delaunay_Voronoi::map_buffer_index_to_point_index()
 }
 
 
-void Delaunay_Voronoi::mark_virtual_triangle()
+void Delaunay_Voronoi::mark_special_triangles()
 {
-    //for(vector<Triangle*>::iterator t = all_leaf_triangles.begin(); t != all_leaf_triangles.end(); ) {
-    //    bool contain = false;
-    //    for(unsigned i = 0; i < PAT_NUM_LOCAL_VPOINTS; i++)
-    //        if((*t)->is_leaf && (*t)->contain_vertex(i)) {
-    //            for(unsigned j = 0; j < 3; j++) {
-    //                (*t)->edge[j]->triangle = NULL;
-    //                if((*t)->edge[j]->twin_edge)
-    //                    (*t)->edge[j]->twin_edge->twin_edge = NULL;
-    //            }
-    //            (*t)->is_leaf = false;
-    //            contain = true;
-    //            break;
-    //        }
-    //    if(!contain)
-    //        t++;
-    //}
+#ifdef DEBUG
+    triangles_containing_vpolar.clear();
+#endif
     for (unsigned i = 0; i < all_leaf_triangles.size(); i++) {
+        if(!all_leaf_triangles[i]->is_leaf)
+            continue;
+
         for(unsigned j = 0; j < PAT_NUM_LOCAL_VPOINTS; j++)
-            if(all_leaf_triangles[i]->is_leaf && all_leaf_triangles[i]->contain_vertex(j))
+            if(all_leaf_triangles[i]->contain_vertex(j)) {
                 all_leaf_triangles[i]->is_virtual = true;
+                break;
+            }
+
+#ifdef DEBUG
+        if(!all_leaf_triangles[i]->is_virtual &&
+           all_leaf_triangles[i]->contain_vertex(point_idx_to_buf_idx[vpolar_local_index]))
+            triangles_containing_vpolar.push_back(all_leaf_triangles[i]);
+#endif
     }
 }
 
@@ -1433,8 +1431,8 @@ static inline void hash(const Bound* bound, double block_size, double min_x, dou
 }
 
 
-#define PAT_TRIANGLES_PER_BLOCK (100)
-#define PAT_MAX_BLOCK (100)
+#define PAT_TRIANGLES_PER_BLOCK (50)
+#define PAT_MAX_BLOCK (10000)
 void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* y, int num, int** output_nexts)
 {
     double min_x = all_points[0].x;
@@ -1715,10 +1713,7 @@ void Delaunay_Voronoi::triangulate()
 
     make_final_triangle();
 
-    mark_virtual_triangle();
-
-    update_virtual_polar_info();
-
+    mark_special_triangles();
 #ifdef DEBUG
     //validate_result();
 #endif
@@ -2177,18 +2172,6 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
 }
 
 
-void Delaunay_Voronoi::update_virtual_polar_info()
-{
-    triangles_containing_vpolar.clear();
-    for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        if(!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
-            continue;
-        if(all_leaf_triangles[i]->contain_vertex(point_idx_to_buf_idx[vpolar_local_index]))
-            triangles_containing_vpolar.push_back(all_leaf_triangles[i]);
-    }
-}
-
-
 void Delaunay_Voronoi::set_polar_mode(bool mode)
 {
     polar_mode = mode;
@@ -2400,6 +2383,7 @@ void Delaunay_Voronoi::plot_projection_into_file(const char *filename, double mi
     PDASSERT(num_edges <= 3 * all_leaf_triangles.size());
     plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_DEFAULT, PDLN_PLOT_FILEMODE_NEW);
 
+#ifdef DEBUG
     num_edges = 0;
     for(unsigned i = 0; i < triangles_containing_vpolar.size(); i++)
         for(unsigned j = 0; j < 3; j++) {
@@ -2410,6 +2394,7 @@ void Delaunay_Voronoi::plot_projection_into_file(const char *filename, double mi
             num_edges++;
         }
     plot_projected_edge_into_file(filename, head_coord, tail_coord, num_edges, PDLN_PLOT_COLOR_RED, PDLN_PLOT_FILEMODE_APPEND);
+#endif
 
     /* Debug staff */
     //num_edges = 0;
