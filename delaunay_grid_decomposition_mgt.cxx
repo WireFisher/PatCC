@@ -24,7 +24,6 @@
 
 #define PDLN_DEFAULT_EXPANGDING_RATIO (0.2)
 #define PDLN_DEFAULT_EXPANGDING_SCALE (2)
-#define PDLN_EXPECTED_EXPANDING_LOOP_TIMES (3)
 
 #define PDLN_SPOLAR_MAX_LAT (-19.47)
 #define PDLN_NPOLAR_MIN_LAT (19.47)
@@ -707,7 +706,7 @@ void Search_tree_node::add_expand_points(double *coord_value[2], int *global_idx
     int*    tmp_index;
 
     if(num_expand_points + num_points > len_expand_coord_buf) {
-        len_expand_coord_buf = num_expand_points + num_points * 4 * PDLN_EXPECTED_EXPANDING_LOOP_TIMES;
+        len_expand_coord_buf = num_expand_points + num_points * 4 * PDLN_EXPECTED_EXPANDING_TIMES;
 
         tmp_coord[0] = new double[len_expand_coord_buf];
         tmp_coord[1] = new double[len_expand_coord_buf];

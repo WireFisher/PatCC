@@ -31,6 +31,8 @@
 #define PDLN_DOWN   1
 #define PDLN_RIGHT  2
 
+#define PDLN_EXPECTED_EXPANDING_TIMES (3)
+
 using std::vector;
 using std::pair;
 
@@ -46,8 +48,9 @@ class Delaunay_Voronoi
 {
     private:
         /* Storage */
+        Point*            all_points;
         vector<Triangle*> all_leaf_triangles;
-        vector<Point>     all_points;
+        int               max_points;
 
         /* Memory management */
         Triangle_pool triangle_allocator;
@@ -70,7 +73,7 @@ class Delaunay_Voronoi
         Point* virtual_point[4];
         int*   point_idx_to_buf_idx;
         vector<Point*>    extra_virtual_point;
-        unsigned dirty;
+        unsigned dirty_triangles_count;
 
         /* Consistency checking boundary */
         bool   have_bound;
@@ -90,6 +93,8 @@ class Delaunay_Voronoi
         void push(unsigned *, Triangle*);
 
         /* preparing function */
+        void initialize(int);
+        void extend_points_buffer(int);
         void distribute_initial_points(const double* x, const double* y, int num, int** output_nexts);
         void enlarge_super_rectangle(const double* x, const double* y, int num);
         Bound* make_bounding_box();

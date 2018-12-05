@@ -1234,7 +1234,7 @@ void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head
     PDASSERT(count <= max_leaf_triangles);
 
 #ifdef DEBUG
-    bool* map = new bool[num_points + PAT_NUM_LOCAL_VPOINTS]();
+    bool* map = new bool[num_points]();
     for (i = base+1; i <= top; i ++)
         if (triangle_stack[i] && !triangle_stack[i]->is_leaf && triangle_stack[i]->remained_points_tail > -1) {
             for (int j = triangle_stack[i]->remained_points_head; j > -1; j = all_points[j].next) {
@@ -1276,8 +1276,8 @@ void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head
 void Delaunay_Voronoi::map_buffer_index_to_point_index()
 {
     delete[] point_idx_to_buf_idx;
-    point_idx_to_buf_idx = new int[num_points]();
-    for (int i = PAT_NUM_LOCAL_VPOINTS; i < num_points + PAT_NUM_LOCAL_VPOINTS; i++) {
+    point_idx_to_buf_idx = new int[num_points - PAT_NUM_LOCAL_VPOINTS]();
+    for (int i = PAT_NUM_LOCAL_VPOINTS; i < num_points; i++) {
 #ifdef DEBUG
         PDASSERT(point_idx_to_buf_idx[all_points[i].id] == 0);
 #endif
@@ -1330,17 +1330,6 @@ Delaunay_Voronoi::Delaunay_Voronoi()
     , point_idx_to_buf_idx(NULL)
     , have_bound(false)
 {
-    all_points.push_back(Point(-0.1,  0.1, -1, -1, -1));
-    all_points.push_back(Point(-0.1, -0.1, -1, -1, -1));
-    all_points.push_back(Point( 0.1, -0.1, -1, -1, -1));
-    all_points.push_back(Point( 0.1,  0.1, -1, -1, -1));
-
-    all_leaf_triangles.push_back(allocate_Triangle(allocate_edge(0, 1), allocate_edge(1, 2), allocate_edge(2, 0)));
-    all_leaf_triangles.push_back(allocate_Triangle(allocate_edge(0, 2), allocate_edge(2, 3), allocate_edge(3, 0)));
-    Edge* e1 = all_leaf_triangles[0]->edge[2];
-    Edge* e2 = all_leaf_triangles[1]->edge[0];
-    e1->twin_edge = e2;
-    e2->twin_edge = e1;
 }
 
 
@@ -1616,6 +1605,48 @@ void Delaunay_Voronoi::enlarge_super_rectangle(const double* x, const double* y,
 }
 
 
+void Delaunay_Voronoi::initialize(int num)
+{
+    int triangles_count_estimate = 2*(num+PAT_NUM_LOCAL_VPOINTS);
+    all_leaf_triangles.reserve(triangles_count_estimate);
+
+    stack_size = triangles_count_estimate * 2;
+    triangle_stack = new Triangle*[stack_size];
+
+    max_points = num*3/2;
+    all_points = (Point *)::operator new(max_points * sizeof(Point));
+
+    new(&all_points[0]) Point(-0.1,  0.1, -1, -1, -1);
+    new(&all_points[1]) Point(-0.1, -0.1, -1, -1, -1);
+    new(&all_points[2]) Point( 0.1, -0.1, -1, -1, -1);
+    new(&all_points[3]) Point( 0.1,  0.1, -1, -1, -1);
+
+    num_points = PAT_NUM_LOCAL_VPOINTS;
+
+    all_leaf_triangles.push_back(allocate_Triangle(allocate_edge(0, 1), allocate_edge(1, 2), allocate_edge(2, 0)));
+    all_leaf_triangles.push_back(allocate_Triangle(allocate_edge(0, 2), allocate_edge(2, 3), allocate_edge(3, 0)));
+
+    Edge* e1 = all_leaf_triangles[0]->edge[2];
+    Edge* e2 = all_leaf_triangles[1]->edge[0];
+    e1->twin_edge = e2;
+    e2->twin_edge = e1;
+}
+
+
+void Delaunay_Voronoi::extend_points_buffer(int introduced_points)
+{
+    int full_size = num_points + introduced_points;
+    int realloc_size = full_size + introduced_points * PDLN_EXPECTED_EXPANDING_TIMES;
+
+    void* tmp_buf = ::operator new(realloc_size * sizeof(Point));
+    memcpy(tmp_buf, all_points, num_points * sizeof(Point));
+
+    ::operator delete(all_points);
+    all_points = (Point *)tmp_buf;
+    max_points = realloc_size;
+}
+
+
 void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
 {
 #ifdef DEBUG
@@ -1624,18 +1655,11 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
     PDASSERT(x != NULL);
     PDASSERT(y != NULL);
 
-    num_points += num;
-
-    int triangles_count_estimate = 2*(num_points+PAT_NUM_LOCAL_VPOINTS);
-    all_leaf_triangles.reserve(triangles_count_estimate);
-
     /* first initial process */
-    if(stack_size == 0) {
-        stack_size = triangles_count_estimate * 2;
-        triangle_stack = new Triangle*[stack_size];
-
-        all_points.reserve(num*3/2);
-    }
+    if(stack_size == 0)
+        initialize(num);
+    else if (num_points + num > max_points)
+        extend_points_buffer(num);
 
     enlarge_super_rectangle(x, y, num);
 
@@ -1643,31 +1667,31 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
 
     distribute_initial_points(x, y, num, &nexts);
 
-    dirty = 0;
-    int idx_cur = all_points.size();
-    int idx_start = idx_cur - PAT_NUM_LOCAL_VPOINTS;
+    dirty_triangles_count = 0;
+    int buf_idx_cur = num_points;
+    int local_idx_start = num_points - PAT_NUM_LOCAL_VPOINTS;
     for (unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        int head = idx_cur;
+        int head = buf_idx_cur;
         for (int p = all_leaf_triangles[i]->remained_points_head; p != -1; p = nexts[p]) {
-            all_points.push_back(Point(x[p], y[p], idx_start+p, idx_cur+1, idx_cur-1));
-            idx_cur++;
+            new(&all_points[buf_idx_cur]) Point(x[p], y[p], local_idx_start+p, buf_idx_cur+1, buf_idx_cur-1);
+            buf_idx_cur++;
         }
 
-        if (head != idx_cur) {
+        if (head != buf_idx_cur) {
             all_points[head].prev = -1;
-            all_points[idx_cur-1].next = -1;
-            all_leaf_triangles[i]->set_remained_points(head, idx_cur-1);
-            push(&dirty, all_leaf_triangles[i]);
+            all_points[buf_idx_cur-1].next = -1;
+            all_leaf_triangles[i]->set_remained_points(head, buf_idx_cur-1);
+            push(&dirty_triangles_count, all_leaf_triangles[i]);
         }
     }
-    PDASSERT((unsigned)num_points + PAT_NUM_LOCAL_VPOINTS == all_points.size());
+    num_points += num;
 
 #ifdef DEBUG
     x_store = x;
     y_store = y;
 
-    bool* check = new bool[all_points.size()]();
-    for (unsigned i = 4; i < all_points.size(); i++) {
+    bool* check = new bool[num_points]();
+    for (int i = 4; i < num_points; i++) {
         PDASSERT(check[all_points[i].id] == 0);
         check[all_points[i].id] = 1;
     }
@@ -1705,9 +1729,9 @@ void Delaunay_Voronoi::triangulate()
 
     //save_original_points_into_file();
 
-    for(unsigned i = 1; i <= dirty; i++)
+    for(unsigned i = 1; i <= dirty_triangles_count; i++)
         if(triangle_stack[i] && triangle_stack[i]->is_leaf)
-            triangulating_process(triangle_stack[i], dirty);
+            triangulating_process(triangle_stack[i], dirty_triangles_count);
 
     map_buffer_index_to_point_index();
 
@@ -1747,7 +1771,7 @@ void Delaunay_Voronoi::validate_result()
     }
     assert(valid);
 
-    bool* have_triangle = new bool[num_points]();
+    bool* have_triangle = new bool[num_points - PAT_NUM_LOCAL_VPOINTS]();
     for (unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
         if (!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
             continue;
@@ -1757,7 +1781,7 @@ void Delaunay_Voronoi::validate_result()
         have_triangle[vertex(all_leaf_triangles[i], 2)->id] = true;
     }
 
-    for (int i = 0; i < num_points; i ++)
+    for (int i = 0; i < num_points - PAT_NUM_LOCAL_VPOINTS; i ++)
         assert(have_triangle[i]);
 }
 
@@ -2417,17 +2441,16 @@ void Delaunay_Voronoi::plot_original_points_into_file(const char *filename, doub
 {
     double *coord[2];
 
-    coord[0] = new double[num_points];
-    coord[1] = new double[num_points];
+    coord[0] = new double[num_points - PAT_NUM_LOCAL_VPOINTS];
+    coord[1] = new double[num_points - PAT_NUM_LOCAL_VPOINTS];
 
     int num = 0;
-    for(int i = 0; i < num_points; i ++) {
+    for(int i = PAT_NUM_LOCAL_VPOINTS; i < num_points; i ++) {
         coord[0][num] = all_points[i].x;
         coord[1][num++] = all_points[i].y;
     }
 
-    PDASSERT(num == num_points);
-    plot_points_into_file(filename, coord[0], coord[1], num_points, min_x, max_x, min_y, max_y);
+    plot_points_into_file(filename, coord[0], coord[1], num_points - PAT_NUM_LOCAL_VPOINTS, min_x, max_x, min_y, max_y);
 
     delete coord[0];
     delete coord[1];
@@ -2519,16 +2542,15 @@ void Delaunay_Voronoi::save_original_points_into_file()
 {
     FILE *fp;
     fp = fopen("log/original_points.txt", "w");
-    for(int i = 0; i < num_points; i++)
-        if(all_points[i].x < 5 && all_points[i].x > -5 && all_points[i].y < 5 && all_points[i].y > -5)
-            fprintf(fp, "%.20lf, %.20lf\n", all_points[i].x, all_points[i].y);
+    for(int i = PAT_NUM_LOCAL_VPOINTS; i < num_points; i++)
+        fprintf(fp, "%.20lf, %.20lf\n", all_points[i].x, all_points[i].y);
     fclose(fp);
 }
 
 
 void Delaunay_Voronoi::update_all_points_coord(double *x_values, double *y_values, int num)
 {
-    PDASSERT(num == num_points);
+    PDASSERT(num == num_points - PAT_NUM_LOCAL_VPOINTS);
     for(int i = 0; i < num; i++) {
         all_points[point_idx_to_buf_idx[i]].x = x_values[i];
         all_points[point_idx_to_buf_idx[i]].y = y_values[i];
@@ -2554,7 +2576,7 @@ void Delaunay_Voronoi::update_points_coord_y(double reset_lat_value, vector<int>
 
 void Delaunay_Voronoi::uncyclic_all_points()
 {
-    for(int i = 0; i < num_points+PAT_NUM_LOCAL_VPOINTS; i++) {
+    for(int i = 0; i < num_points; i++) {
         while(all_points[i].x >= 360)
             all_points[i].x -= 360;
         while(all_points[i].x < 0)
