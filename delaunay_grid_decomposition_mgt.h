@@ -101,6 +101,8 @@ private:
     void fix_expand_boundry(int index, int count);
     double load_polars_info();
     void reset_polars(double*);
+    void calculate_latitude_circle_projection(double, Point*, double*);
+    void calculate_cyclic_boundary_projection(unsigned, Point*, Point*);
 
 public:    
     Search_tree_node(Search_tree_node*, double**, int*, int, Boundry, int type);

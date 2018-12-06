@@ -267,6 +267,54 @@ inline void calculate_circle_center(double x[3], double y[3], double *center_x, 
     *center_y = mid_y[0] + k[0]*(mid_y[1] - mid_y[0] - k[1]*mid_x[1] + k[1]*mid_x[0]) / (k[0] - k[1]);
 }
 
+/* calculate circle on the projected surface corresponding to
+ * a latitude circle on the shpere surface */
+void Search_tree_node::calculate_latitude_circle_projection(double lat, Point* circle_center, double* radius)
+{
+    double x[3], y[3];
+
+    calculate_stereographic_projection(0,   lat, center[PDLN_LON], center[PDLN_LAT], x[0], y[0]);
+    calculate_stereographic_projection(90,  lat, center[PDLN_LON], center[PDLN_LAT], x[1], y[1]);
+    calculate_stereographic_projection(180, lat, center[PDLN_LON], center[PDLN_LAT], x[2], y[2]);
+
+    if (float_eq(x[0], x[1]) && float_eq(x[1], x[2]) && float_eq(y[0], y[1]) && float_eq(y[1], y[2])) {
+        circle_center->x = x[0];
+        circle_center->y = y[0];
+        *radius = 0;
+    } else {
+        calculate_circle_center(x, y, &circle_center->x, &circle_center->y);
+        *radius = sqrt((x[2]-circle_center->x)*(x[2]-circle_center->x)+(y[2]-circle_center->y)*(y[2]-circle_center->y));
+    }
+}
+
+/* calculate a projected line, of which longitude is near 360,
+ * and latitude is from the pole to the equator */
+void Search_tree_node::calculate_cyclic_boundary_projection(unsigned mode, Point* head, Point* tail)
+{
+    double polar_lat = 0;
+    double equat_lat = 0;
+
+    if (mode == PDLN_NODE_TYPE_NPOLAR) {
+        equat_lat = -center[PDLN_LAT]+20;
+        polar_lat = real_boundry->max_lat+0.1;
+    } else if (mode == PDLN_NODE_TYPE_SPOLAR) {
+        equat_lat = -center[PDLN_LAT]-20;
+        polar_lat = real_boundry->min_lat;
+    }
+
+    double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
+    double head_lon, head_lat, tail_lon, tail_lat;
+
+    calculate_stereographic_projection(lon, polar_lat, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
+    calculate_stereographic_projection(lon, equat_lat, center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
+
+    head->x = head_lon;
+    head->y = head_lat;
+    tail->x = tail_lon;
+    tail->y = tail_lat;
+}
+
+
 extern double global_p_lon[4];
 extern double global_p_lat[4];
 #define PDLN_INSERT_VIRTUAL_POINT (true)
@@ -340,56 +388,27 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
                 reset_polars(ori_lat);
         } else if (expand_boundry->max_lon - expand_boundry->min_lon > 150) {
-            Point circle_center;
             double radius;
-            double x[3], y[3];
+            Point  circle_center;
+            Point  boundary_head, boundary_tail;
+
             calculate_real_boundary();
 
             if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->min_lat < 0) {
-                calculate_stereographic_projection(0, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
-                calculate_stereographic_projection(90, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[1], y[1]);
-                calculate_stereographic_projection(180, real_boundry->min_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[2], y[2]);
-
-                if (float_eq(x[0], x[1]) && float_eq(x[1], x[2]) && float_eq(y[0], y[1]) && float_eq(y[1], y[2])) {
-                    circle_center.x = x[0];
-                    circle_center.y = y[0];
-                    radius = 0;
-                } else {
-                    calculate_circle_center(x, y, &circle_center.x, &circle_center.y);
-                    radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
-                }
-
+                calculate_latitude_circle_projection(real_boundry->min_lat, &circle_center, &radius);
                 if(radius < 100) {
-                    //printf("[%d] + circle_center: (%lf, %lf), point: (%lf, %lf) radius: %lf\n", rank, circle_center.x, circle_center.y, x[2], y[2], radius);
                     //triangulation->remove_triangles_in_circle(circle_center, radius);
-                    double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
-                    double head_lon, head_lat, tail_lon, tail_lat;
-                    calculate_stereographic_projection(lon, -center[PDLN_LAT]-20 , center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
-                    calculate_stereographic_projection(lon, real_boundry->min_lat, center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
-                    triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
+                    calculate_cyclic_boundary_projection(PDLN_NODE_TYPE_SPOLAR, &boundary_head, &boundary_tail);
+                    triangulation->remove_triangles_on_segment(boundary_head, boundary_tail);
                 }
             }
+
             if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->max_lat > 0) {
-                calculate_stereographic_projection(0, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[0], y[0]);
-                calculate_stereographic_projection(90, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[1], y[1]);
-                calculate_stereographic_projection(180, real_boundry->max_lat, this->center[PDLN_LON], this->center[PDLN_LAT], x[2], y[2]);
-
-                if (float_eq(x[0], x[1]) && float_eq(x[1], x[2]) && float_eq(y[0], y[1]) && float_eq(y[1], y[2])) {
-                    circle_center.x = x[0];
-                    circle_center.y = y[0];
-                    radius = 0;
-                } else {
-                    calculate_circle_center(x, y, &circle_center.x, &circle_center.y);
-                    radius = sqrt((x[2]-circle_center.x)*(x[2]-circle_center.x)+(y[2]-circle_center.y)*(y[2]-circle_center.y));
-                }
-
+                calculate_latitude_circle_projection(real_boundry->max_lat, &circle_center, &radius);
                 if(radius < 100) {
                     //triangulation->remove_triangles_in_circle(circle_center, radius);
-                    double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
-                    double head_lon, head_lat, tail_lon, tail_lat;
-                    calculate_stereographic_projection(lon, real_boundry->max_lat+0.1, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
-                    calculate_stereographic_projection(lon, -center[PDLN_LAT]+20 , center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
-                    triangulation->remove_triangles_on_segment(Point(head_lon, head_lat), Point(tail_lon, tail_lat));
+                    calculate_cyclic_boundary_projection(PDLN_NODE_TYPE_NPOLAR, &boundary_head, &boundary_tail);
+                    triangulation->remove_triangles_on_segment(boundary_head, boundary_tail);
                 }
             }
         }
