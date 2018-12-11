@@ -376,13 +376,10 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     /* Triangulating */
     triangulation->triangulate();
 
-
     /* After triangulating */
     if(rotated_expand_boundry != NULL) {
         if(node_type != PDLN_NODE_TYPE_COMMON) {
-            //triangulation->plot_original_points_into_file(filename);
-
-            triangulation->mark_cyclic_triangles();
+            //triangulation->mark_cyclic_triangles();
             triangulation->relegalize_all_triangles();
 
             if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)

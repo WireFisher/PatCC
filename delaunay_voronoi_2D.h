@@ -106,7 +106,7 @@ class Delaunay_Voronoi
         void swap_points(int, int);
 
         void mark_special_triangles();
-        bool is_angle_too_large(int, const Edge *edge);
+        bool check_uniqueness(int, const Edge *edge);
         bool is_angle_ambiguous(int, const Edge *edge);
         int  get_lowest_point_of_four(int, int, int, int);
         Edge* make_twins_edge(Edge*);
