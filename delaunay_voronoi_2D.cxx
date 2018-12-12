@@ -412,8 +412,8 @@ bool Delaunay_Voronoi::check_uniqueness(int p_idx, const Edge *edge)
     int lowest = get_lowest_point_of_four(p_idx, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head);
     bool is_lowest = (p_idx == lowest || edge->twin_edge->prev_edge_in_triangle->head == lowest);
 
-    if(edge->triangle->is_cyclic)
-        is_lowest = !is_lowest;
+    //if(edge->triangle->is_cyclic && edge->twin_edge->triangle->is_cyclic)
+    //    is_lowest = !is_lowest;
 
 #ifdef DEBUG
     if(!is_lowest)
@@ -589,8 +589,8 @@ void Delaunay_Voronoi::legalize_triangles(int vr_idx, Edge *edge, unsigned stack
     Edge *ekj = eik->next_edge_in_triangle;
     Edge *erk = allocate_edge(vr_idx, vk_idx);
     Edge *ekr = make_twins_edge(erk);
-    Triangle* tikr = allocate_Triangle(eik,ekr,eri);
-    Triangle* tjrk = allocate_Triangle(ejr,erk,ekj);
+    Triangle* tikr = allocate_triangle(eik,ekr,eri);
+    Triangle* tjrk = allocate_triangle(ejr,erk,ekj);
     push(stack_top, tikr);
     push(stack_top, tjrk);
 
@@ -727,6 +727,21 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
             t->edge[2] = edge1->twin_edge;
             assert(edge3->twin_edge != NULL && edge2->twin_edge != NULL && edge1->twin_edge != NULL);
         }
+
+        /* recognizing cyclic triangle */
+        //if (polar_mode) {
+        //    int id[3];
+        //    for (int j = 0; j < 3; j++)
+        //        id[j] = vertex(t, j)->id;
+
+        //    if (id[0] != -1 && id[1] != -1 && id[2] != -1)
+        //        for (int j = 0; j < 3; j++) {
+        //            if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > 180) {
+        //                t->is_cyclic = true;
+        //                break;
+        //            }
+        //        }
+        //}
     }
     t->remained_points_head = -1;
     t->remained_points_tail = -1;
@@ -746,6 +761,7 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
     t->edge[1]->ref_inc();
     t->edge[2]->ref_inc();
     t->calulate_circum_circle(pt1, pt2, pt3);
+
 }
 
 
@@ -1067,11 +1083,18 @@ unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned st
             for (int j = 0; j < 3; j++)
                 id[j] = vertex(triangle, j)->id;
 
-            for (int j = 0; j < 3; j++)
-                if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > 180) {
-                    triangle->is_cyclic = true;
-                    break;
+            if (id[0] != -1 && id[1] != -1 && id[2] != -1)
+                for (int j = 0; j < 3; j++) {
+                    if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > 180) {
+                        triangle->is_cyclic = true;
+                        break;
+                    }
                 }
+
+            if (triangle->is_cyclic) {
+                for(int j = 0; j < 3; j++)
+                    relegalize_triangles(triangle->v[j], triangle->edge[(j+1)%3]);
+            }
         }
 
         return stack_top;
@@ -1092,9 +1115,9 @@ unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned st
         Edge *e_can_v2 = make_twins_edge(e_v2_can);
         Edge *e_v3_can = allocate_edge(triangle->v[2], dividing_idx);
         Edge *e_can_v3 = make_twins_edge(e_v3_can);
-        Triangle *t_can_v1_v2 = allocate_Triangle(e_can_v1, triangle->edge[0], e_v2_can);
-        Triangle *t_can_v2_v3 = allocate_Triangle(e_can_v2, triangle->edge[1], e_v3_can);
-        Triangle *t_can_v3_v1 = allocate_Triangle(e_can_v3, triangle->edge[2], e_v1_can);
+        Triangle *t_can_v1_v2 = allocate_triangle(e_can_v1, triangle->edge[0], e_v2_can);
+        Triangle *t_can_v2_v3 = allocate_triangle(e_can_v2, triangle->edge[1], e_v3_can);
+        Triangle *t_can_v3_v1 = allocate_triangle(e_can_v3, triangle->edge[2], e_v1_can);
         push(&stack_top, triangle);
         push(&stack_top, t_can_v1_v2);
         push(&stack_top, t_can_v2_v3);
@@ -1144,8 +1167,8 @@ unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned st
         Edge *erk = allocate_edge(dividing_idx, idx_k);
         Edge *ekr = make_twins_edge(erk);
         Edge *erj = allocate_edge(dividing_idx, idx_j);
-        Triangle* tirk = allocate_Triangle(eir, erk, eki);
-        Triangle* tjkr = allocate_Triangle(ejk, ekr, erj);
+        Triangle* tirk = allocate_triangle(eir, erk, eki);
+        Triangle* tjkr = allocate_triangle(ejk, ekr, erj);
         push(&stack_top, triangle);
         push(&stack_top, tirk);
         push(&stack_top, tjkr);
@@ -1161,8 +1184,8 @@ unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned st
             Edge *ejr = make_twins_edge(erj);
             Edge *erl = allocate_edge(dividing_idx, idx_l);
             Edge *elr = make_twins_edge(erl);
-            Triangle* tilr = allocate_Triangle(eil, elr, eri);
-            Triangle* tjrl = allocate_Triangle(ejr, erl, elj);
+            Triangle* tilr = allocate_triangle(eil, elr, eri);
+            Triangle* tjrl = allocate_triangle(ejr, erl, elj);
             push(&stack_top, eij->twin_edge->triangle);
             push(&stack_top, tilr);
             push(&stack_top, tjrl);
@@ -1334,6 +1357,11 @@ Delaunay_Voronoi::Delaunay_Voronoi()
     , point_idx_to_buf_idx(NULL)
     , have_bound(false)
 {
+    avoiding_line_head[0].x = avoiding_line_head[0].y = 0;
+    avoiding_line_head[1].x = avoiding_line_head[1].y = 0;
+    avoiding_line_tail[0].x = avoiding_line_tail[0].y = 0;
+    avoiding_line_tail[1].x = avoiding_line_tail[1].y = 0;
+    avoiding_line_head[0].id = avoiding_line_head[1].id = 0;
 }
 
 
@@ -1627,8 +1655,8 @@ void Delaunay_Voronoi::initialize(int num)
 
     num_points = PAT_NUM_LOCAL_VPOINTS;
 
-    all_leaf_triangles.push_back(allocate_Triangle(allocate_edge(0, 1), allocate_edge(1, 2), allocate_edge(2, 0)));
-    all_leaf_triangles.push_back(allocate_Triangle(allocate_edge(0, 2), allocate_edge(2, 3), allocate_edge(3, 0)));
+    all_leaf_triangles.push_back(allocate_triangle(allocate_edge(0, 1), allocate_edge(1, 2), allocate_edge(2, 0)));
+    all_leaf_triangles.push_back(allocate_triangle(allocate_edge(0, 2), allocate_edge(2, 3), allocate_edge(3, 0)));
 
     Edge* e1 = all_leaf_triangles[0]->edge[2];
     Edge* e2 = all_leaf_triangles[1]->edge[0];
@@ -1895,7 +1923,7 @@ Edge* Delaunay_Voronoi::allocate_edge(int head, int tail)
     return new_edge;
 }
 
-Triangle* Delaunay_Voronoi::allocate_Triangle(Edge *edge1, Edge *edge2, Edge *edge3)
+Triangle* Delaunay_Voronoi::allocate_triangle(Edge *edge1, Edge *edge2, Edge *edge3)
 {
     //Triangle *new_triangle = new Triangle();
     Triangle *new_triangle = triangle_allocator.newElement();
@@ -2092,16 +2120,12 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
         if (bound_triangles[dir][i].is_cyclic) {
             if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
-               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold) )
+               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold))
                 checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
             i += 3;
         } else {
             if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold)) {
                 checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
-                //printf("TRI [%lf, %lf], [%lf, %lf], [%lf, %lf] cyclic: %d\n", bound_triangles[dir][i].v[0].x, bound_triangles[dir][i].v[0].y, 
-                //                                                   bound_triangles[dir][i].v[1].x, bound_triangles[dir][i].v[1].y,
-                //                                                   bound_triangles[dir][i].v[2].x, bound_triangles[dir][i].v[2].y,
-                //                                                   bound_triangles[dir][i].is_cyclic);
             }
             i++;
         }
@@ -2189,8 +2213,14 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
     }
 
     for (unsigned j = 0; j < 4; j++)
-        for (unsigned i = 0; i < bound_triangles[j].size(); i++)
+        for (unsigned i = 0; i < bound_triangles[j].size();) {
             output_triangles[current++] = bound_triangles[j][i];
+            if (bound_triangles[j][i].is_cyclic)
+                i += 3;
+            else
+                i += 1;
+        }
+
     PDASSERT(current < buf_len);
     *output_num_triangles = current;
 }
@@ -2209,6 +2239,7 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
     bound_triangles[PDLN_UP].clear();
     bound_triangles[PDLN_LEFT].clear();
 
+    bool u, d, l ,r;
     if (polar_mode) {
         for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
             if(!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
@@ -2216,14 +2247,16 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
 
             Triangle_inline tp = pack_triangle(all_leaf_triangles[i]);
             sort_points_in_triangle(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
-                add_to_bound_triangles(tp, PDLN_DOWN);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold))
-                add_to_bound_triangles(tp, PDLN_RIGHT);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold))
-                add_to_bound_triangles(tp, PDLN_UP);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold))
-                add_to_bound_triangles(tp, PDLN_LEFT);
+            d = is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold);
+            r = is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold);
+            u = is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold);
+            l = is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold);
+            if ((d || r || u || l ) && is_triangle_valid(all_leaf_triangles[i])) {
+                if (d) add_to_bound_triangles(tp, PDLN_DOWN);
+                if (r) add_to_bound_triangles(tp, PDLN_RIGHT);
+                if (u) add_to_bound_triangles(tp, PDLN_UP);
+                if (l) add_to_bound_triangles(tp, PDLN_LEFT);
+            }
         }
     } else {
         for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
@@ -2232,16 +2265,65 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
 
             Triangle_inline tp = pack_triangle(all_leaf_triangles[i]);
             sort_points_in_triangle(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold))
-                bound_triangles[PDLN_DOWN].push_back(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold))
-                bound_triangles[PDLN_RIGHT].push_back(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold))
-                bound_triangles[PDLN_UP].push_back(tp);
-            if (is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold))
-                bound_triangles[PDLN_LEFT].push_back(tp);
+            d = is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold);
+            r = is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold);
+            u = is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold);
+            l = is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold);
+            if ((d || r || u || l ) && is_triangle_valid(all_leaf_triangles[i])) {
+                if (d) bound_triangles[PDLN_DOWN].push_back(tp);
+                if (r) bound_triangles[PDLN_RIGHT].push_back(tp);
+                if (u) bound_triangles[PDLN_UP].push_back(tp);
+                if (l) bound_triangles[PDLN_LEFT].push_back(tp);
+            }
         }
     }
+}
+
+
+inline bool Delaunay_Voronoi::is_triangle_valid(Triangle* tri)
+{
+    bool valid = true;
+    if (avoiding_line_head[0].id && is_triangle_on_line(tri, &avoiding_line_head[0], &avoiding_line_tail[0]))
+        valid = false;
+    if (avoiding_line_head[1].id && is_triangle_on_line(tri, &avoiding_line_head[1], &avoiding_line_tail[1]))
+        valid = false;
+    return valid;
+}
+
+
+inline bool Delaunay_Voronoi::is_triangle_on_line(Triangle* tri, Point* head, Point* tail)
+{
+    if(vertex(tri, 0)->position_to_edge(head, tail) * vertex(tri, 1)->position_to_edge(head, tail) > 0 &&
+       vertex(tri, 1)->position_to_edge(head, tail) * vertex(tri, 2)->position_to_edge(head, tail) > 0 )
+        return false;
+
+    /* two points of segment is in/on triangle */
+    int* v_idx = tri->v;
+    if(head->position_to_triangle(&all_points[v_idx[0]], &all_points[v_idx[1]], &all_points[v_idx[2]]) >= 0 &&
+       tail->position_to_triangle(&all_points[v_idx[0]], &all_points[v_idx[1]], &all_points[v_idx[2]]) >= 0) {
+        return true;
+    }
+
+    /* segment is intersected with at least one edge of triangle */
+    for(int j = 0; j < 3; j++)
+        if ((head->position_to_edge(vertex(tri, j), vertex(tri, (j+1)%3)) != 0 ||
+             tail->position_to_edge(vertex(tri, j), vertex(tri, (j+1)%3)) != 0) &&
+             head->position_to_edge(vertex(tri, j), vertex(tri, (j+1)%3)) *
+             tail->position_to_edge(vertex(tri, j), vertex(tri, (j+1)%3)) < 0 &&
+             vertex(tri, j)->position_to_edge(head, tail) *
+             vertex(tri, (j+1)%3)->position_to_edge(head, tail) <= 0) {
+            return true;
+        }
+
+    return false;
+}
+
+
+void Delaunay_Voronoi::set_avoiding_line(unsigned id, Point head, Point tail)
+{
+    avoiding_line_head[id] = head;
+    avoiding_line_tail[id] = tail;
+    avoiding_line_head[id].id = 1; // just a marking flag
 }
 
 

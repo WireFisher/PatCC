@@ -377,14 +377,17 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     triangulation->triangulate();
 
     /* After triangulating */
-    if(rotated_expand_boundry != NULL) {
-        if(node_type != PDLN_NODE_TYPE_COMMON) {
-            //triangulation->mark_cyclic_triangles();
-            triangulation->relegalize_all_triangles();
+    if (rotated_expand_boundry == NULL) {
+        //triangulation->uncyclic_all_points();
+        //triangulation->recognize_cyclic_triangles();
+    }
 
-            if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
-                reset_polars(ori_lat);
-        } else if (expand_boundry->max_lon - expand_boundry->min_lon > 150) {
+    if(rotated_expand_boundry && node_type != PDLN_NODE_TYPE_COMMON)
+        if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
+            reset_polars(ori_lat);
+
+    if (rotated_expand_boundry && node_type == PDLN_NODE_TYPE_COMMON) {
+        if (expand_boundry->max_lon - expand_boundry->min_lon > 150) {
             double radius;
             Point  circle_center;
             Point  boundary_head, boundary_tail;
@@ -396,7 +399,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
                 if(radius < 100) {
                     //triangulation->remove_triangles_in_circle(circle_center, radius);
                     calculate_cyclic_boundary_projection(PDLN_NODE_TYPE_SPOLAR, &boundary_head, &boundary_tail);
-                    triangulation->remove_triangles_on_segment(boundary_head, boundary_tail);
+                    triangulation->set_avoiding_line(0, boundary_head, boundary_tail);
                 }
             }
 
@@ -405,14 +408,16 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
                 if(radius < 100) {
                     //triangulation->remove_triangles_in_circle(circle_center, radius);
                     calculate_cyclic_boundary_projection(PDLN_NODE_TYPE_NPOLAR, &boundary_head, &boundary_tail);
-                    triangulation->remove_triangles_on_segment(boundary_head, boundary_tail);
+                    triangulation->set_avoiding_line(1, boundary_head, boundary_tail);
                 }
             }
         }
-    } else {
-        //triangulation->uncyclic_all_points();
-        //triangulation->recognize_cyclic_triangles();
     }
+
+    if(num_inserted > 0)
+        triangulation->remove_triangles_till(num_inserted);
+
+    triangulation->make_bounding_triangle_pack();
 
     /*
     char filename[64];
@@ -422,10 +427,6 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     snprintf(filename, 64, "log/projected_triangles_%d-%d.png", mpi_size, region_id);
     triangulation->plot_projection_into_file(filename);
     */
-
-    if(num_inserted > 0)
-        triangulation->remove_triangles_till(num_inserted);
-    triangulation->make_bounding_triangle_pack();
 
     gettimeofday(&end, NULL);
 

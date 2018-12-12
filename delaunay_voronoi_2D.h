@@ -81,6 +81,8 @@ class Delaunay_Voronoi
         double checking_threshold;
         vector<Triangle_inline> bound_triangles[4];
         vector<pair<pair<Point, Point>, unsigned> > checksum_storage;
+        Point avoiding_line_head[2];
+        Point avoiding_line_tail[2];
 
 #ifdef DEBUG
         const double* x_store;
@@ -123,10 +125,13 @@ class Delaunay_Voronoi
         Triangle_inline pack_triangle(Triangle*);
         void add_to_bound_triangles(Triangle_inline&, unsigned);
 
+        bool is_triangle_valid(Triangle* tri);
+        bool is_triangle_on_line(Triangle* tri, Point* head, Point* tail);
+
         void legalize_triangles(int, Edge *edge, unsigned, unsigned*);
 
         Edge* allocate_edge(int, int);
-        Triangle* allocate_Triangle(Edge*, Edge*, Edge*);
+        Triangle* allocate_triangle(Edge*, Edge*, Edge*);
         void initialize_triangle_with_edges(Triangle*, Edge*, Edge*, Edge*, bool force=false);
         void initialize_edge(Edge* e, int head, int tail);
 
@@ -172,6 +177,7 @@ class Delaunay_Voronoi
         void remove_triangles_in_circle(Point, double);
         void remove_triangles_on_segment(Point, Point);
         void mark_cyclic_triangles();
+        void set_avoiding_line(unsigned, Point, Point);
 
         void update_points_coord_y(double, vector<int> *);
         void remove_triangles_only_containing_virtual_polar();
