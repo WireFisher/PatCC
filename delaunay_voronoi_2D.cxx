@@ -12,6 +12,7 @@
 #include <utility>
 
 #define PAT_NUM_LOCAL_VPOINTS (4)
+#define PAT_CYCLIC_EDGE_THRESHOLD (180)
 
 /*
  *           o Center
@@ -1085,7 +1086,7 @@ unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned st
 
             if (id[0] != -1 && id[1] != -1 && id[2] != -1)
                 for (int j = 0; j < 3; j++) {
-                    if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > 180) {
+                    if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > PAT_CYCLIC_EDGE_THRESHOLD) {
                         triangle->is_cyclic = true;
                         break;
                     }
@@ -2033,7 +2034,7 @@ void Delaunay_Voronoi::mark_cyclic_triangles()
                 id[j] = vertex(all_leaf_triangles[i], j)->id;
 
             for (int j = 0; j < 3; j++)
-                if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > 180) {
+                if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > PAT_CYCLIC_EDGE_THRESHOLD) {
                     all_leaf_triangles[i]->is_cyclic = true;
                     break;
                 }
@@ -2553,7 +2554,9 @@ void plot_triangles_into_file(const char *prefix, Triangle_inline *t, int num, b
 
     num_edges = 0;
     for(int i = 0; i < num; i ++)
-        if (t[i].v[0].calculate_distance(&t[i].v[1]) < 180 && t[i].v[1].calculate_distance(&t[i].v[2]) < 180 && t[i].v[2].calculate_distance(&t[i].v[0]) < 180)
+        if (t[i].v[0].calculate_distance(&t[i].v[1]) < PAT_CYCLIC_EDGE_THRESHOLD &&
+            t[i].v[1].calculate_distance(&t[i].v[2]) < PAT_CYCLIC_EDGE_THRESHOLD &&
+            t[i].v[2].calculate_distance(&t[i].v[0]) < PAT_CYCLIC_EDGE_THRESHOLD )
             for(int j = 0; j < 3; j++) {
                 head_coord[0][num_edges] = t[i].v[j].x;
                 head_coord[1][num_edges] = t[i].v[j].y;
@@ -2677,8 +2680,9 @@ Triangle_inline::Triangle_inline(Point p0, Point p1, Point p2, bool cyclic)
 
 void Triangle_inline::check_cyclic()
 {
-    if (v[0].calculate_distance(&v[1]) > 180 || v[1].calculate_distance(&v[2]) > 180 ||
-        v[2].calculate_distance(&v[0]) > 180 )
+    if (v[0].calculate_distance(&v[1]) > PAT_CYCLIC_EDGE_THRESHOLD ||
+        v[1].calculate_distance(&v[2]) > PAT_CYCLIC_EDGE_THRESHOLD ||
+        v[2].calculate_distance(&v[0]) > PAT_CYCLIC_EDGE_THRESHOLD )
         is_cyclic = true;
 }
 
