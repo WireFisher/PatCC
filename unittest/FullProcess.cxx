@@ -760,7 +760,7 @@ void prepare_dim1_grid(const char grid_name[])
         }
 
         assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
-        save_dim1_grid(grid_name);
+        //save_dim1_grid(grid_name);
     }
 
     MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -905,6 +905,7 @@ const int autogen_grid_size[] = {
                                64800,
                                720000,
                                6480000,
+                               10800,
 
                                0,
                                0,
@@ -927,6 +928,7 @@ const char autogen_grid_name[][64] = {
                                     "lonlat_grid_1.dat",
                                     "lonlat_grid_0.3.dat",
                                     "lonlat_grid_0.1.dat",
+                                    "lonlat_grid_small.dat",
 
                                     "CUBE_grid_2.5.nc",
                                     "CUBE_grid_1.nc",
@@ -971,6 +973,7 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
             }
             delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
 
+            /*
             FILE* fp = fopen("CUBE_grid_for_SCVT_0.1.dat", "w");
             for (int i = 0; i < num_points; i++) {
                 double x = cos(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
@@ -980,6 +983,7 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
             }
             fclose(fp);
             printf("File writen\n");
+            */
         } else {
             FILE *fp = fopen(fullname, "r");
             if(!fp) {

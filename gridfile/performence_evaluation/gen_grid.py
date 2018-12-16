@@ -81,6 +81,24 @@ for i in xrange(lon_points):
 fp.close()
 
 
+# lat-lon global grid
+min_lon = 0.0
+max_lon = 360.0
+min_lat = -90.0
+max_lat = 90.0
+
+fp = open("lonlat_grid_small.dat", "w")
+lon_points = 180
+lat_points = 60
+for i in xrange(lon_points):
+    for j in xrange(lat_points):
+        lon = min_lon + (max_lon - min_lon) * i / lon_points
+        lat = min_lat + (max_lat - min_lat) * j / (lat_points-1)
+        #x, y, z = lonlat2xyz(math.radians(lon), math.radians(lat))
+        fp.write("%.10lf %.10lf\n" % (lon, lat))
+fp.close()
+
+
 # non-uniform lat-lon global grid
 min_lon = 0
 max_lon = 360
