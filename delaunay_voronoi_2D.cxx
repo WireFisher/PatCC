@@ -10,6 +10,7 @@
 #include <list>
 #include "merge_sort.h"
 #include <utility>
+#include "coordinate_hash.h"
 
 #define PAT_NUM_LOCAL_VPOINTS (4)
 #define PAT_CYCLIC_EDGE_THRESHOLD (180)
@@ -962,20 +963,26 @@ void Delaunay_Voronoi::push(unsigned *stack_top, Triangle* t)
 
 inline Triangle_inline Delaunay_Voronoi::pack_triangle(Triangle* t)
 {
-    if (polar_mode) {
+    if (fast_mode) {
+        Triangle_inline a = Triangle_inline(Point(vertex(t, 0)->x, vertex(t, 0)->y, global_index[vertex(t, 0)->id]),
+                                            Point(vertex(t, 1)->x, vertex(t, 1)->y, global_index[vertex(t, 1)->id]),
+                                            Point(vertex(t, 2)->x, vertex(t, 2)->y, global_index[vertex(t, 2)->id]),
+                                            false);
+        a.check_cyclic();
+        return a;
+    } else if (polar_mode) {
         Triangle_inline a = Triangle_inline(Point(x_ref[vertex(t, 0)->id], y_ref[vertex(t, 0)->id], global_index[vertex(t, 0)->id]),
                                             Point(x_ref[vertex(t, 1)->id], y_ref[vertex(t, 1)->id], global_index[vertex(t, 1)->id]),
                                             Point(x_ref[vertex(t, 2)->id], y_ref[vertex(t, 2)->id], global_index[vertex(t, 2)->id]),
                                             false);
         a.check_cyclic();
         return a;
-    }
-    else if (x_ref)
+    } else if (x_ref) {
         return Triangle_inline(Point(x_ref[vertex(t, 0)->id], y_ref[vertex(t, 0)->id], global_index[vertex(t, 0)->id]),
                                Point(x_ref[vertex(t, 1)->id], y_ref[vertex(t, 1)->id], global_index[vertex(t, 1)->id]),
                                Point(x_ref[vertex(t, 2)->id], y_ref[vertex(t, 2)->id], global_index[vertex(t, 2)->id]),
                                false);
-    else {
+    } else {
         return Triangle_inline(Point(vertex(t, 0)->x, vertex(t, 0)->y, global_index[vertex(t, 0)->id]),
                                Point(vertex(t, 1)->x, vertex(t, 1)->y, global_index[vertex(t, 1)->id]),
                                Point(vertex(t, 2)->x, vertex(t, 2)->y, global_index[vertex(t, 2)->id]),
@@ -1349,6 +1356,7 @@ Delaunay_Voronoi::Delaunay_Voronoi()
     : triangle_stack(NULL)
     , stack_size(0)
     , polar_mode(false)
+    , fast_mode(false)
     , tolerance(PDLN_FLOAT_EQ_ERROR_LOW)
     , num_points(0)
     , vpolar_local_index(-1)
@@ -1749,10 +1757,121 @@ void Delaunay_Voronoi::set_virtual_polar_index(int idx)
 }
 
 
-void Delaunay_Voronoi::set_origin_coord(const double *x_origin, const double *y_origin)
+void Delaunay_Voronoi::set_origin_coord(const double *x_origin, const double *y_origin, int num)
 {
     x_ref = x_origin;
     y_ref = y_origin;
+
+    if (num_points == 0)
+        num_points = num;
+    else
+        PDASSERT(num + PAT_NUM_LOCAL_VPOINTS == num_points);
+}
+
+
+#define PAT_COORDHASH_FACTOR (2)
+bool Delaunay_Voronoi::try_fast_triangulate(double min_x, double max_x, double min_y, double max_y)
+{
+    double area = (max_x - min_x) * (max_y - min_y);
+    double density = std::sqrt(num_points / area);
+
+    int lon_expected_points = density * (max_x - min_x);
+    int lat_expected_points = density * (max_y - min_y);
+
+    Coord_Hash lon_table(lon_expected_points * PAT_COORDHASH_FACTOR);
+    Coord_Hash lat_table(lat_expected_points * PAT_COORDHASH_FACTOR);
+
+    lon_table.set_hashing_params(min_x, max_x);
+    lat_table.set_hashing_params(min_y, max_y);
+
+    bool have_vpolar = vpolar_local_index != -1;
+    int vpolar_index = -1;
+    if (have_vpolar)
+        vpolar_index = vpolar_local_index - PAT_NUM_LOCAL_VPOINTS;
+
+    for (int i = 0; i < num_points; i++) {
+        if (vpolar_index != -1 && vpolar_index == i)
+            continue;
+
+        lon_table.put(x_ref[i]);
+        lat_table.put(y_ref[i]);
+        if (lon_table.get_num_unique_values() * lat_table.get_num_unique_values() > num_points)
+            return false;
+    }
+
+    int num_lon = lon_table.get_num_unique_values();
+    int num_lat = lat_table.get_num_unique_values();
+
+    if (!have_vpolar && num_lon * num_lat != num_points)
+        return false;
+    if (have_vpolar && num_lon * num_lat != num_points-1)
+        return false;
+
+    fast_mode = true;
+
+    lon_table.make_sorted_index();
+    lat_table.make_sorted_index();
+
+    if (!have_vpolar)
+        all_points = (Point *)::operator new(num_lon * num_lat * sizeof(Point));
+    else
+        all_points = (Point *)::operator new((num_lon * num_lat + 1) * sizeof(Point));
+
+    for (int i = 0; i < num_points; i++) {
+        if (vpolar_index != -1 && vpolar_index == i)
+            continue;
+
+        double lon = x_ref[i];
+        double lat = y_ref[i];
+        int buf_idx = lon_table.get_index(lon) + lat_table.get_index(lat) * num_lon;
+        new(&all_points[buf_idx]) Point(lon, lat, buf_idx, -1, -1);
+    }
+
+    /* put vpolar at last space */
+    if (have_vpolar)
+        new(&all_points[num_lon * num_lat]) Point(x_ref[vpolar_index], y_ref[vpolar_index], num_lon * num_lat, -1, -1);
+
+    fast_triangulate(num_lon, num_lat, have_vpolar);
+
+    return true; 
+}
+
+
+void Delaunay_Voronoi::fast_triangulate(int num_lon, int num_lat, bool have_vpolar)
+{
+    if (have_vpolar)
+        PDASSERT(num_lon * num_lat + 1 == num_points);
+    else
+        PDASSERT(num_lon * num_lat == num_points);
+
+    for (int j = 0; j < num_lat - 1; j++) {
+        for (int i = 0; i < num_lon - 1; i++) {
+            all_leaf_triangles.push_back(allocate_triangle(j*num_lon+i,     j*num_lon+i+1, (j+1)*num_lon+i));
+            all_leaf_triangles.push_back(allocate_triangle((j+1)*num_lon+i, j*num_lon+i+1, (j+1)*num_lon+i+1));
+        }
+        int i = num_lon - 1;
+        all_leaf_triangles.push_back(allocate_triangle(j*num_lon+i,     j*num_lon, (j+1)*num_lon+i, true));
+        all_leaf_triangles.push_back(allocate_triangle((j+1)*num_lon+i, j*num_lon, (j+1)*num_lon,   true));
+        all_leaf_triangles[all_leaf_triangles.size()-1]->is_cyclic = true;
+        all_leaf_triangles[all_leaf_triangles.size()-2]->is_cyclic = true;
+    }
+
+    if (have_vpolar) {
+        int vpole_idx = num_points-1;
+        if (float_eq(all_points[vpole_idx].y, -90)) {
+            /* south pole */
+            for (int i = 0; i < num_lon - 1; i++)
+                all_leaf_triangles.push_back(allocate_triangle(vpole_idx, i+1, i));
+            all_leaf_triangles.push_back(allocate_triangle(vpole_idx, 0, num_lon-1, true));
+        } else if (float_eq(all_points[vpole_idx].y, 90)) {
+            /* north pole */
+            for (int i = 0; i < num_lon - 1; i++)
+                all_leaf_triangles.push_back(allocate_triangle(vpole_idx, (num_lat-1)*num_lon+i, (num_lat-1)*num_lon+i+1));
+            all_leaf_triangles.push_back(allocate_triangle(vpole_idx, (num_lat-1)*num_lon+num_lon-1, (num_lat-1)*num_lon+0, true));
+        } else {
+            PDASSERT(false);
+        }
+    }
 }
 
 
@@ -1924,13 +2043,23 @@ Edge* Delaunay_Voronoi::allocate_edge(int head, int tail)
     return new_edge;
 }
 
-Triangle* Delaunay_Voronoi::allocate_triangle(Edge *edge1, Edge *edge2, Edge *edge3)
+
+Triangle* Delaunay_Voronoi::allocate_triangle(Edge *edge1, Edge *edge2, Edge *edge3, bool force)
 {
     //Triangle *new_triangle = new Triangle();
     Triangle *new_triangle = triangle_allocator.newElement();
-    initialize_triangle_with_edges(new_triangle, edge1, edge2, edge3);
+    initialize_triangle_with_edges(new_triangle, edge1, edge2, edge3, force);
 
     return new_triangle;
+}
+
+
+Triangle* Delaunay_Voronoi::allocate_triangle(int idx1, int idx2, int idx3, bool force)
+{
+    Edge* e1 = allocate_edge(idx1, idx2);
+    Edge* e2 = allocate_edge(idx2, idx3);
+    Edge* e3 = allocate_edge(idx3, idx1);
+    return allocate_triangle(e1, e2, e3, force);
 }
 
 

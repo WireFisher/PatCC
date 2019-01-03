@@ -131,6 +131,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], 
     : parent(p)
     , node_type(type)
     , region_id(-1)
+    , fast_triangulate(false)
     , kernel_boundry(NULL)
     , expand_boundry(NULL)
     , rotated_kernel_boundry(NULL)
@@ -324,6 +325,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     timeval start, end;
     gettimeofday(&start, NULL);
 
+    if (triangulation && fast_triangulate)
+        return;
+
     /* Before triangulating */
     double* ori_lon = new double[num_kernel_points + num_expand_points];
     double* ori_lat = new double[num_kernel_points + num_expand_points];
@@ -340,27 +344,48 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     //plot_points_into_file(filename, ori_lon, ori_lat, num_kernel_points + num_expand_points, PDLN_PLOT_GLOBAL);
 
     if (triangulation == NULL) {
+        /* Case: first triangulation */
         triangulation = new Delaunay_Voronoi();
+        triangulation->set_virtual_polar_index(virtual_point_local_index);
 
+        if (fast_triangulate) {
+            triangulation->set_origin_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
+            if (triangulation->try_fast_triangulate(expand_boundry->min_lon, expand_boundry->max_lon,
+                                                    expand_boundry->min_lat, expand_boundry->max_lat)) {
+                if (node_type == PDLN_NODE_TYPE_SPOLAR)
+                    triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, shifted_polar_lat, kernel_boundry->max_lat, 0);
+                else
+                    triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, shifted_polar_lat, 0);
+                triangulation->make_bounding_triangle_pack();
+                return;
+            } else {
+                fast_triangulate = false;
+            }
+        }
+        
         if (rotated_expand_boundry) {
-            triangulation->set_polar_mode(true);
             triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], num_kernel_points+num_expand_points);
-            triangulation->set_virtual_polar_index(virtual_point_local_index);
+            triangulation->set_origin_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
+
             if (PDLN_INSERT_VIRTUAL_POINT && node_type != PDLN_NODE_TYPE_COMMON && polars_local_index->size() > 1) {
                 if (node_type == PDLN_NODE_TYPE_SPOLAR)
                     triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, shifted_polar_lat, kernel_boundry->max_lat, 0);
                 else
                     triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, shifted_polar_lat, 0);
-            } else
+            } else {
                 triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
+            }
+
+            if (node_type != PDLN_NODE_TYPE_COMMON)
+                triangulation->set_polar_mode(true);
         } else {
             triangulation->add_points(ori_lon, ori_lat, num_kernel_points+num_expand_points);
-            triangulation->set_virtual_polar_index(virtual_point_local_index);
             triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
         }
 
         num_old_points = num_expand_points;
     } else {
+        /* Case: incremental triangulation */
         if (rotated_expand_boundry)
             triangulation->add_points(projected_coord[PDLN_LON]+num_kernel_points+num_old_points, projected_coord[PDLN_LAT]+num_kernel_points+num_old_points, num_expand_points-num_old_points);
         else
@@ -369,11 +394,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         num_old_points = num_expand_points;
     }
 
-    if (rotated_expand_boundry)
-        triangulation->set_origin_coord(ori_lon, ori_lat);
     triangulation->map_global_index(ori_idx);
 
-    /* Triangulating */
+    /* Normal triangulating */
     triangulation->triangulate();
 
     /* After triangulating */
@@ -382,9 +405,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         //triangulation->recognize_cyclic_triangles();
     }
 
-    if(rotated_expand_boundry && node_type != PDLN_NODE_TYPE_COMMON)
-        if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
-            reset_polars(ori_lat);
+    //if(rotated_expand_boundry && node_type != PDLN_NODE_TYPE_COMMON)
+    //    if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
+    //        reset_polars(ori_lat);
 
     if (rotated_expand_boundry && node_type == PDLN_NODE_TYPE_COMMON) {
         if (expand_boundry->max_lon - expand_boundry->min_lon > 150) {
@@ -2050,7 +2073,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         else
             fail_count = 0;
 
-        if(fail_count > 5) {
+        if(fail_count > 20) {
             fprintf(stderr, "[%03d] expanding failed too many times\n", tree_node->region_id);
             return -1;
         }
@@ -2070,6 +2093,10 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     }while(!tree_node->expanding_success(go_on));
 
     //printf("expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
+
+    if (tree_node->num_kernel_points + tree_node->num_expand_points > average_workload * 4)
+        tree_node->fast_triangulate = true;
+
     return 0;
 }
 

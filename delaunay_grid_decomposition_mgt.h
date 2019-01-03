@@ -49,8 +49,9 @@ class Search_tree_node {
 private:
     Search_tree_node *parent;
     Search_tree_node *children[3];
-    int node_type;
-    int region_id;
+    int  node_type;
+    int  region_id;
+    bool fast_triangulate;
 
     Boundry* kernel_boundry;
     Boundry* expand_boundry;

@@ -60,6 +60,7 @@ class Delaunay_Voronoi
 
         /* Property */
         bool   polar_mode;
+        bool   fast_mode;
         double tolerance;
 
         /* Grid info */
@@ -91,6 +92,7 @@ class Delaunay_Voronoi
 #endif
 
         unsigned triangulating_process(Triangle*, unsigned);
+        void fast_triangulate(int, int, bool);
         void map_buffer_index_to_point_index();
         void push(unsigned *, Triangle*);
 
@@ -131,8 +133,9 @@ class Delaunay_Voronoi
         void legalize_triangles(int, Edge *edge, unsigned, unsigned*);
 
         Edge* allocate_edge(int, int);
-        Triangle* allocate_triangle(Edge*, Edge*, Edge*);
-        void initialize_triangle_with_edges(Triangle*, Edge*, Edge*, Edge*, bool force=false);
+        Triangle* allocate_triangle(Edge*, Edge*, Edge*, bool = false);
+        Triangle* allocate_triangle(int, int, int, bool = false);
+        void initialize_triangle_with_edges(Triangle*, Edge*, Edge*, Edge*, bool = false);
         void initialize_edge(Edge* e, int head, int tail);
 
         inline void ref_inc(Edge* e) {e->ref_count++;};
@@ -157,8 +160,9 @@ class Delaunay_Voronoi
         void add_points(const double* x, const double* y, int num);
         void map_global_index(const int* global_idx);
         void set_virtual_polar_index(int idx);
-        void set_origin_coord(const double *x_origin, const double *y_origin);
+        void set_origin_coord(const double *, const double *, int);
         void triangulate();
+        bool try_fast_triangulate(double, double, double, double);
         void set_checksum_bound(double, double, double, double, double);
         void set_polar_mode(bool);
 
