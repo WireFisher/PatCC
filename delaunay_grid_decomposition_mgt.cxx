@@ -386,10 +386,12 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         num_old_points = num_expand_points;
     } else {
         /* Case: incremental triangulation */
-        if (rotated_expand_boundry)
+        if (rotated_expand_boundry) {
             triangulation->add_points(projected_coord[PDLN_LON]+num_kernel_points+num_old_points, projected_coord[PDLN_LAT]+num_kernel_points+num_old_points, num_expand_points-num_old_points);
-        else
+            triangulation->set_origin_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
+        } else {
             triangulation->add_points(expand_coord[PDLN_LON]+num_old_points, expand_coord[PDLN_LAT]+num_old_points, num_expand_points-num_old_points);
+        }
 
         num_old_points = num_expand_points;
     }
@@ -2851,12 +2853,16 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_inlin
     fclose(fp);
 #endif
 
-    //char file_fmt1[] = "log/global_triangles_coord_%d";
-    //snprintf(filename, 64, file_fmt1, processing_info->get_num_total_processing_units());
-    //fp = fopen(filename, "w");
-    //for(int i = 0; i < num_different_triangles; i++)
-    //    fprintf(fp, "%lf, %lf, %lf, %lf, %lf, %lf\n", triangles[i].v[0].x, triangles[i].v[0].y, triangles[i].v[1].x, triangles[i].v[1].y, triangles[i].v[2].x, triangles[i].v[2].y);
-    //fclose(fp);
+    /*
+    char filename[64];
+    FILE *fp;
+    char file_fmt1[] = "log/global_triangles_coord_%d";
+    snprintf(filename, 64, file_fmt1, processing_info->get_num_total_processing_units());
+    fp = fopen(filename, "w");
+    for(int i = 0; i < num_different_triangles; i++)
+        fprintf(fp, "%d, %d, %d, %lf, %lf, %lf, %lf, %lf, %lf\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id, triangles[i].v[0].x, triangles[i].v[0].y, triangles[i].v[1].x, triangles[i].v[1].y, triangles[i].v[2].x, triangles[i].v[2].y);
+    fclose(fp);
+    */
 
 #ifdef OPENCV
     char file_fmt2[] = "log/image_global_triangles_%d";
