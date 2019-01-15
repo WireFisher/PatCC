@@ -71,7 +71,7 @@ class Triangle
         double   circum_radius;
         int      stack_ref_count;
 
-        int  circum_circle_contains(Point*, Point*, double tolerance=PDLN_FLOAT_EQ_ERROR);
+        int  circum_circle_contains(Point*, Point*, double tolerance=PDLN_ABS_TOLERANCE);
         bool really_on_circum_circle(Point*, Point*, double);
 
     public:
