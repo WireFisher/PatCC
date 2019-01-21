@@ -320,6 +320,9 @@ extern double global_p_lon[4];
 extern double global_p_lat[4];
 #define PDLN_INSERT_VIRTUAL_POINT (true)
 #define PDLN_REMOVE_UNNECESSARY_TRIANGLES (true)
+int expand_count = 0;
+char name_format[] = "gridfile/for_delaunay/expand/lonlat_random_100000_%d.flat";
+int rankkkkkkk = 2;
 void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inserted)
 {
     timeval start, end;
@@ -382,6 +385,22 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             triangulation->add_points(ori_lon, ori_lat, num_kernel_points+num_expand_points);
             triangulation->set_checksum_bound(kernel_boundry->min_lon, kernel_boundry->max_lon, kernel_boundry->min_lat, kernel_boundry->max_lat, 0);
         }
+        int rank;
+        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+        if (rank == rankkkkkkk) {
+            char filename[64];
+            char plotname[64];
+            fprintf(stderr, "count: %d\n", expand_count);
+            sprintf(filename, name_format, expand_count++);
+            sprintf(plotname, "%s.png", filename);
+            FILE* fp = fopen(filename, "w");
+            fprintf(fp, "%d\n", num_kernel_points+num_expand_points);
+            for (int i = 0; i < num_kernel_points+num_expand_points; i++)
+                fprintf(fp, "%.20lf, %.20lf\n", ori_lon[i], ori_lat[i]);
+            fclose(fp);
+
+            plot_points_into_file(plotname, ori_lon, ori_lat, num_kernel_points+num_expand_points, PDLN_PLOT_GLOBAL);
+        }
 
         num_old_points = num_expand_points;
     } else {
@@ -393,6 +412,29 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             triangulation->add_points(expand_coord[PDLN_LON]+num_old_points, expand_coord[PDLN_LAT]+num_old_points, num_expand_points-num_old_points);
         }
 
+        int rank;
+        MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+        if (rank == rankkkkkkk) {
+            char filename[64];
+            char plotname[64];
+            fprintf(stderr, "count: %d\n", expand_count);
+            sprintf(filename, name_format, expand_count++);
+            sprintf(plotname, "%s.png", filename);
+            FILE* fp = fopen(filename, "w");
+            fprintf(fp, "%d\n", num_expand_points-num_old_points);
+            for (int i = 0; i < num_expand_points-num_old_points; i++)
+                fprintf(fp, "%.20lf, %.20lf\n", ori_lon[i+num_kernel_points+num_old_points], ori_lat[i+num_kernel_points+num_old_points]);
+            fclose(fp);
+
+            sprintf(filename, "%s.flat", plotname);
+            fp = fopen(filename, "w");
+            fprintf(fp, "%d\n", num_kernel_points+num_expand_points);
+            for (int i = 0; i < num_kernel_points+num_expand_points; i++)
+                fprintf(fp, "%.20lf, %.20lf\n", ori_lon[i], ori_lat[i]);
+            fclose(fp);
+
+            plot_points_into_file(plotname, &ori_lon[num_kernel_points+num_old_points], &ori_lat[num_kernel_points+num_old_points], num_expand_points-num_old_points, PDLN_PLOT_GLOBAL);
+        }
         num_old_points = num_expand_points;
     }
 
@@ -1677,7 +1719,7 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
 
     bool ok = true;
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
-        if((local_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR) == (remote_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR)) {
+        if(0 && (local_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR) == (remote_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR)) {
             leaf_node->neighbors[i].second = true;
             leaf_node->reduce_num_neighbors_on_boundry(get_boundry_type(local_checksums[i]));
             leaf_node->clear_expanding_count(get_boundry_type(local_checksums[i]));
@@ -2027,6 +2069,8 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         quota[PDLN_UP] = quota[PDLN_DOWN] = sqrt(tree_node->num_kernel_points / height_length_ratio) * PDLN_EXPANDING_LAYERS;
     }
 
+    quota[0] = quota[1] = quota[2] = quota[3] = tree_node->num_kernel_points * 0.2 / 4.0;
+
     for (int i = 0; i < 4; i++)
         if (tree_node->edge_expanding_count[i] > PDLN_SEPARATELY_EXPANDING_COUNT) {
             tree_node->num_neighbors_on_boundry[(i+1)%4] = 1;
@@ -2075,19 +2119,19 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         else
             fail_count = 0;
 
-        if(fail_count > 20) {
-            fprintf(stderr, "[%03d] expanding failed too many times\n", tree_node->region_id);
-            return -1;
-        }
-        if(new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
-           new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
-            fprintf(stderr, "[%03d] expanded too large\n", tree_node->region_id);
-            return -1;
-        }
-        if(new_boundry == *search_tree_root->kernel_boundry || new_boundry.max_lon - new_boundry.min_lon > 360.0) {
-            fprintf(stderr, "[%03d] expanded to the max\n", tree_node->region_id);
-            return -1;
-        }
+        //if(fail_count > 20) {
+        //    fprintf(stderr, "[%03d] expanding failed too many times\n", tree_node->region_id);
+        //    return -1;
+        //}
+        //if(new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
+        //   new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
+        //    fprintf(stderr, "[%03d] expanded too large\n", tree_node->region_id);
+        //    return -1;
+        //}
+        //if(new_boundry == *search_tree_root->kernel_boundry || new_boundry.max_lon - new_boundry.min_lon > 360.0) {
+        //    fprintf(stderr, "[%03d] expanded to the max\n", tree_node->region_id);
+        //    return -1;
+        //}
 
         *tree_node->expand_boundry = new_boundry;
         tree_node->add_expand_points(tmp_coord, tmp_index, num_found);
@@ -2097,7 +2141,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     //printf("expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
 
     if (tree_node->num_kernel_points + tree_node->num_expand_points > average_workload * 4)
-        tree_node->fast_triangulate = true;
+        tree_node->fast_triangulate = false;
 
     return 0;
 }
@@ -2545,7 +2589,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
         local_leaf_nodes[i]->init_num_neighbors_on_boundry(1);
 
-    while(iter < 10) {
+    while(iter < 2) {
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
 
@@ -2843,7 +2887,6 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_inlin
         num_different_triangles = num_triangles;
     }
    
-#ifndef TIME_PERF 
     char file_fmt[] = "log/global_triangles_%d";
     char filename[64];
     snprintf(filename, 64, file_fmt, processing_info->get_num_total_processing_units());
@@ -2851,6 +2894,7 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_inlin
     for(int i = 0; i < num_different_triangles; i++)
         fprintf(fp, "%d, %d, %d\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id);
     fclose(fp);
+#ifndef TIME_PERF 
 #endif
 
     /*

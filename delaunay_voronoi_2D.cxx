@@ -203,7 +203,7 @@ int Point::position_to_edge(const Point *pt1, const Point *pt2) const
 {
     double res1 = det(pt1, pt2, this);
 
-    if (float_eq_hi(res1, 0))
+    if (float_eq_low(res1, 0))
         return 0;
     else if (res1 > 0)
         return 1;
@@ -402,6 +402,8 @@ enum REASON {
 } reason;
 bool Delaunay_Voronoi::is_triangle_legal(int p_idx, const Edge *edge)
 {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #ifdef DEBUG
     reason = SUCCESS;
 #endif
@@ -434,9 +436,13 @@ bool Delaunay_Voronoi::is_triangle_legal(int p_idx, const Edge *edge)
     bool is_intrest;
     int id;
 illegal:
+    //if (rank == 4)
+    //    printf("[x]pt: %d, edge: %d-%d, reason %d\n", global_index[all_points[p_idx].id], global_index[all_points[edge->head].id], global_index[all_points[edge->tail].id], reason);
     return false;
 
 legal:
+    //if (rank == 4)
+    //    printf("[-]pt: %d, edge: %d-%d, reason %d\n", global_index[all_points[p_idx].id], global_index[all_points[edge->head].id], global_index[all_points[edge->tail].id], reason);
     return true;
 }
 
@@ -447,6 +453,19 @@ bool Delaunay_Voronoi::check_uniqueness(int p_idx, const Edge *edge)
 
     //if(edge->triangle->is_cyclic && edge->twin_edge->triangle->is_cyclic)
     //    is_lowest = !is_lowest;
+
+
+    Point* pt1 = &all_points[p_idx];
+    Point* pt2 = head(edge);
+    Point* pt3 = tail(edge);
+    Point* pt4 = head(edge->twin_edge->prev_edge_in_triangle);
+
+    //int rank;
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //if (rank == 4)
+    //    printf("det1: %.40lf, det2: %.40lf\n", det(pt1, pt2, pt4), det(pt1, pt3, pt4));
+    //if(float_eq_low(det(pt1, pt2, pt4), 0) || float_eq_low(det(pt1, pt3, pt4), 0))
+    //    is_lowest = true;
 
 #ifdef DEBUG
     if(!is_lowest)
@@ -603,8 +622,14 @@ bool Delaunay_Voronoi::is_delaunay_legal(const Point *pt, const Edge *edge)
  */
 void Delaunay_Voronoi::legalize_triangles(int vr_idx, Edge *edge, unsigned stack_base, unsigned *stack_top)
 {
+    PDASSERT(vr_idx != edge->head);
+    PDASSERT(vr_idx != edge->tail);
     if (is_triangle_legal(vr_idx, edge))
         return;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //if (rank == 4)
+    //    printf("flip: %d, %d-%d, (%lf, %lf), (%lf, %lf)-(%lf, %lf)\n", vr_idx, edge->head, edge->tail, all_points[vr_idx].x, all_points[vr_idx].y, all_points[edge->head].x, all_points[edge->head].y, all_points[edge->tail].x, all_points[edge->tail].y);
 
     PDASSERT(edge->triangle->is_leaf);
     PDASSERT(edge->twin_edge->triangle->is_leaf);
@@ -719,34 +744,39 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
         pt3 = head(edge3);
 
 #ifdef DEBUG
-        if(float_eq_hi(det(pt1, pt2, pt3), 0) || float_eq_hi(det(pt2, pt3, pt1), 0) || float_eq_hi(det(pt3, pt1, pt2), 0)) {
-            printf("(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
-            printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
-                                                                                                                               std::fabs(det(pt2, pt3, pt1)),
-                                                                                                                               std::fabs(det(pt3, pt1, pt2)));
-            while(true);
-        }
+        //if(float_eq_hi(det(pt1, pt2, pt3), 0) || float_eq_hi(det(pt2, pt3, pt1), 0) || float_eq_hi(det(pt3, pt1, pt2), 0)) {
+        //    printf("(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
+        //    printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
+        //                                                                                                                       std::fabs(det(pt2, pt3, pt1)),
+        //                                                                                                                       std::fabs(det(pt3, pt1, pt2)));
+        //    while(true);
+        //}
 #endif
         /* if there are unmarked redundant points, the PDASSERTion may fail */
-        PDASSERT(!float_eq_hi(det(pt1, pt2, pt3), 0) && !float_eq_hi(det(pt2, pt3, pt1), 0) && !float_eq_hi(det(pt3, pt1, pt2), 0));
+        //PDASSERT(!float_eq_hi(det(pt1, pt2, pt3), 0) && !float_eq_hi(det(pt2, pt3, pt1), 0) && !float_eq_hi(det(pt3, pt1, pt2), 0));
 #ifdef DEBUG
-        if(!(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head)) {
-            printf("1: (%lf, %lf)->(%lf, %lf) 2: (%lf, %lf)->(%lf, %lf) 3:(%lf, %lf)->(%lf, %lf)\n", head(edge1)->x, head(edge1)->y, tail(edge1)->x, tail(edge1)->y,
-                                                                                                     head(edge2)->x, head(edge2)->y, tail(edge2)->x, tail(edge2)->y,
-                                                                                                     head(edge3)->x, head(edge3)->y, tail(edge3)->x, tail(edge3)->y);
-        }
+        //if(!(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head)) {
+        //    printf("1: (%lf, %lf)->(%lf, %lf) 2: (%lf, %lf)->(%lf, %lf) 3:(%lf, %lf)->(%lf, %lf)\n", head(edge1)->x, head(edge1)->y, tail(edge1)->x, tail(edge1)->y,
+        //                                                                                             head(edge2)->x, head(edge2)->y, tail(edge2)->x, tail(edge2)->y,
+        //                                                                                             head(edge3)->x, head(edge3)->y, tail(edge3)->x, tail(edge3)->y);
+        //}
 #endif
         PDASSERT(edge1->tail==edge2->head && edge2->tail==edge3->head && edge3->tail==edge1->head);
            
         t->v[0] = edge1->head;
-        if (pt1->position_to_edge(pt2, pt3) == 1) {
+        int ret = pt1->position_to_edge(pt2, pt3);
+        if (ret == 1) {
             t->v[1] = edge2->head;
             t->v[2] = edge3->head;
             t->edge[0] = edge1;
             t->edge[1] = edge2;
             t->edge[2] = edge3;
-        }
-        else {
+        } else if (ret == 0) {
+            fprintf(stderr, "Vertexes of a triangle is on the same line.\n");
+            PDASSERT(false);
+        } else {
+            fprintf(stderr, "Vertexes of a triangle is not counterclockwise.\n");
+            fprintf(stderr, "---- vertexes are: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
             PDASSERT(false);
             t->v[1] = edge3->head;
             t->v[2] = edge2->head;
@@ -847,14 +877,15 @@ void Delaunay_Voronoi::initialize_edge(Edge* e, int head, int tail)
 int Triangle::circum_circle_contains(Point* whole_points, Point *p, double tolerance)
 {
     //calulate_circum_circle();
-    //double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
-    //if(std::fabs((dist2 - circum_radius*circum_radius)) < tolerance &&
-    //   really_on_circum_circle(whole_points, p, tolerance))
-    //    return 0;
-    //else if(dist2 < circum_radius*circum_radius)
-    //    return 1;
-    //else // (dist > circum_radius)
-    //    return -1;
+    double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
+    double radius2 = circum_radius*circum_radius;
+    if(fabs(dist2 - radius2)/(fabs(dist2) + fabs(radius2)) < tolerance &&
+       really_on_circum_circle(whole_points, p, tolerance))
+        return 0;
+    else if(dist2 < circum_radius*circum_radius)
+        return 1;
+    else // (dist > circum_radius)
+        return -1;
 
     double a = whole_points[v[0]].x;
     double b = whole_points[v[0]].y;
@@ -875,10 +906,10 @@ int Triangle::circum_circle_contains(Point* whole_points, Point *p, double toler
 
     double max_value = max(max(max(max(max(max(max(fabs(b), fabs(f)), fabs(j)), fabs(n)), fabs(a)), fabs(e)), fabs(i)), fabs(m));
     double four_time = max_value * max_value * max_value * max_value;
-    left /= four_time;
-    rite /= four_time;
+    //left /= four_time;
+    //rite /= four_time;
 
-    if(fabs(left - rite) < 1e-13)
+    if(fabs(left - rite) < four_time * 1e-13)
         return 0;
     else if(left > rite)
         return 1;
@@ -1340,7 +1371,7 @@ static int compare_node_index(const void* a, const void* b)
 
 void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head, int* tail)
 {
-    const unsigned max_leaf_triangles = 256;
+    const unsigned max_leaf_triangles = 256*4;
     unsigned count;
     unsigned i;
     int head_tail[max_leaf_triangles*2]; // [head1, tail1, head2, tail2, ...]

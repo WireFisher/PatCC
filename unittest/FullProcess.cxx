@@ -134,7 +134,7 @@ void prepare_three_polar_grid()
             coord_values[PDLN_LON][i] += 360.0;
 
     for(int i = 0; i < num_points; i++)
-        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_FLOAT_EQ_ERROR) {
+        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_ABS_TOLERANCE) {
             coord_values[PDLN_LON][i] = 0.0;
         }
 
@@ -587,14 +587,26 @@ TEST_F(FullProcess, ThreePolar) {
 };
 
 
-#define CHECK_PARALLEL_CONSISTENCY (true)
+#define CHECK_PARALLEL_CONSISTENCY (false)
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
     /*
     */
-    "ne30np4-t2.nc",
-    "ne60np4_pentagons_100408.nc",
+    "ne30np4-t2.nc", //1e-14
     "gx3v5_Present_DP_x3.nc",
+    "wr50a_090301.nc",
+    "Version_3_of_Greenland_pole_x1_T-grid.nc",
+    /*
+    */
+    "R05_Grid.nc",
+    "T42_Gaussian_Grid.nc",
+    "T42_grid.nc",
+    "T62_Gaussian_Grid.nc",
+    "ar9v4_100920.nc",
+    "CUBE_grid_2.5.nc",
+    "CUBE_grid_1.nc",
+    "CUBE_grid_0.3.nc",
+    "CUBE_grid_0.1.nc",
     "Gamil_360x180_Grid.nc",
     "licom_eq1x1_degree_Grid.nc",
     "licom_gr1x1_degree_Grid.nc",
@@ -604,18 +616,8 @@ const char dim1_grid_name[][64] = {
     "R42_Gaussian_Grid.nc",
     "T85_Gaussian_Grid.nc",
     "Gamil_128x60_Grid.nc",
+    "ne60np4_pentagons_100408.nc",
     "fv1.9x2.5_050503.nc",
-    "T42_Gaussian_Grid.nc",
-    "T42_grid.nc",
-    "T62_Gaussian_Grid.nc",
-    "ar9v4_100920.nc",
-    "wr50a_090301.nc",
-    "Version_3_of_Greenland_pole_x1_T-grid.nc",
-    "R05_Grid.nc",
-    "CUBE_grid_2.5.nc",
-    "CUBE_grid_1.nc",
-    "CUBE_grid_0.3.nc",
-    "CUBE_grid_0.1.nc",
     /*
     */
 };
@@ -638,7 +640,7 @@ const char dim1_global_grid_name[][64] = {
 };
 
 
-void save_dim1_grid(const char grid_name[]);
+void save_grid_to_text(const char grid_name[]);
 void prepare_dim1_grid(const char grid_name[])
 {
     char fullname[128];
@@ -760,7 +762,7 @@ void prepare_dim1_grid(const char grid_name[])
         }
 
         assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
-        //save_dim1_grid(grid_name);
+        //save_grid_to_text(grid_name);
     }
 
     MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -782,19 +784,19 @@ void prepare_dim1_grid(const char grid_name[])
 };
 
 
-const char dim1_grid_save_path[] = "gridfile/for_scvt/%s";
-void save_dim1_grid(const char grid_name[])
+const char grid_save_path[] = "gridfile/for_delaunay/%s";
+void save_grid_to_text(const char grid_name[])
 {
     char fullname[128];
 
-    snprintf(fullname, 128, dim1_grid_save_path, grid_name);
+    snprintf(fullname, 128, grid_save_path, grid_name);
 
     FILE* fp = fopen(fullname, "w");
     for (int i = 0; i < num_points; i++) {
-        double x = cos(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
-        double y = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
-        double z = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
-        fprintf(fp, "%.20lf %.20lf %.20lf\n", x, y, z);
+        //double x = cos(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+        //double y = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+        //double z = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
+        fprintf(fp, "%.20lf %.20lf\n", coord_values[PDLN_LON][i], coord_values[PDLN_LAT][i]);
     }
     fclose(fp);
     printf("File writen\n");
@@ -890,51 +892,52 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
 
 const int autogen_grid_size[] = {
-                               10000,
-                               100000,
+                               //10000,
+                               //100000,
                                1000000,
-                               10000000,
+                               //10000000,
 
-                               100000,
-                               1000000,
-                               10000000,
+                               //100000,
+                               //1000000,
+                               //10000000,
 
-                               99225,
-                               998001,
+                               //99225,
+                               //998001,
 
-                               64800,
-                               720000,
-                               6480000,
-                               10800,
+                               //64800,
+                               //720000,
+                               //6480000,
+                               //10800,
 
-                               0,
-                               0,
-                               0,
-                               0,
+                               //0,
+                               //0,
+                               //0,
+                               //0,
                              };
 const char autogen_grid_name[][64] = { 
-                                    "lonlat_random_global_10000.dat",
-                                    "lonlat_random_global_100000.dat",
+                                    //"lonlat_random_global_10000.dat",
+                                    //"lonlat_random_global_100000.dat",
                                     "lonlat_random_global_1000000.dat",
-                                    "lonlat_random_global_10000000.dat",
+                                    //"lonlat_random_global_10000000.dat",
 
-                                    "MonteCarlo_100000.dat",
-                                    "MonteCarlo_1000000.dat",
-                                    "MonteCarlo_10000000.dat",
+                                    //"MonteCarlo_100000.dat",
+                                    //"MonteCarlo_1000000.dat",
+                                    //"MonteCarlo_10000000.dat",
 
-                                    "lonlat_non-uniform_global_100000.dat",
-                                    "lonlat_non-uniform_global_1000000.dat",
+                                    //"lonlat_non-uniform_global_100000.dat",
+                                    //"lonlat_non-uniform_global_1000000.dat",
 
-                                    "lonlat_grid_1.dat",
-                                    "lonlat_grid_0.3.dat",
-                                    "lonlat_grid_0.1.dat",
-                                    "lonlat_grid_small.dat",
+                                    //"lonlat_grid_1.dat",
+                                    //"lonlat_grid_0.3.dat",
+                                    //"lonlat_grid_0.1.dat",
+                                    //"lonlat_grid_small.dat",
 
-                                    "CUBE_grid_2.5.nc",
-                                    "CUBE_grid_1.nc",
-                                    "CUBE_grid_0.3.nc",
-                                    "CUBE_grid_0.1.nc",
+                                    //"CUBE_grid_2.5.nc",
+                                    //"CUBE_grid_1.nc",
+                                    //"CUBE_grid_0.3.nc",
+                                    //"CUBE_grid_0.1.nc",
                                   };
+
 const char autogen_grid_path[] = "gridfile/performence_evaluation/%s";
 void prepare_autogen_grid(const char grid_name[], int grid_size)
 {
@@ -973,17 +976,6 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
             }
             delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
 
-            /*
-            FILE* fp = fopen("CUBE_grid_for_SCVT_0.1.dat", "w");
-            for (int i = 0; i < num_points; i++) {
-                double x = cos(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
-                double y = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LON][i]))*cos(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
-                double z = sin(DEGREE_TO_RADIAN(coord_values[PDLN_LAT][i]));
-                fprintf(fp, "%.20lf %.20lf %.20lf\n", x, y, z);
-            }
-            fclose(fp);
-            printf("File writen\n");
-            */
         } else {
             FILE *fp = fopen(fullname, "r");
             if(!fp) {
@@ -1038,6 +1030,7 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
 
         //printf("num points: %d\n", num_points);
         assert(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+        //save_grid_to_text(grid_name);
 
         min_lon = 0;
         max_lon = 360;
@@ -1105,4 +1098,133 @@ TEST_F(FullProcess, Performance) {
         EXPECT_EQ(ret, 0);
         delete comp;
     }
+};
+
+
+#ifdef NETCDF
+void prepare_threepoles_grid()
+{
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+    bool squeeze = false;
+
+    read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "x_T", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "y_T", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+    assert(field_size == field_size2);
+    num_points = field_size;
+    coord_values[PDLN_LON] = (double*)coord_buf0;
+    coord_values[PDLN_LAT] = (double*)coord_buf1;
+
+    for(int i = 0; i < num_points; i++)
+        if(coord_values[PDLN_LON][i] < 0.0)
+            coord_values[PDLN_LON][i] += 360.0;
+
+    for(int i = 0; i < num_points; i++)
+        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_ABS_TOLERANCE) {
+            coord_values[PDLN_LON][i] = 0.0;
+        }
+
+    delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+    assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
+
+    if(squeeze) {
+        for(int i = 0; i < num_points/100; i++) {
+            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
+            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+        }
+        num_points /= 100;
+    }
+
+    min_lon =   0.0;
+    max_lon = 360.0;
+    min_lat = -90.0;
+    max_lat =  90.0;
+    
+    printf("num_points: %d\n", num_points);
+}
+#endif
+
+
+TEST_F(FullProcess, ThreePoles) {
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    printf("pid: %d\n", getpid());
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    MPI_Comm split_world;
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        prepare_threepoles_grid();
+
+        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+            .WillByDefault(Return(comm));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
+            .WillByDefault(Return(coord_values));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
+            .WillByDefault(Return(num_points));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
+            .WillByDefault(Invoke(get_boundry));
+
+        ON_CALL(*mock_grid_info_manager, set_grid_boundry(1, _, _, _, _))
+            .WillByDefault(Invoke(set_boundry));
+
+        ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
+            .WillByDefault(Return(true));
+
+        Component* comp;
+        comp = new Component(0);
+        comp->register_grid(new Grid(1));
+        int ret = comp->generate_delaunay_trianglulation(1, true);
+        EXPECT_EQ(ret, 0);
+        delete comp;
+
+        if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
+            MPI_Barrier(split_world);
+            ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+                .WillByDefault(Return(split_world));
+
+            comp = new Component(1);
+            comp->register_grid(new Grid(1));
+            int ret = comp->generate_delaunay_trianglulation(1, true);
+            EXPECT_EQ(ret, 0);
+
+            delete comp;
+
+            if (mpi_rank == 0) {
+                int new_mpi_size;
+                MPI_Comm_size(split_world, &new_mpi_size);
+
+                FILE *fp;
+                char fmt[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
+                char cmd[256];
+                snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+
+                char md5[2][64];
+                memset(md5[0], 0, 64);
+                memset(md5[1], 0, 64);
+                fp = popen(cmd, "r");
+                fgets(md5[0], 64, fp);
+                fgets(md5[1], 64, fp);
+                EXPECT_STREQ(md5[0], md5[1]);
+
+                if(strncmp(md5[0], md5[1], 64) == 0) {
+                    char cmd[256];
+                    snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_three_poles.png");
+                    system(cmd);
+                    snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_three_poles.png");
+                    system(cmd);
+                }
+            }
+            MPI_Barrier(split_world);
+        }
 };

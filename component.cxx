@@ -5,7 +5,7 @@
 #include "timer.h"
 #include <omp.h>
 
-#define PDLN_DEFAULT_MIN_NUM_POINTS (100)
+#define PDLN_DEFAULT_MIN_NUM_POINTS (3)
 
 long time_proc_mgt = 0;
 long time_pretreat = 0;
