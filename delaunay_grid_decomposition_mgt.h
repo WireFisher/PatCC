@@ -257,13 +257,9 @@ private:
     double max_lon;
     double min_lat;
     double max_lat;
+    bool is_cyclic;
 
     void gen_basic_grid();
-#ifdef NETCDF
-    void gen_three_polar_grid();
-    void gen_latlon_grid();
-    void gen_latlon_90_grid();
-#endif
 
 public:
     /* for unittest */
@@ -275,6 +271,13 @@ public:
     virtual void get_grid_boundry(int, double*, double*, double*, double*);
     virtual void set_grid_boundry(int, double, double, double, double);
     virtual bool is_grid_cyclic(int);
+    virtual bool read_grid_from_text(const char []);
+#ifdef NETCDF
+    virtual void read_grid_from_nc(const char [], const char [], const char []);
+    void gen_three_polar_grid();
+    void gen_latlon_grid();
+    void gen_latlon_90_grid();
+#endif
 };
 
 extern Grid_info_manager *grid_info_mgr;

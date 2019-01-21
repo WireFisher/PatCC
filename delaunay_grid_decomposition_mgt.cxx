@@ -3095,16 +3095,14 @@ void Grid_info_manager::gen_latlon_90_grid()
 
 Grid_info_manager::Grid_info_manager()
 {
+    num_points = 0;
     coord_values[0] = coord_values[1] = NULL;
-    //gen_three_polar_grid();
-    //gen_latlon_grid();
-    //gen_latlon_90_grid();
+    is_cyclic = false;
 }
 
 
 Grid_info_manager::Grid_info_manager(double *coord[2], int num)
 {
-
 }
 
 
@@ -3113,14 +3111,94 @@ Grid_info_manager::~Grid_info_manager()
     delete coord_values[0];
     delete coord_values[1];
 }
+
+
+bool Grid_info_manager::read_grid_from_text(const char filename[])
+{
+    void *coord_buf0, *coord_buf1;
+
+    FILE* fp = fopen(filename, "r");
+
+    if (!fp)
+        return false;
+
+    fscanf(fp, "%d", &num_points);
+
+    if (num_points < 1)
+        return false;
+
+    fscanf(fp, "%lf %lf %lf %lf", &min_lon, &max_lon, &min_lat, &max_lat);
+
+    if (max_lat < -90 || max_lat > 90)
+        return false;
+
+    if (min_lat < -90 || min_lat > 90)
+        return false;
+
+    if (min_lat >= max_lat || min_lon >= max_lon || max_lon - min_lon > 360)
+        return false;
+
+    coord_values[PDLN_LON] = new double [num_points];
+    coord_values[PDLN_LAT] = new double [num_points];
+
+    for(int i = 0; i < num_points; i ++)
+        fscanf(fp, "%lf %lf", &coord_values[PDLN_LON][i], &coord_values[PDLN_LAT][i]);
+
+    PDASSERT(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+
+    is_cyclic = float_eq(max_lon - min_lon, 360);
+}
+
+
+#ifdef NETCDF
+void Grid_info_manager::read_grid_from_nc(const char filename[], const char lon_var_name[], const char lat_var_name[])
+{
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+
+    read_file_field_as_double(filename, lon_var_name, &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field_as_double(filename, lat_var_name, &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+
+    num_points = field_size*field_size2;
+    coord_values[PDLN_LON] = new double [num_points];
+    coord_values[PDLN_LAT] = new double [num_points];
+
+    int count = 0;
+    for(int j = field_size2-1; j >= 0; j--)
+        for(int i = 0; i < field_size; i ++) {
+            coord_values[PDLN_LON][count] = ((double*)coord_buf0)[i];
+            coord_values[PDLN_LAT][count++] = ((double*)coord_buf1)[j];
+        }
+
+    PDASSERT(count == num_points);
+    PDASSERT(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+
+    min_lon =   0.0;
+    max_lon = 360.0;
+    min_lat = -90.0;
+    max_lat =  90.0;
+    is_cyclic = true;
+}
+#endif
+
+
 double** Grid_info_manager::get_grid_coord_values(int grid_id)
 {
     return coord_values;
 }
+
+
 int Grid_info_manager::get_grid_num_points(int grid_id)
 {
     return num_points;
 }
+
+
 void Grid_info_manager::get_grid_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
 {
     *mi_lon = min_lon;
@@ -3141,5 +3219,5 @@ void Grid_info_manager::set_grid_boundry(int grid_id, double mi_lon, double ma_l
 
 bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {
-    return true;
+    return is_cyclic;
 }
