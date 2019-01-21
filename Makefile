@@ -65,6 +65,10 @@ COMMON_FLAGS += $(LIBS)
 
 VPATH = ./ ./unittest
 
+.PHONY : main
+main : main.o $(core_objs)
+	$(CXX) -o patcc $(CXXFLAGS) main.o $(core_objs) $(COMMON_FLAGS)
+
 component.o: delaunay_grid_decomposition_mgt.o processing_unit_mgt.o
 delaunay_grid_decomposition_mgt.o: processing_unit_mgt.o delaunay_voronoi_2D.o ccpl_utils.o #netcdf_utils.o opencv_utils.o
 delaunay_voronoi_2D.o: merge_sort.h #opencv_utils.o
@@ -73,10 +77,6 @@ delaunay_voronoi_2D.o: merge_sort.h #opencv_utils.o
 	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
 %.o: %.cxx
 	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
-
-.PHONY : main
-main : main.o $(core_objs)
-	$(CXX) -o pDelaunay $(CXXFLAGS) main.o $(core_objs) $(COMMON_FLAGS)
 
 .PHONY : test
 test : testmain.o $(test_objs) $(core_objs)
