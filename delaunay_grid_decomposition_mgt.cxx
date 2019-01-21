@@ -3115,8 +3115,6 @@ Grid_info_manager::~Grid_info_manager()
 
 bool Grid_info_manager::read_grid_from_text(const char filename[])
 {
-    void *coord_buf0, *coord_buf1;
-
     FILE* fp = fopen(filename, "r");
 
     if (!fp)
@@ -3124,19 +3122,18 @@ bool Grid_info_manager::read_grid_from_text(const char filename[])
 
     fscanf(fp, "%d", &num_points);
 
-    if (num_points < 1)
+    if (num_points < 1) {
+        fprintf(stderr, "Invalid points number\n");
         return false;
+    }
 
     fscanf(fp, "%lf %lf %lf %lf", &min_lon, &max_lon, &min_lat, &max_lat);
 
-    if (max_lat < -90 || max_lat > 90)
+    if (max_lat < -90 || max_lat > 90 || min_lat < -90 || min_lat > 90 ||
+       (min_lat >= max_lat || min_lon >= max_lon || max_lon - min_lon > 360)) {
+        fprintf(stderr, "Invalid boundary value\n");
         return false;
-
-    if (min_lat < -90 || min_lat > 90)
-        return false;
-
-    if (min_lat >= max_lat || min_lon >= max_lon || max_lon - min_lon > 360)
-        return false;
+    }
 
     coord_values[PDLN_LON] = new double [num_points];
     coord_values[PDLN_LAT] = new double [num_points];
@@ -3147,6 +3144,7 @@ bool Grid_info_manager::read_grid_from_text(const char filename[])
     PDASSERT(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
 
     is_cyclic = float_eq(max_lon - min_lon, 360);
+    return true;
 }
 
 

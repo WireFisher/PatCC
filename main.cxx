@@ -6,7 +6,7 @@
 Grid_info_manager *grid_info_mgr;
 Process_thread_manager *process_thread_mgr;
 
-char usage[] = "usage:  ./patcc grid_file\n";
+char usage[] = "usage:  mpiexec -n np ./patcc grid_file\n";
 int main(int argc, char** argv)
 {
     if (argc != 2) {
