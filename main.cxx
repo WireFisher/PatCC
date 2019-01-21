@@ -2,17 +2,22 @@
 #include <cassert>
 #include <cstdio>
 #include <sys/time.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 Grid_info_manager *grid_info_mgr;
 Process_thread_manager *process_thread_mgr;
 
-char usage[] = "usage:  mpiexec -n np ./patcc grid_file\n";
+char usage[] = "usage: OMP_NUM_THREADS=nt mpiexec -n np ./patcc gridFile\n";
 int main(int argc, char** argv)
 {
     if (argc != 2) {
         perror(usage);
         return -1;
     }
+
+    if (access("log", F_OK) != 0)
+        mkdir("log", 0755);
 
     MPI_Init(&argc, &argv);
 
