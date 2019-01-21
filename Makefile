@@ -4,18 +4,14 @@ MPI_PATH := /opt/intel/impi/3.2.0.011
 #PDLN_USE_NETCDF := true
 #PDLN_TIMING := true
 NETCDF_PATH := /opt/netCDF-gcc4.4.7
-OPENCV_PATH := /home/yanghy/opt/opencv
+OPENCV_PATH := /opt/opencv
 CXXFLAGS :=
 
 INC := -isystem $(MPI_PATH)/include64
-INC += -isystem dependency/googletest/include
-INC += -isystem dependency/googlemock/include
 
 LIB :=
-LIB += -Ldependency/googletest
-LIB += -Ldependency/googlemock
 
-LIBS := -lgmock -lgtest
+LIBS :=
 
 core_objs = ccpl_utils.o \
             component.o \
@@ -24,12 +20,6 @@ core_objs = ccpl_utils.o \
 			delaunay_voronoi_2D.o \
 			memory_pool.o \
 			coordinate_hash.o
-
-test_objs = \
-			FullProcess.o \
-			GridDecomposition.o \
-			ProcessingResourceTest.o
-			#DelaunayVoronoi2D.o
 
 COMMON_FLAGS := -Wall -g -fopenmp -pthread
 
@@ -63,7 +53,7 @@ COMMON_FLAGS += $(INC)
 COMMON_FLAGS += $(LIB)
 COMMON_FLAGS += $(LIBS)
 
-VPATH = ./ ./unittest
+VPATH = ./
 
 .PHONY : main
 main : main.o $(core_objs)
@@ -78,13 +68,9 @@ delaunay_voronoi_2D.o: merge_sort.h #opencv_utils.o
 %.o: %.cxx
 	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
 
-.PHONY : test
-test : testmain.o $(test_objs) $(core_objs)
-	$(CXX) -o run_all_test -DUNITTEST testmain.o $(core_objs) $(test_objs) $(COMMON_FLAGS)
-
 .PHONY : all
 all :
 
 .PHONY : clean
 clean :
-	-rm run_all_test pDelaunay *.o 2>/dev/null
+	-rm patcc *.o 2>/dev/null
