@@ -19,13 +19,13 @@ First of all, edit `Makefile` and set the `MPI_PATH` variable.
 
 Just execute `make` in this directory.
 
-**For advance usages:**
+**For advanced usage:**
 
-Some environment variables can be useful, including `PDLN_USE_OPENCV`, `PDLN_USE_NETCDF`, `PDLN_TIMING` and `PDLN_DEBUG`.
+PATCC has some useful build-in functions, such as plotting, reading NetCDF files and debugging. For this purpose, some environment variables can be set, including `PDLN_USE_OPENCV`, `PDLN_USE_NETCDF`, `PDLN_TIMING` and `PDLN_DEBUG`.
 
 ## Execute
 
-The executing command is likely `OMP_NUM_THREADS=nt mpiexec -n np ./patcc gridFile`.  
+The command of executing is likely `OMP_NUM_THREADS=nt mpiexec -n np ./patcc gridFile`.  
 
 **nt**: number of openMP threads.  
 **np**: number of MPI processes.  
@@ -36,10 +36,12 @@ At end of the execution, the program will write results to `log/global_triangles
 
 ### Grid file format
 
-1st line: N, the number of points to read  
-2nd line: Boundary of the points (minLon maxLon minLat maxLat)  
-3rd~N+2th lines: coordnate values in degree for each point (lon lat)  
+Grid file uses ASCII encoding method, and the format is as follows:
 
-A example file named `test.dat` can be found in this directory.
+**1st line**: N, the number of points to read  
+**2nd line**: Boundary of the points (minLon maxLon minLat maxLat)  
+**3rd~N+2th lines**: coordnate values in degree for each point (lon lat)  
+
+An example of the grid file named `test.grid` can be found in this directory.
 
 > This project runs as part of [C-Coupler](https://github.com/C-Coupler-Group/c-coupler-lib)
