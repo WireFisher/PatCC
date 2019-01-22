@@ -21,6 +21,7 @@ int main(int argc, char** argv)
 
     MPI_Init(&argc, &argv);
 
+
     process_thread_mgr = new Process_thread_manager();
     grid_info_mgr = new Grid_info_manager();
 
@@ -37,5 +38,13 @@ int main(int argc, char** argv)
     delete process_thread_mgr;
     delete grid_info_mgr;
     delete comp;
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0)
+        printf("Triangulation is finished successfully\n");
+
     MPI_Finalize();
+
+    return 0;
 }

@@ -1,10 +1,18 @@
+######################
+# Required variables #
+######################
 CXX := mpicxx
 MPI_PATH := /opt/intel/impi/3.2.0.011
+
+
+######################
+# Optional variables #
+######################
+NETCDF_PATH := /opt/netCDF-gcc4.4.7
+OPENCV_PATH := /opt/opencv
 #PDLN_USE_OPENCV := true
 #PDLN_USE_NETCDF := true
 #PDLN_TIMING := true
-NETCDF_PATH := /opt/netCDF-gcc4.4.7
-OPENCV_PATH := /opt/opencv
 CXXFLAGS :=
 
 INC := -isystem $(MPI_PATH)/include64

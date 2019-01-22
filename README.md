@@ -13,6 +13,8 @@ An Efficient **Pa**rallel **T**riangulation Algorithm for Spherical and Planar G
 
 ## Build
 
+First of all, edit `Makefile` and set the `MPI_PATH` variable.
+
 **For a quick start:**
 
 Just execute `make` in this directory.
