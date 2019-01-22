@@ -40,7 +40,7 @@ Grid file uses ASCII encoding method, and the format is as follows:
 
 **1st line**: N, the number of points to read  
 **2nd line**: Boundary of the points (minLon maxLon minLat maxLat)  
-**3rd~N+2th lines**: coordnate values in degree for each point (lon lat)  
+**3rd~N+2th lines**: Coordnate values in degree for each point (lon lat)  
 
 An example of the grid file named `test.grid` can be found in this directory.
 
