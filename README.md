@@ -1,6 +1,6 @@
 # PatCC
 
-An Efficient **Pa**rallel **T**riangulation Algorithm for Spherical and Planar Grids with **C**ommonality and Parallel **C**onsistency
+An Efficient **Pa**rallel **T**riangulation Algorithm for Spherical and Planar Grids with **C**ommonality and Parallel **C**onsistency.
 
 ## Feature
 
@@ -38,10 +38,10 @@ At end of the execution, the program will write results to `log/global_triangles
 
 Grid file uses ASCII encoding method, and the format is as follows:
 
-**1st line**: N, the number of points to read  
-**2nd line**: Boundary of the points (minLon maxLon minLat maxLat)  
-**3rd~N+2th lines**: Coordnate values in degree for each point (lon lat)  
+**1st line**: N, number of points to read.  
+**2nd line**: Boundary of the points (minLon maxLon minLat maxLat).  
+**3rd~N+2th lines**: Coordinate values in degree of each point (lon lat).  
 
 An example of the grid file named `test.grid` can be found in this directory.
 
-> This project runs as part of [C-Coupler](https://github.com/C-Coupler-Group/c-coupler-lib)
+> This project runs as part of [C-Coupler](https://github.com/C-Coupler-Group/c-coupler-lib).
