@@ -134,7 +134,7 @@ void prepare_three_polar_grid()
             coord_values[PDLN_LON][i] += 360.0;
 
     for(int i = 0; i < num_points; i++)
-        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_FLOAT_EQ_ERROR) {
+        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_ABS_TOLERANCE) {
             coord_values[PDLN_LON][i] = 0.0;
         }
 
