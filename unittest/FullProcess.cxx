@@ -26,6 +26,7 @@ class Mock_Grid_info_manager2 : public Grid_info_manager
 {
 public:
     MOCK_METHOD1(get_grid_coord_values, double**(int));
+    MOCK_METHOD1(get_grid_mask, bool*(int));
     MOCK_METHOD1(get_grid_num_points, int(int));
     MOCK_METHOD5(get_grid_boundry, void(int, double*, double*, double*, double*));
     MOCK_METHOD5(set_grid_boundry, void(int, double, double, double, double));
@@ -41,6 +42,7 @@ using ::testing::ExitedWithCode;
 static int mpi_rank = -1;
 static int mpi_size = 0;
 static double *coord_values[2] = {NULL, NULL};
+static bool *grid_mask = NULL;
 static int num_points = 0;
 static double min_lat, max_lat, min_lon, max_lon;
 static bool is_cyclic = false;
@@ -592,6 +594,7 @@ const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
     /*
     */
+    "mom_h2d_T_grid@mom.nc",
     "ne30np4-t2.nc",
     "ne60np4_pentagons_100408.nc",
     "gx3v5_Present_DP_x3.nc",
@@ -635,6 +638,7 @@ const char dim1_global_grid_name[][64] = {
     "CUBE_grid_1.nc",
     "CUBE_grid_0.3.nc",
     "CUBE_grid_0.1.nc",
+    "mom_h2d_T_grid@mom.nc",
 };
 
 
@@ -646,6 +650,7 @@ void prepare_dim1_grid(const char grid_name[])
     int *dim_size_ptr;
     int field_size;
     int field_size2;
+    bool* mask = NULL;
     void *coord_buf0, *coord_buf1;
     char lon_unit[32];
     char lat_unit[32];
@@ -662,11 +667,21 @@ void prepare_dim1_grid(const char grid_name[])
         delete dim_size_ptr;
         read_file_field_as_double(fullname, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
         delete dim_size_ptr;
+        if (strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0) {
+            void* raw_mask;
+            int* int_mask;
+            read_file_field_as_int(fullname, "grid_imask", &raw_mask, &num_dims, &dim_size_ptr, &field_size2, NULL);
+            int_mask = (int*)raw_mask;
+            mask = new bool[field_size2];
+            for (int i = 0; i < field_size2; i ++)
+                mask[i] = int_mask[i];
+        }
 
         ASSERT_EQ(field_size, field_size2);
         num_points = field_size;
         coord_values[PDLN_LON] = (double*)coord_buf0;
         coord_values[PDLN_LAT] = (double*)coord_buf1;
+        grid_mask = mask;
 
         min_lon = 1e10;
         max_lon = -1e10;
@@ -823,6 +838,9 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
         ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
             .WillByDefault(Return(coord_values));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_mask(1))
+            .WillByDefault(Return(grid_mask));
 
         ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
             .WillByDefault(Return(num_points));
