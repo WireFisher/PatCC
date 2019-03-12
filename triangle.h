@@ -15,13 +15,15 @@ class Point
     public:
         double x;
         double y;
-        int    id;
+        int    id:31;
+        int    mask:1;
         int    next;
         int    prev;
 
         Point();
         Point(double, double);
         Point(double, double, int, int = -1, int = -1);
+        Point(double, double, int, bool, int = -1, int = -1);
         ~Point();
         double calculate_distance(const Point*) const;
         double calculate_distance(double, double) const;
@@ -78,7 +80,7 @@ class Triangle
         Triangle();
         ~Triangle();
         void get_center_coordinates();
-        int find_best_candidate_point(Point*) const;
+        int find_best_candidate_point(Point*);
         bool contain_vertex(int);
         void calulate_circum_circle(const Point*, const Point*, const Point*);
 

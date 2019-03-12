@@ -123,6 +123,7 @@ Point::Point()
 Point::Point(double x, double y)
     : x(x)
     , y(y)
+    , mask(true)
 {
 }
 
@@ -131,6 +132,18 @@ Point::Point(double x, double y, int id, int fd, int bk)
     : x(x)
     , y(y)
     , id(id)
+    , mask(true)
+    , next(fd)
+    , prev(bk)
+{
+}
+
+
+Point::Point(double x, double y, int id, bool msk, int fd, int bk)
+    : x(x)
+    , y(y)
+    , id(id)
+    , mask(msk)
     , next(fd)
     , prev(bk)
 {
@@ -834,20 +847,32 @@ bool Triangle::really_on_circum_circle(Point* whole_points, Point *p, double tol
 }
 
 
-int Triangle::find_best_candidate_point(Point* buf) const
+int Triangle::find_best_candidate_point(Point* buf)
 {
-    double min_dist=1e10, dist;
-    PDASSERT(remained_points_head != -1 || remained_points_tail != -1);
+    if (remained_points_tail == -1)
+        return -1;
 
+    double min_dist=1e10, dist;
     double center_x = (buf[v[0]].x+buf[v[1]].x+buf[v[2]].x) * 0.3333333333333333333333333333;
     double center_y = (buf[v[0]].y+buf[v[1]].y+buf[v[2]].y) * 0.3333333333333333333333333333;
-    int best_candidate_id = remained_points_head;
+    int best_candidate_id = -1;
+    bool no_more_mask = true;
     for (int i = remained_points_head; i > -1; i = buf[i].next) {
+        if (buf[i].mask)
+            no_more_mask = false;
+        else
+            continue;
+
         dist = buf[i].calculate_distance(center_x, center_y);
         if (min_dist > dist) {
             min_dist = dist;
             best_candidate_id = i;
         }
+    }
+
+    if (no_more_mask) {
+        remained_points_head = remained_points_tail = -1;
+        return -1;
     }
 
     return best_candidate_id;
@@ -865,17 +890,20 @@ bool Triangle::contain_vertex(int pt)
 
 void Delaunay_Voronoi::swap_points(int idx1, int idx2)
 {
-    double tmp_x  = all_points[idx1].x;
-    double tmp_y  = all_points[idx1].y;
-    double tmp_id = all_points[idx1].id;
+    double tmp_x    = all_points[idx1].x;
+    double tmp_y    = all_points[idx1].y;
+    int    tmp_id   = all_points[idx1].id;
+    bool   tmp_mask = all_points[idx1].mask;
 
-    all_points[idx1].x  = all_points[idx2].x;
-    all_points[idx1].y  = all_points[idx2].y;
-    all_points[idx1].id = all_points[idx2].id;
+    all_points[idx1].x    = all_points[idx2].x;
+    all_points[idx1].y    = all_points[idx2].y;
+    all_points[idx1].id   = all_points[idx2].id;
+    all_points[idx1].mask = all_points[idx2].mask;
 
-    all_points[idx2].x  = tmp_x;
-    all_points[idx2].y  = tmp_y;
-    all_points[idx2].id = tmp_id;
+    all_points[idx2].x    = tmp_x;
+    all_points[idx2].y    = tmp_y;
+    all_points[idx2].id   = tmp_id;
+    all_points[idx2].mask = tmp_mask;
 }
 
 
@@ -1085,7 +1113,9 @@ unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned st
 #ifdef DEBUG
     PDASSERT(triangle->is_leaf);
 #endif
-    if (triangle->remained_points_tail == -1) {
+    int candidate_id = triangle->find_best_candidate_point(&all_points[0]);
+
+    if (candidate_id == -1) {
         if (polar_mode) {
             int id[3];
             for (int j = 0; j < 3; j++)
@@ -1109,8 +1139,6 @@ unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned st
     }
 
     triangle->is_leaf = false;
-
-    int candidate_id = triangle->find_best_candidate_point(&all_points[0]);
     swap_points(candidate_id, triangle->remained_points_tail);
     int dividing_idx = triangle->pop_tail(&all_points[0]);
     Point* dividing_point = &all_points[dividing_idx];
@@ -1688,7 +1716,7 @@ void Delaunay_Voronoi::extend_points_buffer(int introduced_points)
 }
 
 
-void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
+void Delaunay_Voronoi::add_points(const double* x, const double* y, const bool* mask, int num)
 {
 #ifdef DEBUG
     PDASSERT(have_redundent_points(x, y, num) == false);
@@ -1696,7 +1724,6 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
     PDASSERT(x != NULL);
     PDASSERT(y != NULL);
 
-    /* first initial process */
     if(stack_size == 0)
         initialize(num);
     else if (num_points + num > max_points)
@@ -1714,7 +1741,7 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, int num)
     for (unsigned i = 0; i < all_leaf_triangles.size(); i++) {
         int head = buf_idx_cur;
         for (int p = all_leaf_triangles[i]->remained_points_head; p != -1; p = nexts[p]) {
-            new(&all_points[buf_idx_cur]) Point(x[p], y[p], local_idx_start+p, buf_idx_cur+1, buf_idx_cur-1);
+            new(&all_points[buf_idx_cur]) Point(x[p], y[p], local_idx_start+p, mask ? mask[p] : true, buf_idx_cur+1, buf_idx_cur-1);
             buf_idx_cur++;
         }
 
@@ -2662,7 +2689,7 @@ void Delaunay_Voronoi::plot_original_points_into_file(const char *filename, doub
         coord[1][num++] = all_points[i].y;
     }
 
-    plot_points_into_file(filename, coord[0], coord[1], num_points - PAT_NUM_LOCAL_VPOINTS, min_x, max_x, min_y, max_y);
+    plot_points_into_file(filename, coord[0], coord[1], NULL, num_points - PAT_NUM_LOCAL_VPOINTS, min_x, max_x, min_y, max_y);
 
     delete coord[0];
     delete coord[1];

@@ -157,9 +157,9 @@ class Delaunay_Voronoi
         Delaunay_Voronoi();
         ~Delaunay_Voronoi();
 
-        void add_points(const double* x, const double* y, int num);
-        void map_global_index(const int* global_idx);
-        void set_virtual_polar_index(int idx);
+        void add_points(const double*, const double*, const bool*, int);
+        void map_global_index(const int*);
+        void set_virtual_polar_index(int);
         void set_origin_coord(const double *, const double *, int);
         void triangulate();
         bool try_fast_triangulate(double, double, double, double);

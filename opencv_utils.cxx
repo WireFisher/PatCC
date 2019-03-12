@@ -75,7 +75,7 @@ void plot_projected_edge_into_file(const char *filename, double *head_coord[2], 
 }
 
 
-void plot_points_into_file(const char *filename, double *x, double *y, int num, int mode,
+void plot_points_into_file(const char *filename, double *x, double *y, bool* mask, int num, int mode,
                            double min_x, double max_x, double min_y, double max_y)
 {
     int x_shift, y_shift, scale;
@@ -99,8 +99,10 @@ void plot_points_into_file(const char *filename, double *x, double *y, int num, 
         cv::line(mat, cv::Point(   0*scale+x_shift, -150*scale+y_shift), cv::Point(  0*scale+x_shift, 150*scale+y_shift), cv::Scalar(0, 255, 255), 1, 8);
     }
 
-    for(int i = 0; i < num; i++)
-        cv::circle(mat, cv::Point(x[i]*scale+x_shift, y[i]*scale+y_shift), 2, cv::Scalar(0, 0, 0), -1);
+    for(int i = 0; i < num; i++) {
+        if (!mask || mask[i])
+            cv::circle(mat, cv::Point(x[i]*scale+x_shift, y[i]*scale+y_shift), 2, cv::Scalar(0, 0, 0), -1);
+    }
 
     if(min_x != 0.0 || max_x != 0.0 || min_y != 0.0 || max_y != 0.0)
         cv::rectangle(mat, cv::Point(min_x*scale+x_shift, min_y*scale+y_shift), cv::Point(max_x*scale+x_shift, max_y*scale+y_shift), cv::Scalar(0, 0, 255), 2);

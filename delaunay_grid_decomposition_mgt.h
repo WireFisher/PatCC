@@ -112,7 +112,7 @@ public:
 
     /* Grid Decomposition */
     void decompose_by_processing_units_number(double*, double**, int**, bool**, int*, Boundry*, int*, int*, int, int** =NULL, int* =NULL);
-    void divide_at_fix_line(Midline, double**, int**, int*);
+    void divide_at_fix_line(Midline, double**, int**, bool**, int*);
     void reorganize_kernel_points(double, double, double, double, int, int, int, Midline*, int*);
     static void divide_points(double**, int*, bool*, double, double, double, double, int, int, int, Midline*, int*);
 

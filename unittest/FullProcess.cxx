@@ -650,7 +650,6 @@ void prepare_dim1_grid(const char grid_name[])
     int *dim_size_ptr;
     int field_size;
     int field_size2;
-    bool* mask = NULL;
     void *coord_buf0, *coord_buf1;
     char lon_unit[32];
     char lat_unit[32];
@@ -672,16 +671,15 @@ void prepare_dim1_grid(const char grid_name[])
             int* int_mask;
             read_file_field_as_int(fullname, "grid_imask", &raw_mask, &num_dims, &dim_size_ptr, &field_size2, NULL);
             int_mask = (int*)raw_mask;
-            mask = new bool[field_size2];
+            grid_mask = new bool[field_size2];
             for (int i = 0; i < field_size2; i ++)
-                mask[i] = int_mask[i];
+                grid_mask[i] = int_mask[i];
         }
 
         ASSERT_EQ(field_size, field_size2);
         num_points = field_size;
         coord_values[PDLN_LON] = (double*)coord_buf0;
         coord_values[PDLN_LAT] = (double*)coord_buf1;
-        grid_mask = mask;
 
         min_lon = 1e10;
         max_lon = -1e10;
@@ -782,9 +780,11 @@ void prepare_dim1_grid(const char grid_name[])
     if (mpi_rank != 0) {
         coord_values[PDLN_LON] = new double[num_points];
         coord_values[PDLN_LAT] = new double[num_points];
+        grid_mask = new bool[num_points];
     }
     MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(grid_mask, num_points, MPI_CHAR, 0, MPI_COMM_WORLD);
     MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
