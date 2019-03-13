@@ -780,16 +780,20 @@ void prepare_dim1_grid(const char grid_name[])
     if (mpi_rank != 0) {
         coord_values[PDLN_LON] = new double[num_points];
         coord_values[PDLN_LAT] = new double[num_points];
-        grid_mask = new bool[num_points];
+        if (strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0)
+            grid_mask = new bool[num_points];
     }
     MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(grid_mask, num_points, MPI_CHAR, 0, MPI_COMM_WORLD);
     MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+    if (strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0)
+        MPI_Bcast(grid_mask, num_points, MPI_CHAR, 0, MPI_COMM_WORLD);
+
     assert(sizeof(bool) == 1);
 #ifdef TIME_PERF
     printf("[ - ] Total points: %d\n", num_points);

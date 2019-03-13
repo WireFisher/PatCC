@@ -802,11 +802,13 @@ int Triangle::circum_circle_contains(Point* whole_points, Point *p, double toler
 {
     //calulate_circum_circle();
     double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
+    double radius2 = circum_radius*circum_radius;
     //if (std::fabs(dist2 - circum_radius*circum_radius) < tolerance)
     //    printf("first in\n");
     //else
     //    printf("first out, %.15lf, %.15lf\n", dist2, circum_radius*circum_radius);
-    if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance &&
+    //if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance &&
+    if(relative_eq_int(dist2, radius2, tolerance) &&
        really_on_circum_circle(whole_points, p, tolerance))
         return 0;
     else if(dist2 < circum_radius*circum_radius)
@@ -843,7 +845,8 @@ bool Triangle::really_on_circum_circle(Point* whole_points, Point *p, double tol
                        (pt[0]->y * (pt[2]->x - pt[1]->x) + pt[1]->y * (pt[0]->x - pt[2]->x) + pt[2]->y * (pt[1]->x - pt[0]->x)) * 0.5;
     double radius2 = ((pt[0]->x - center[0]) * (pt[0]->x - center[0])) + ((pt[0]->y - center[1]) * (pt[0]->y - center[1]));
     double dist2 = ((pt[3]->x - center[0]) * (pt[3]->x - center[0])) + ((pt[3]->y - center[1]) * (pt[3]->y - center[1]));
-    return std::fabs(dist2 - radius2) < tolerance;
+    //return std::fabs(dist2 - radius2) < tolerance;
+    return relative_eq_int(dist2, radius2, tolerance);
 }
 
 
@@ -1385,7 +1388,7 @@ Delaunay_Voronoi::Delaunay_Voronoi()
     , stack_size(0)
     , polar_mode(false)
     , fast_mode(false)
-    , tolerance(PDLN_ABS_TOLERANCE_LOW)
+    , tolerance(1e-9)
     , num_points(0)
     , vpolar_local_index(-1)
     , x_ref(NULL)

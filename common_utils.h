@@ -27,9 +27,11 @@
 #define float_eq(a, b)     (fabs(a - b) <= PDLN_ABS_TOLERANCE)
 #define float_eq_hi(a, b)  (fabs(a - b) <= PDLN_ABS_TOLERANCE_HI)
 
-#define float_relative_eq_low(a, b) (fabs((double)a - (double)b)/(double)a <= PDLN_RELATIVE_TOLERANCE_LOW)
-#define float_relative_eq(a, b)     (fabs((double)a - (double)b)/(double)a <= PDLN_RELATIVE_TOLERANCE)
-#define float_relative_eq_hi(a, b)  (fabs((double)a - (double)b)/(double)a <= PDLN_RELATIVE_TOLERANCE_HI)
+#define relative_eq_int(a, b, t) (fabs((double)a - (double)b)/(fabs((double)a) + fabs((double)b)) <= t)
+
+#define relative_eq_low(a, b)   relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE_LOW)
+#define relative_eq(a, b)       relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE)
+#define relative_eq_hi(a, b)    relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE_HI)
 
 class PDLN_Timer
 {
