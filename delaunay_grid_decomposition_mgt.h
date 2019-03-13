@@ -43,6 +43,7 @@ public:
 };
 
 class Search_tree_node;
+class Delaunay_grid_decomposition;
 typedef vector<pair<Search_tree_node*, bool> > Neighbors;
 
 class Search_tree_node {
@@ -144,6 +145,8 @@ public:
 
     friend class Delaunay_grid_decomposition;
     friend bool node_ptr_comp(Search_tree_node*, Search_tree_node*);
+    friend void decompose_common_node_recursively(Delaunay_grid_decomposition *, Search_tree_node *, bool);
+    friend void extend_search_tree(Delaunay_grid_decomposition *, Search_tree_node *, const Boundry*, int);
 };
 
 class Delaunay_grid_decomposition {
@@ -184,7 +187,6 @@ private:
     int  initialze_workload(bool, bool);
     void initialze_buffer();
     int  assign_polars(bool, bool);
-    void decompose_common_node_recursively(Search_tree_node*, bool =true);
 
     /* Pre-treatment */
     int calculate_num_inserted_points(Boundry*, int);
@@ -208,7 +210,6 @@ private:
     static int classify_points(double**, int*, bool*, int, Boundry, int);
 
     /* Points searching */
-    void extend_search_tree(Search_tree_node*, const Boundry*, int);
     void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>*, double **, int*, bool*, int*);
 
     /* Consistency checking */
@@ -243,6 +244,9 @@ public:
     void plot_grid_decomposition(const char*);
     void plot_local_triangles(const char*);
 #endif
+
+    friend void decompose_common_node_recursively(Delaunay_grid_decomposition *, Search_tree_node *, bool);
+    friend void extend_search_tree(Delaunay_grid_decomposition *, Search_tree_node *, const Boundry*, int);
 };
 
 

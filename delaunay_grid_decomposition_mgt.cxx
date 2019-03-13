@@ -1427,7 +1427,7 @@ void Delaunay_grid_decomposition::initialze_buffer()
 
 
 /* "common_node" means non-polar node */
-void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_node *node, bool lazy_mode)
+void decompose_common_node_recursively(Delaunay_grid_decomposition *decomp, Search_tree_node *node, bool lazy_mode)
 {
     double* c_points_coord[4];
     int*    c_points_index[2];
@@ -1441,15 +1441,15 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
 
     PDASSERT(node->ids_size() > 0);
     if(node->ids_size() == 1) {
-        if(node->num_kernel_points > 0 && have_local_region_ids(node->ids_start, node->ids_end))
+        if(node->num_kernel_points > 0 && decomp->have_local_region_ids(node->ids_start, node->ids_end))
             #pragma omp critical
-            local_leaf_nodes.push_back(node);
+            decomp->local_leaf_nodes.push_back(node);
         #pragma omp critical
-        all_leaf_nodes.push_back(node);
+        decomp->all_leaf_nodes.push_back(node);
         return;
     }
 
-    node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, c_points_mask,
+    node->decompose_by_processing_units_number(decomp->workloads, c_points_coord, c_points_index, c_points_mask,
                                                c_num_points, c_boundry, c_ids_start, c_ids_end, 
                                                PDLN_DECOMPOSE_COMMON_MODE, c_intervals, 
                                                c_num_intervals);
@@ -1470,8 +1470,8 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     for (int i = 0; i < c_num_points[1]; i++)
         PDASSERT(is_in_region(c_points_coord[2][i], c_points_coord[3][i], c_boundry[1]));
 
-    node->children[0] = alloc_search_tree_node(node, c_points_coord,   c_points_index[0], c_points_mask[0], c_num_points[0], c_boundry[0], c_ids_start[0], c_ids_end[0], PDLN_NODE_TYPE_COMMON);
-    node->children[2] = alloc_search_tree_node(node, c_points_coord+2, c_points_index[1], c_points_mask[1], c_num_points[1], c_boundry[1], c_ids_start[1], c_ids_end[1], PDLN_NODE_TYPE_COMMON);
+    node->children[0] = decomp->alloc_search_tree_node(node, c_points_coord,   c_points_index[0], c_points_mask[0], c_num_points[0], c_boundry[0], c_ids_start[0], c_ids_end[0], PDLN_NODE_TYPE_COMMON);
+    node->children[2] = decomp->alloc_search_tree_node(node, c_points_coord+2, c_points_index[1], c_points_mask[1], c_num_points[1], c_boundry[1], c_ids_start[1], c_ids_end[1], PDLN_NODE_TYPE_COMMON);
 
     node->children[0]->set_groups(c_intervals[0], c_num_intervals[0]);
     node->children[2]->set_groups(c_intervals[1], c_num_intervals[1]);
@@ -1479,13 +1479,13 @@ void Delaunay_grid_decomposition::decompose_common_node_recursively(Search_tree_
     //MPI_Comm_rank(processing_info->get_mpi_comm(), &rank);
     //printf("[Rank%d]x[ST-INFO-PRE] p: %p, first: %p, third: %p\n", rank, node, node->children[0], node->children[2]);
 
-    if(!lazy_mode || have_local_region_ids(node->children[0]->ids_start, node->children[0]->ids_end)) {
+    if(!lazy_mode || decomp->have_local_region_ids(node->children[0]->ids_start, node->children[0]->ids_end)) {
         #pragma omp task
-        decompose_common_node_recursively(node->children[0], lazy_mode);
+        decompose_common_node_recursively(decomp, node->children[0], lazy_mode);
     }
-    if(!lazy_mode || have_local_region_ids(node->children[2]->ids_start, node->children[2]->ids_end)) {
+    if(!lazy_mode || decomp->have_local_region_ids(node->children[2]->ids_start, node->children[2]->ids_end)) {
         #pragma omp task
-        decompose_common_node_recursively(node->children[2], lazy_mode);
+        decompose_common_node_recursively(decomp, node->children[2], lazy_mode);
     }
 }
 
@@ -1972,7 +1972,7 @@ int Delaunay_grid_decomposition::generate_grid_decomposition(bool lazy_mode)
     {
         #pragma omp single
         {
-            decompose_common_node_recursively(current_tree_node, lazy_mode);
+            decompose_common_node_recursively(this, current_tree_node, lazy_mode);
         }
     }
     return 0;
@@ -2377,7 +2377,7 @@ int Delaunay_grid_decomposition::move_together(double *coord[2], int *index, boo
 }
 
 
-void Delaunay_grid_decomposition::extend_search_tree(Search_tree_node *node, const Boundry* outer_boundarys, int num_boundarys)
+void extend_search_tree(Delaunay_grid_decomposition *decomp, Search_tree_node *node, const Boundry* outer_boundarys, int num_boundarys)
 {
     double*     c_points_coord[4];
     int*        c_points_index[2];
@@ -2393,21 +2393,21 @@ void Delaunay_grid_decomposition::extend_search_tree(Search_tree_node *node, con
 
     if(node->ids_size() == 1) {
         #pragma omp critical
-        all_leaf_nodes.push_back(node);
+        decomp->all_leaf_nodes.push_back(node);
         return;
     }
 
     if(node->children[0] == NULL && node->children[2] == NULL) {
-        node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, c_points_mask,
+        node->decompose_by_processing_units_number(decomp->workloads, c_points_coord, c_points_index, c_points_mask,
                                                    c_num_points, c_boundry, c_ids_start, c_ids_end, 
                                                    PDLN_DECOMPOSE_COMMON_MODE, c_intervals,
                                                    c_num_intervals);
         PDASSERT(c_ids_end[0] - c_ids_start[0] > 0);
 
-        node->children[0] = alloc_search_tree_node(node, c_points_coord,   c_points_index[0], c_points_mask[0], c_num_points[0],
+        node->children[0] = decomp->alloc_search_tree_node(node, c_points_coord,   c_points_index[0], c_points_mask[0], c_num_points[0],
                                                    c_boundry[0], c_ids_start[0], c_ids_end[0], PDLN_NODE_TYPE_COMMON);
 
-        node->children[2] = alloc_search_tree_node(node, c_points_coord+2, c_points_index[1], c_points_mask[1], c_num_points[1],
+        node->children[2] = decomp->alloc_search_tree_node(node, c_points_coord+2, c_points_index[1], c_points_mask[1], c_num_points[1],
                                                    c_boundry[1], c_ids_start[1], c_ids_end[1], PDLN_NODE_TYPE_COMMON);
         node->children[0]->set_groups(c_intervals[0], c_num_intervals[0]);
         node->children[2]->set_groups(c_intervals[1], c_num_intervals[1]);
@@ -2427,14 +2427,14 @@ void Delaunay_grid_decomposition::extend_search_tree(Search_tree_node *node, con
             if (region.min_lon == 0 && region.max_lon == 0)
                 continue;
 
-            if(do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
-               do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
-               do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry)) {
+            if(decomp->do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
+               decomp->do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
+               decomp->do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry)) {
                 if (node->children[i]->num_kernel_points < 2000)
-                    extend_search_tree(node->children[i], outer_boundarys, num_boundarys);
+                    extend_search_tree(decomp, node->children[i], outer_boundarys, num_boundarys);
                 else {
                     #pragma omp task
-                    extend_search_tree(node->children[i], outer_boundarys, num_boundarys);
+                    extend_search_tree(decomp, node->children[i], outer_boundarys, num_boundarys);
                 }
                 break;
             }
@@ -2670,7 +2670,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             {
                 #pragma omp single
                 {
-                    extend_search_tree(search_tree_root, outer_bound, local_leaf_nodes.size());
+                    extend_search_tree(this, search_tree_root, outer_bound, local_leaf_nodes.size());
                 }
             }
         }
