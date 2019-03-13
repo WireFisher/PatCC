@@ -403,13 +403,13 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         if (rotated_expand_boundry) {
             triangulation->add_points(projected_coord[PDLN_LON]+num_kernel_points+num_old_points,
                                       projected_coord[PDLN_LAT]+num_kernel_points+num_old_points,
-                                      ori_mask+num_kernel_points+num_old_points,
+                                      ori_mask ? ori_mask+num_kernel_points+num_old_points : NULL,
                                       num_expand_points-num_old_points);
             triangulation->set_origin_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
         } else {
             triangulation->add_points(expand_coord[PDLN_LON]+num_old_points,
                                       expand_coord[PDLN_LAT]+num_old_points,
-                                      ori_mask+num_kernel_points+num_old_points,
+                                      ori_mask ? ori_mask+num_kernel_points+num_old_points : NULL,
                                       num_expand_points-num_old_points);
         }
 
