@@ -1104,7 +1104,7 @@ inline bool is_triangle_intersecting_with_segment(Triangle_inline* triangle, Poi
         if(!(y_min <= p1.y && y_max >= p1.y && !(x_max < seg_min || x_min > seg_max)))
             return false;
     }
-    return (threshold == 0 || all_distence_in_threshold(triangle, p1, p2, threshold)) &&
+    return //(threshold == 0 || all_distence_in_threshold(triangle, p1, p2, threshold)) &&
            (is_segment_intersected_with_any_edges(triangle, p1, p2) || is_segment_in_triangle(triangle, p1, p2));
 }
 
@@ -1402,6 +1402,11 @@ Delaunay_Voronoi::Delaunay_Voronoi()
     avoiding_line_tail[0].x = avoiding_line_tail[0].y = 0;
     avoiding_line_tail[1].x = avoiding_line_tail[1].y = 0;
     avoiding_line_head[0].id = avoiding_line_head[1].id = 0;
+
+    avoiding_circle_center[0].x = avoiding_circle_center[0].y = 0;
+    avoiding_circle_center[1].x = avoiding_circle_center[1].y = 0;
+    avoiding_circle_center[0].id = avoiding_circle_center[1].id = 0;
+    avoiding_circle_radius[0] = avoiding_circle_radius[1] = 0.0;
 }
 
 
@@ -1475,8 +1480,8 @@ static inline unsigned hash(double x, double y, double block_size, double min_x,
 {
     unsigned x_idx = (x-min_x) / len_x * block_size;
     unsigned y_idx = (y-min_y) / len_y * block_size;
-    return x_idx+y_idx*block_size;
     PDASSERT(x_idx < block_size && y_idx < block_size);
+    return x_idx+y_idx*block_size;
 }
 
 
@@ -2442,12 +2447,15 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
 
 inline bool Delaunay_Voronoi::is_triangle_valid(Triangle* tri)
 {
-    bool valid = true;
     if (avoiding_line_head[0].id && is_triangle_on_line(tri, &avoiding_line_head[0], &avoiding_line_tail[0]))
-        valid = false;
+        return false;
     if (avoiding_line_head[1].id && is_triangle_on_line(tri, &avoiding_line_head[1], &avoiding_line_tail[1]))
-        valid = false;
-    return valid;
+        return false;
+    if (avoiding_circle_center[0].id && is_triangle_in_circle(tri, avoiding_circle_center[0], avoiding_circle_radius[0]))
+        return false;
+    if (avoiding_circle_center[1].id && is_triangle_in_circle(tri, avoiding_circle_center[1], avoiding_circle_radius[1]))
+        return false;
+    return true;
 }
 
 
@@ -2484,6 +2492,14 @@ void Delaunay_Voronoi::set_avoiding_line(unsigned id, Point head, Point tail)
     avoiding_line_head[id] = head;
     avoiding_line_tail[id] = tail;
     avoiding_line_head[id].id = 1; // just a marking flag
+}
+
+
+void Delaunay_Voronoi::set_avoiding_circle(unsigned id, Point center, double radius)
+{
+    avoiding_circle_center[id] = center;
+    avoiding_circle_center[id].id = 1; // just a marking flag
+    avoiding_circle_radius[id] = radius;
 }
 
 

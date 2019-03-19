@@ -432,7 +432,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     //        reset_polars(ori_lat);
 
     if (rotated_expand_boundry && node_type == PDLN_NODE_TYPE_COMMON) {
-        if (expand_boundry->max_lon - expand_boundry->min_lon > 150) {
+        if (expand_boundry->max_lon - expand_boundry->min_lon > 90) {
             double radius;
             Point  circle_center;
             Point  boundary_head, boundary_tail;
@@ -442,7 +442,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->min_lat < 0) {
                 calculate_latitude_circle_projection(real_boundry->min_lat, &circle_center, &radius);
                 if(radius < 100) {
-                    //triangulation->remove_triangles_in_circle(circle_center, radius);
+                    triangulation->set_avoiding_circle(0, circle_center, radius);
                     calculate_cyclic_boundary_projection(PDLN_NODE_TYPE_SPOLAR, &boundary_head, &boundary_tail);
                     triangulation->set_avoiding_line(0, boundary_head, boundary_tail);
                 }
@@ -451,7 +451,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             if(PDLN_REMOVE_UNNECESSARY_TRIANGLES && real_boundry->max_lat > 0) {
                 calculate_latitude_circle_projection(real_boundry->max_lat, &circle_center, &radius);
                 if(radius < 100) {
-                    //triangulation->remove_triangles_in_circle(circle_center, radius);
+                    triangulation->set_avoiding_circle(1, circle_center, radius);
                     calculate_cyclic_boundary_projection(PDLN_NODE_TYPE_NPOLAR, &boundary_head, &boundary_tail);
                     triangulation->set_avoiding_line(1, boundary_head, boundary_tail);
                 }
@@ -2650,7 +2650,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
         local_leaf_nodes[i]->init_num_neighbors_on_boundry(1);
 
-    while(iter < 10) {
+    while(iter < 50) {
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
 

@@ -82,8 +82,10 @@ class Delaunay_Voronoi
         double checking_threshold;
         vector<Triangle_inline> bound_triangles[4];
         vector<pair<pair<Point, Point>, unsigned> > checksum_storage;
-        Point avoiding_line_head[2];
-        Point avoiding_line_tail[2];
+        Point  avoiding_line_head[2];
+        Point  avoiding_line_tail[2];
+        Point  avoiding_circle_center[2];
+        double avoiding_circle_radius[2];
 
 #ifdef DEBUG
         const double* x_store;
@@ -182,6 +184,7 @@ class Delaunay_Voronoi
         void remove_triangles_on_segment(Point, Point);
         void mark_cyclic_triangles();
         void set_avoiding_line(unsigned, Point, Point);
+        void set_avoiding_circle(unsigned, Point, double);
 
         void update_points_coord_y(double, vector<int> *);
         void remove_triangles_only_containing_virtual_polar();
