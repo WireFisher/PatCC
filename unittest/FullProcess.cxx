@@ -655,6 +655,7 @@ void prepare_dim1_grid(const char grid_name[])
     char lat_unit[32];
     int squeeze_ratio = 0;
 
+    grid_mask = NULL;
     if (mpi_rank == 0) {
         if(strncmp(grid_name, "ar9v4_100920.nc", 15) == 0)
             squeeze_ratio = 100;
