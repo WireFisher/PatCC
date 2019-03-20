@@ -256,6 +256,14 @@ class Triangle_ID_Only {
         friend bool operator == (Triangle_ID_Only, Triangle_ID_Only);
 };
 
+
+enum DISABLING_POINTS_METHOD {
+    NO_DISABLED_POINTS,
+    DISABLE_POINTS_BY_INDEX,
+    DISABLE_POINTS_BY_RANGE,
+};
+
+
 class Grid_info_manager {
 private:
     double *coord_values[2];
@@ -283,6 +291,7 @@ public:
     virtual void get_grid_boundry(int, double*, double*, double*, double*);
     virtual void set_grid_boundry(int, double, double, double, double);
     virtual bool is_grid_cyclic(int);
+    virtual void get_disabled_points_info(int, DISABLING_POINTS_METHOD*, int*, void*);
 };
 
 extern Grid_info_manager *grid_info_mgr;

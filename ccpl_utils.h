@@ -6,5 +6,6 @@
 
 extern void calculate_stereographic_projection(double, double, double, double, double &, double &);
 extern void fast_stereographic_projection(double, double, double, double, double, double, double, double, double, double, double, double&, double&);
+extern bool point_in_circle(double, double, double*);
 
 #endif

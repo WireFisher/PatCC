@@ -136,3 +136,13 @@ void fast_stereographic_projection(double lon_original, double lat_original,
     X *= 50.0;
     Y *= 50.0;
 }
+
+
+bool point_in_circle(double lon_deg, double lat_deg, double circle_data[3])
+{
+    double lon1 = DEGREE_TO_RADIAN(lon_deg);
+    double lat1 = DEGREE_TO_RADIAN(lat_deg);
+    double lon2 = DEGREE_TO_RADIAN(circle_data[0]);
+    double lat2 = DEGREE_TO_RADIAN(circle_data[1]);
+    return acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lon1 - lon2)) <= circle_data[2];
+}

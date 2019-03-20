@@ -1044,6 +1044,9 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     timeval start, end;
     double **coords;
     Boundry boundry;
+    DISABLING_POINTS_METHOD mask_method;
+    int num;
+    void *data;
 
     PDASSERT(processing_info != NULL);
 
@@ -1055,6 +1058,31 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     coord_values[0] = coords[0];
     coord_values[1] = coords[1];
 
+    grid_info_mgr->get_disabled_points_info(grid_id, &mask_method, &num, data);
+    if (mask_method == DISABLE_POINTS_BY_INDEX) {
+        mask = new bool[num_points];
+        memset(mask, 1, num_points);
+
+        int *disabled_idx = (int*) data;
+        for (int i = 0; i < num; i++)
+            mask[disabled_idx[i]] = false;
+
+    } else if (mask_method == DISABLE_POINTS_BY_RANGE) {
+        mask = new bool[num_points];
+
+        double *disabled_circle = (double*) data;
+        for (int j = 0; j < num_points; j++) {
+            mask[j] = true;
+            for (int i = 0; i < num; i++) {
+                if (point_in_circle(coord_values[0][j], coord_values[1][j], &disabled_circle[i*3])) {
+                    mask[j] = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    /* pre-calculate total points to make workload more accurate */
     num_inserted = calculate_num_inserted_points(&boundry, num_points);
     num_points += num_inserted;
 
@@ -3229,6 +3257,12 @@ double** Grid_info_manager::get_grid_coord_values(int grid_id)
 bool* Grid_info_manager::get_grid_mask(int grid_id)
 {
     return NULL;
+}
+
+
+void Grid_info_manager::get_disabled_points_info(int id, DISABLING_POINTS_METHOD *method, int *num, void *data)
+{
+    *method = NO_DISABLED_POINTS;
 }
 
 
