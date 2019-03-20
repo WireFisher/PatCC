@@ -31,7 +31,7 @@ public:
     MOCK_METHOD5(get_grid_boundry, void(int, double*, double*, double*, double*));
     MOCK_METHOD5(set_grid_boundry, void(int, double, double, double, double));
     MOCK_METHOD1(is_grid_cyclic, bool(int));
-    //MOCK_METHOD4(get_disabled_points_info, void(int, DISABLING_POINTS_METHOD*, int*, void*))
+    MOCK_METHOD4(get_disabled_points_info, void(int, DISABLING_POINTS_METHOD*, int*, void**));
 };
 
 using ::testing::Return;
@@ -49,24 +49,13 @@ static int num_points = 0;
 static double min_lat, max_lat, min_lon, max_lon;
 static bool is_cyclic = false;
 static MPI_Comm comm = MPI_COMM_WORLD;
+static DISABLING_POINTS_METHOD disabling_method = NO_DISABLED_POINTS;
+static int disabling_num = 0;
+static void* disabling_data = NULL;
 
-
-static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
-{
-    *mi_lon = min_lon;
-    *ma_lon = max_lon;
-    *mi_lat = min_lat;
-    *ma_lat = max_lat;
-}
-
-
-static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat)
-{
-    min_lon = mi_lon;
-    max_lon = ma_lon;
-    min_lat = mi_lat;
-    max_lat = ma_lat;
-}
+static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat);
+static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat);
+static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num, void** data);
 
 
 class FullProcess : public ::testing::Test
@@ -97,7 +86,10 @@ public:
         ON_CALL(*mock_grid_info_manager, set_grid_boundry(1, _, _, _, _))
             .WillByDefault(Invoke(set_boundry));
 
+        ON_CALL(*mock_grid_info_manager, get_disabled_points_info(1, _, _, _))
+            .WillByDefault(Invoke(get_disabled));
     }
+
     virtual void TearDown() {
         delete mock_process_thread_manager;
         delete mock_grid_info_manager;
@@ -709,12 +701,14 @@ void prepare_dim1_grid(const char grid_name[])
     }
 
     MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
     if (mpi_rank != 0) {
         coord_values[PDLN_LON] = new double[num_points];
         coord_values[PDLN_LAT] = new double[num_points];
         if (strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0)
             grid_mask = new bool[num_points];
     }
+
     MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -725,6 +719,14 @@ void prepare_dim1_grid(const char grid_name[])
 
     if (strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0)
         MPI_Bcast(grid_mask, num_points, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+    //double* circle = new double[3];
+    //circle[0] = 270;
+    //circle[1] = 45;
+    //circle[2] = 10;
+    //disabling_num = 1;
+    //disabling_data = circle;
+    disabling_method = NO_DISABLED_POINTS;
 
     assert(sizeof(bool) == 1);
 #ifdef TIME_PERF
@@ -1020,3 +1022,28 @@ TEST_F(FullProcess, Performance) {
         delete comp;
     }
 };
+
+
+static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
+{
+    *mi_lon = min_lon;
+    *ma_lon = max_lon;
+    *mi_lat = min_lat;
+    *ma_lat = max_lat;
+}
+
+
+static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat)
+{
+    min_lon = mi_lon;
+    max_lon = ma_lon;
+    min_lat = mi_lat;
+    max_lat = ma_lat;
+}
+
+static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num, void** data)
+{
+    *method = disabling_method;
+    *num = disabling_num;
+    *data = disabling_data;
+}
