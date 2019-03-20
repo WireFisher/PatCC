@@ -144,5 +144,5 @@ bool point_in_circle(double lon_deg, double lat_deg, double circle_data[3])
     double lat1 = DEGREE_TO_RADIAN(lat_deg);
     double lon2 = DEGREE_TO_RADIAN(circle_data[0]);
     double lat2 = DEGREE_TO_RADIAN(circle_data[1]);
-    return acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lon1 - lon2)) <= circle_data[2];
+    return acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lon1 - lon2)) <= DEGREE_TO_RADIAN(circle_data[2]);
 }

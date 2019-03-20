@@ -1058,7 +1058,7 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
     coord_values[0] = coords[0];
     coord_values[1] = coords[1];
 
-    grid_info_mgr->get_disabled_points_info(grid_id, &mask_method, &num, data);
+    grid_info_mgr->get_disabled_points_info(grid_id, &mask_method, &num, &data);
     if (mask_method == DISABLE_POINTS_BY_INDEX) {
         mask = new bool[num_points];
         memset(mask, 1, num_points);
@@ -3260,7 +3260,7 @@ bool* Grid_info_manager::get_grid_mask(int grid_id)
 }
 
 
-void Grid_info_manager::get_disabled_points_info(int id, DISABLING_POINTS_METHOD *method, int *num, void *data)
+void Grid_info_manager::get_disabled_points_info(int id, DISABLING_POINTS_METHOD *method, int *num, void **data)
 {
     *method = NO_DISABLED_POINTS;
 }

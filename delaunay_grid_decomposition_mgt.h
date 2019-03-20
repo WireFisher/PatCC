@@ -291,7 +291,7 @@ public:
     virtual void get_grid_boundry(int, double*, double*, double*, double*);
     virtual void set_grid_boundry(int, double, double, double, double);
     virtual bool is_grid_cyclic(int);
-    virtual void get_disabled_points_info(int, DISABLING_POINTS_METHOD*, int*, void*);
+    virtual void get_disabled_points_info(int, DISABLING_POINTS_METHOD*, int*, void**);
 };
 
 extern Grid_info_manager *grid_info_mgr;
