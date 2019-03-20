@@ -175,6 +175,57 @@ void prepare_three_polar_grid()
     is_cyclic = true;
 }
 
+
+void prepare_big_three_polar_grid()
+{
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+    bool squeeze = true;
+
+    read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "x_N", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+    delete dim_size_ptr;
+    read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "y_N", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+    delete dim_size_ptr;
+    assert(field_size == field_size2);
+    num_points = field_size;
+    coord_values[PDLN_LON] = (double*)coord_buf0;
+    coord_values[PDLN_LAT] = (double*)coord_buf1;
+
+    for(int i = 0; i < num_points; i++) {
+        while(coord_values[PDLN_LON][i] < 0.0)
+            coord_values[PDLN_LON][i] += 360.0;
+        while(coord_values[PDLN_LON][i] >= 360.0)
+            coord_values[PDLN_LON][i] -= 360.0;
+    }
+
+    for(int i = 0; i < num_points; i++)
+        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_ABS_TOLERANCE) {
+            coord_values[PDLN_LON][i] = 0.0;
+        }
+
+    delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+    assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
+
+    if(squeeze) {
+        for(int i = 0; i < num_points/100; i++) {
+            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
+            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+        }
+        num_points /= 100;
+    }
+
+    min_lon =   0.0;
+    max_lon = 360.0;
+    min_lat = -83.0;
+    max_lat =  90.0;
+
+    is_cyclic = true;
+}
+
+
 void prepare_latlon_grid()
 {
     int num_dims;
@@ -512,6 +563,56 @@ TEST_F(FullProcess, ThreePolar) {
 };
 
 
+TEST_F(FullProcess, ThreePolarBig) {
+    comm = MPI_COMM_WORLD;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    prepare_big_three_polar_grid();
+
+    Component* comp;
+    comp = new Component(0);
+    comp->register_grid(new Grid(1));
+    comp->generate_delaunay_trianglulation(1, true);
+
+    delete comp;
+
+    if (mpi_size/3 > 1)
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
+
+    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+        comp = new Component(1);
+        comp->register_grid(new Grid(1));
+        comp->generate_delaunay_trianglulation(1, true);
+
+        delete comp;
+
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
+
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+
+            if(strncmp(md5[0], md5[1], 64) == 0) {
+                char cmd[256];
+                snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_big_three_poles.png");
+                system(cmd);
+                snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_big_three_poles.png");
+                system(cmd);
+            }
+        }
+        MPI_Barrier(comm);
+    }
+};
+
+
 #define CHECK_PARALLEL_CONSISTENCY (true)
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
@@ -794,13 +895,9 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             delete comp;
 
             if (mpi_rank == 0) {
-                int new_mpi_size;
-                MPI_Comm_size(split_world, &new_mpi_size);
 
                 FILE *fp;
-                char fmt[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-                char cmd[256];
-                snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+                char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
                 char md5[2][64];
                 memset(md5[0], 0, 64);
