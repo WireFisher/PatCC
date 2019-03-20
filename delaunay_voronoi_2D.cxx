@@ -1286,10 +1286,9 @@ static int compare_node_index(const void* a, const void* b)
 
 void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head, int* tail)
 {
-    const unsigned max_leaf_triangles = 256;
     unsigned count;
     unsigned i;
-    int head_tail[max_leaf_triangles*2]; // [head1, tail1, head2, tail2, ...]
+    int* head_tail = (int*) alloca(sizeof(int) * (top - base) * 2); // [head1, tail1, head2, tail2, ...]
 
     for (i = base+1, count = 0; i <= top; i ++)
         if (triangle_stack[i] && !triangle_stack[i]->is_leaf && triangle_stack[i]->remained_points_tail > -1) {
@@ -1297,7 +1296,6 @@ void Delaunay_Voronoi::link_remained_list(unsigned base, unsigned top, int* head
             head_tail[count * 2 + 1] = triangle_stack[i]->remained_points_tail;
             count++;
         }
-    PDASSERT(count <= max_leaf_triangles);
 
 #ifdef DEBUG
     bool* map = new bool[num_points]();
