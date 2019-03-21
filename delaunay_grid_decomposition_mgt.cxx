@@ -322,7 +322,7 @@ extern double global_p_lon[4];
 extern double global_p_lat[4];
 #define PDLN_INSERT_VIRTUAL_POINT (true)
 #define PDLN_REMOVE_UNNECESSARY_TRIANGLES (true)
-void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inserted)
+void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inserted, bool is_fine_grid)
 {
     timeval start, end;
     gettimeofday(&start, NULL);
@@ -351,9 +351,17 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         memcpy(ori_mask+num_kernel_points, expand_mask, sizeof(bool)*num_expand_points);
     }
 
+    //for(int i = 0; i < num_kernel_points + num_expand_points; i++)
+    //    printf("%.20lf, %.20lf. (%.20lf, %.20lf)\n", ori_lon[i], ori_lat[i], projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
+
+#ifdef DEBUG
+    if (rotated_expand_boundry)
+        report_redundent_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], ori_idx, num_kernel_points+num_expand_points);
+#endif
+
     /*
     char filename[64];
-    snprintf(filename, 64, "log/original_input_points_%d.png", region_id);
+    snprintf(filename, 64, "log/chunk_input_points_%d.png", region_id);
     plot_points_into_file(filename, ori_lon, ori_lat, ori_mask, num_kernel_points + num_expand_points, PDLN_PLOT_GLOBAL);
     */
 
@@ -361,6 +369,9 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         /* Case: first triangulation */
         triangulation = new Delaunay_Voronoi();
         triangulation->set_virtual_polar_index(virtual_point_local_index);
+
+        if (is_fine_grid)
+            triangulation->set_tolerance(1e-8);
 
         if (fast_triangulate) {
             triangulation->set_origin_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
@@ -1124,7 +1135,13 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(int grid_id, Processing
         snprintf(filename, 64, "log/original_input_points.png");
         plot_points_into_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], mask, num_points, PDLN_PLOT_GLOBAL);
     }
+
+    if(processing_info->get_local_process_id() == 0) {
+        for (int i = 0; i < num_points; i ++)
+            printf("%lf, %lf, %d\n", coord_values[PDLN_LON][i], coord_values[PDLN_LAT][i], global_index[i]);
+    }
     */
+
     initialze_buffer();
 }
 
@@ -2761,7 +2778,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 continue;
             for(unsigned cur = i;;) {
                 if (!is_local_leaf_node_finished[cur])
-                    local_leaf_nodes[cur]->generate_local_triangulation(is_cyclic, num_inserted);
+                    local_leaf_nodes[cur]->generate_local_triangulation(is_cyclic, num_inserted, num_points > 1e6);
                 cur = local_leaf_nodes[cur]->bind_with;
                 if (cur == 0) break;
             }
@@ -2975,7 +2992,7 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_inlin
         delete_redundent_triangles(triangles, num_triangles);
         num_different_triangles = num_triangles;
     }
-   
+
 #ifndef TIME_PERF 
     char file_fmt[] = "log/global_triangles_%d";
     char filename[64];
@@ -3012,6 +3029,7 @@ void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
     /* Let n be the number of points, if there are b vertices on the convex hull,
      * then any triangulation of the points has at most 2n − 2 − b triangles,
      * plus one exterior face */
+
     int local_buf_len = 0;
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
         local_buf_len += local_leaf_nodes[i]->num_kernel_points * 3 * 2;

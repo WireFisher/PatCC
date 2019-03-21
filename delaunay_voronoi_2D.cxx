@@ -701,11 +701,11 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
 
 #ifdef DEBUG
         if(float_eq_hi(det(pt1, pt2, pt3), 0) || float_eq_hi(det(pt2, pt3, pt1), 0) || float_eq_hi(det(pt3, pt1, pt2), 0)) {
-            printf("(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
-            printf("std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
+            fprintf(stderr, "(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
+            fprintf(stderr, "std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
                                                                                                                                std::fabs(det(pt2, pt3, pt1)),
                                                                                                                                std::fabs(det(pt3, pt1, pt2)));
-            while(true);
+            PDASSERT(false);
         }
 #endif
         /* if there are unmarked redundant points, the PDASSERTion may fail */
@@ -1982,17 +1982,25 @@ void Delaunay_Voronoi::set_checksum_bound(double min_x, double max_x, double min
 }
 
 
+static inline unsigned long long hash_two_double(double a, double b)
+{
+    unsigned long long *aa = reinterpret_cast<unsigned long long*>(&a);
+    unsigned long long *bb = reinterpret_cast<unsigned long long*>(&b);
+    return (*aa > 1) ^ *bb;
+}
+
+
 bool have_redundent_points(const double *x, const double *y, int num)
 {
-    std::tr1::unordered_map<double, std::list<int> > hash_table;
-    std::tr1::unordered_map<double, std::list<int> >::iterator it_hash;
+    std::tr1::unordered_map<unsigned long long, std::list<int> > hash_table;
+    std::tr1::unordered_map<unsigned long long, std::list<int> >::iterator it_hash;
 
     if(num == 0)
         return false;
 
     bool have_redundent = false;
     for(int i = 0; i < num; i++) {
-        it_hash = hash_table.find(x[i] * 1000.0 + y[i]);
+        it_hash = hash_table.find(hash_two_double(x[i], y[i]));
         if(it_hash != hash_table.end()) {
             bool same = false;
             for(std::list<int>::iterator it_list = it_hash->second.begin(); it_list != it_hash->second.end(); it_list ++)
@@ -2001,7 +2009,7 @@ bool have_redundent_points(const double *x, const double *y, int num)
                     break;
                 }
             if(same){
-                printf("redundent_point: %lf, %lf\n", x[i], y[i]);
+                printf("redundent_point: %.20lf, %.20lf\n", x[i], y[i]);
                 have_redundent = true;
             }
             else {
@@ -2009,7 +2017,7 @@ bool have_redundent_points(const double *x, const double *y, int num)
             }
         }
         else {
-            hash_table[x[i] * 1000.0 + y[i]].push_back(i);
+            hash_table[hash_two_double(x[i], y[i])].push_back(i);
         }
     }
 
@@ -2017,6 +2025,35 @@ bool have_redundent_points(const double *x, const double *y, int num)
         return true;
 
     return false;
+}
+
+
+void report_redundent_points(const double *x, const double *y, const int *index, int num)
+{
+    std::tr1::unordered_map<unsigned long long, std::list<int> > hash_table;
+    std::tr1::unordered_map<unsigned long long, std::list<int> >::iterator it_hash;
+
+    if (num == 0)
+        return;
+
+    bool have_redundent = false;
+    for (int i = 0; i < num; i++) {
+        it_hash = hash_table.find(hash_two_double(x[i], y[i]));
+        if (it_hash != hash_table.end()) {
+            bool same = false;
+            for (std::list<int>::iterator it_list = it_hash->second.begin(); it_list != it_hash->second.end(); it_list ++)
+                if (x[*it_list] == x[i] && y[*it_list] == y[i]) {
+                    same = true;
+                    have_redundent = true;
+                    printf("Point %d same as point %d: %.20lf, %.20lf\n", index[*it_list], index[i], x[i], y[i]);
+                    break;
+                }
+            if (!same)
+                it_hash->second.push_back(i);
+        } else {
+            hash_table[hash_two_double(x[i], y[i])].push_back(i);
+        }
+    }
 }
 
 
@@ -2319,8 +2356,17 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
     char filename[64];
     int rank;
     MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
+    snprintf(filename, 64, "log/image_boundary_triangles_%d_%x", rank, checksum);
     plot_triangles_into_file(filename, plot_triangles, size_plot);
+
+    snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
+    FILE* fp = fopen(filename, "w");
+    for (int i = 0; i < size_plot; i++)
+        fprintf(fp, "%d, %d, %d\n", plot_triangles[i].v[0].id, 
+                                    plot_triangles[i].v[1].id,
+                                    plot_triangles[i].v[2].id);
+    fclose(fp);
+
     delete[] plot_triangles;
     */
 

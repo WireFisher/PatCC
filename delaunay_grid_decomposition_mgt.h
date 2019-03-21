@@ -124,7 +124,7 @@ public:
 
     /* Triangulation */
     void project_grid();
-    void generate_local_triangulation(bool, int);
+    void generate_local_triangulation(bool, int, bool);
 
     /* Expanding */
     Boundry expand();

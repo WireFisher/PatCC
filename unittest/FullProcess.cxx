@@ -183,39 +183,46 @@ void prepare_big_three_polar_grid()
     int field_size;
     int field_size2;
     void *coord_buf0, *coord_buf1;
-    bool squeeze = true;
+    bool squeeze = false;
 
-    read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "x_N", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
-    delete dim_size_ptr;
-    read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "y_N", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
-    delete dim_size_ptr;
-    assert(field_size == field_size2);
-    num_points = field_size;
-    coord_values[PDLN_LON] = (double*)coord_buf0;
-    coord_values[PDLN_LAT] = (double*)coord_buf1;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    if (mpi_rank == 0) {
+        read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "x_T", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+        delete dim_size_ptr;
+        read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "y_T", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+        delete dim_size_ptr;
+        assert(field_size == field_size2);
+        num_points = field_size;
+        coord_values[PDLN_LON] = (double*)coord_buf0;
+        coord_values[PDLN_LAT] = (double*)coord_buf1;
 
-    for(int i = 0; i < num_points; i++) {
-        while(coord_values[PDLN_LON][i] < 0.0)
-            coord_values[PDLN_LON][i] += 360.0;
-        while(coord_values[PDLN_LON][i] >= 360.0)
-            coord_values[PDLN_LON][i] -= 360.0;
-    }
-
-    for(int i = 0; i < num_points; i++)
-        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_ABS_TOLERANCE) {
-            coord_values[PDLN_LON][i] = 0.0;
+        for(int i = 0; i < num_points; i++) {
+            while(coord_values[PDLN_LON][i] < 0.0)
+                coord_values[PDLN_LON][i] += 360.0;
+            while(coord_values[PDLN_LON][i] >= 360.0)
+                coord_values[PDLN_LON][i] -= 360.0;
         }
 
-    delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
-    assert(have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points) == false);
+        delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
 
-    if(squeeze) {
-        for(int i = 0; i < num_points/100; i++) {
-            coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
-            coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+        if(squeeze) {
+            for(int i = 0; i < num_points/100; i++) {
+                coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
+                coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+            }
+            num_points /= 100;
         }
-        num_points /= 100;
     }
+
+    MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (mpi_rank != 0) {
+        coord_values[PDLN_LON] = new double[num_points];
+        coord_values[PDLN_LAT] = new double[num_points];
+    }
+
+    MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     min_lon =   0.0;
     max_lon = 360.0;
@@ -223,6 +230,28 @@ void prepare_big_three_polar_grid()
     max_lat =  90.0;
 
     is_cyclic = true;
+
+    double* circle = new double[6];
+    disabling_method = DISABLE_POINTS_BY_RANGE;
+    disabling_num = 2;
+    circle[0] = 80;
+    circle[1] = 65.6;
+    circle[2] = 0.75;
+    circle[3] = 260;
+    circle[4] = 65.6;
+    circle[5] = 0.75;
+    disabling_data = circle;
+
+    //int disabled_idx[] = {6191765, 6191778, 6191789};
+    //int* disabled_idx = new int[3];
+    //disabling_method = NO_DISABLED_POINTS;
+    //disabling_num = 0;
+    //disabled_idx[0] = 6191765;
+    //disabled_idx[1] = 6191778;
+    //disabled_idx[2] = 6191789;
+    //disabling_data = disabled_idx;
+
+    printf("num of points: %d\n", num_points);
 }
 
 
@@ -571,6 +600,7 @@ TEST_F(FullProcess, ThreePolarBig) {
 
     prepare_big_three_polar_grid();
 
+    printf("processing...\n");
     Component* comp;
     comp = new Component(0);
     comp->register_grid(new Grid(1));
@@ -582,6 +612,7 @@ TEST_F(FullProcess, ThreePolarBig) {
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+        printf("part of processes...\n");
         comp = new Component(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);

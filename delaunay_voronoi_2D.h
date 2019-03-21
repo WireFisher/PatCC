@@ -40,6 +40,7 @@ void sort_points_in_triangle(Triangle_inline*, int);
 void sort_triangles(Triangle_inline*, int);
 
 bool have_redundent_points(const double*, const double*, int);
+void report_redundent_points(const double *, const double *, const int *, int);
 void delete_redundent_points(double *&x, double *&y, int &num);
 
 struct Bound;
@@ -167,6 +168,7 @@ class Delaunay_Voronoi
         bool try_fast_triangulate(double, double, double, double);
         void set_checksum_bound(double, double, double, double, double);
         void set_polar_mode(bool);
+        void set_tolerance(double t) {tolerance = t; };
 
         bool is_all_leaf_triangle_legal();
         void get_triangles_in_region(double, double, double, double, Triangle_inline *, int *, int);

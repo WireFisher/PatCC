@@ -103,6 +103,7 @@ static inline void calculate_unit_vectors(double t_x, double t_y, double t_z,
 }
 
 
+const double multip_ratio = 100;
 void calculate_stereographic_projection(double lon_original, double lat_original, double lon_tan, double lat_tan, double &X, double &Y)
 {
     double q_x, q_y, q_z;
@@ -115,8 +116,8 @@ void calculate_stereographic_projection(double lon_original, double lat_original
     X = q_x * e1_x + q_y * e1_y + q_z * e1_z;
     Y = q_x * e2_x + q_y * e2_y + q_z * e2_z;
 
-    X *= 50.0;
-    Y *= 50.0;
+    X *= multip_ratio;
+    Y *= multip_ratio;
 }
 
 
@@ -133,8 +134,8 @@ void fast_stereographic_projection(double lon_original, double lat_original,
     X = q_x * e1_x + q_y * e1_y + q_z * e1_z;
     Y = q_x * e2_x + q_y * e2_y + q_z * e2_z;
 
-    X *= 50.0;
-    Y *= 50.0;
+    X *= multip_ratio;
+    Y *= multip_ratio;
 }
 
 
