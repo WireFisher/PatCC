@@ -2275,7 +2275,7 @@ void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, doub
 
 static inline unsigned hash_triangle_by_id(Triangle_inline triangle)
 {
-    return triangle.v[0].id ^ (triangle.v[1].id << 10) ^ (triangle.v[2].id << 20);
+    return (((triangle.v[0].id << 3) ^ triangle.v[1].id ) << 3) ^ triangle.v[2].id;
 }
 
 
