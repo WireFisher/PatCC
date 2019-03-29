@@ -70,7 +70,7 @@ class Triangle
         int      remained_points_head;
         int      remained_points_tail;
         double   circum_center[2];
-        double   circum_radius;
+        double   circum_radius2;
         int      stack_ref_count;
 
         int  circum_circle_contains(Point*, Point*, double tolerance=PDLN_ABS_TOLERANCE);

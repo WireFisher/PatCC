@@ -2719,15 +2719,15 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 }
             }
         }
-
-        int ret = 0;
-        #pragma omp parallel for shared(ret)
+        int all_threads_ret = 0;
+        #pragma omp parallel for shared(all_threads_ret)
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
-            if(!is_local_leaf_node_finished[i])
-                ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+            if(!is_local_leaf_node_finished[i]) {
+                all_threads_ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+            }
 
         int all_ret = 0;
-        MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_BOR, processing_info->get_mpi_comm());
+        MPI_Allreduce(&all_threads_ret, &all_ret, 1, MPI_UNSIGNED, MPI_BOR, processing_info->get_mpi_comm());
 
         gettimeofday(&end, NULL);
 

@@ -673,7 +673,7 @@ void Triangle::calulate_circum_circle(const Point* v0, const Point* v1, const Po
                        (v0->x * (v2->y - v1->y) + v1->x * (v0->y - v2->y) + v2->x * (v1->y - v0->y)) * 0.5;
     circum_center[1] = (ab * (v2->x - v1->x) + cd * (v0->x - v2->x) + ef * (v1->x - v0->x)) /
                        (v0->y * (v2->x - v1->x) + v1->y * (v0->x - v2->x) + v2->y * (v1->x - v0->x)) * 0.5;
-    circum_radius = sqrt(((v0->x - circum_center[0]) * (v0->x - circum_center[0])) + ((v0->y - circum_center[1]) * (v0->y - circum_center[1])));
+    circum_radius2 = ((v0->x - circum_center[0]) * (v0->x - circum_center[0])) + ((v0->y - circum_center[1]) * (v0->y - circum_center[1]));
 }
 
 
@@ -800,20 +800,14 @@ void Delaunay_Voronoi::initialize_edge(Edge* e, int head, int tail)
  */
 int Triangle::circum_circle_contains(Point* whole_points, Point *p, double tolerance)
 {
-    //calulate_circum_circle();
     double dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
-    double radius2 = circum_radius*circum_radius;
-    //if (std::fabs(dist2 - circum_radius*circum_radius) < tolerance)
-    //    printf("first in\n");
-    //else
-    //    printf("first out, %.15lf, %.15lf\n", dist2, circum_radius*circum_radius);
     //if(std::fabs(dist2 - circum_radius*circum_radius) < tolerance &&
-    if(relative_eq_int(dist2, radius2, tolerance) &&
+    if(relative_eq_int(dist2, circum_radius2, tolerance) &&
        really_on_circum_circle(whole_points, p, tolerance))
         return 0;
-    else if(dist2 < circum_radius*circum_radius)
+    else if(dist2 < circum_radius2)
         return 1;
-    else // (dist > circum_radius)
+    else
         return -1;
 }
 
