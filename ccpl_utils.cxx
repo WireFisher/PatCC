@@ -80,28 +80,6 @@ static inline void calculate_unit_vectors(double t_lon, double t_lat,
     normalize_vector(v2_x, v2_y, v2_z);
 }
 
-/*
-static inline void calculate_unit_vectors(double t_x, double t_y, double t_z,
-                                          PAT_REAL *v1_x, PAT_REAL *v1_y, PAT_REAL *v1_z,
-                                          PAT_REAL *v2_x, PAT_REAL *v2_y, PAT_REAL *v2_z)
-{
-    PAT_REAL axis_x = 1.0;
-    PAT_REAL axis_y = 0.0;
-    PAT_REAL axis_z = 0.0;
-
-    *v1_x = t_y * axis_z - t_z * axis_y;
-    *v1_y = t_z * axis_x - t_x * axis_z;
-    *v1_z = t_x * axis_y - t_y * axis_x;
-
-    normalize_vector(v1_x, v1_y, v1_z);
-
-    *v2_x = t_y * *v1_z - t_z * *v1_y;
-    *v2_y = t_z * *v1_x - t_x * *v1_z;
-    *v2_z = t_x * *v1_y - t_y * *v1_x;
-
-    normalize_vector(v2_x, v2_y, v2_z);
-}
-*/
 
 const PAT_REAL multip_ratio = 100;
 void calculate_stereographic_projection(double p_lon, double p_lat, double t_lon, double t_lat, PAT_REAL &X, PAT_REAL &Y)

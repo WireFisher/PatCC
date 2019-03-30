@@ -937,9 +937,9 @@ void Search_tree_node::add_neighbors(vector<Search_tree_node*> ns)
 
 static inline void lonlat2xyz(double lon, double lat, PAT_REAL *x, PAT_REAL *y, PAT_REAL *z)
 {
-    *x = cos(DEGREE_TO_RADIAN(lat)) * sin(DEGREE_TO_RADIAN(lon));
-    *y = sin(DEGREE_TO_RADIAN(lat));
-    *z = cos(DEGREE_TO_RADIAN(lat)) * cos(DEGREE_TO_RADIAN(lon));
+    *x = cosl(DEGREE_TO_RADIAN(lat)) * sinl(DEGREE_TO_RADIAN(lon));
+    *y = sinl(DEGREE_TO_RADIAN(lat));
+    *z = cosl(DEGREE_TO_RADIAN(lat)) * cosl(DEGREE_TO_RADIAN(lon));
 }
 
 
