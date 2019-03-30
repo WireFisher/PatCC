@@ -649,7 +649,6 @@ const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
     /*
     */
-    "mom_h2d_T_grid@mom.nc",
     "ne30np4-t2.nc",
     "ne60np4_pentagons_100408.nc",
     "gx3v5_Present_DP_x3.nc",
@@ -675,6 +674,7 @@ const char dim1_grid_name[][64] = {
     "CUBE_grid_0.3.nc",
     "CUBE_grid_0.1.nc",
     /*
+    "mom_h2d_T_grid@mom.nc",
     */
 };
 const char dim1_global_grid_name[][64] = {
@@ -693,7 +693,6 @@ const char dim1_global_grid_name[][64] = {
     "CUBE_grid_1.nc",
     "CUBE_grid_0.3.nc",
     "CUBE_grid_0.1.nc",
-    "mom_h2d_T_grid@mom.nc",
 };
 
 
@@ -811,6 +810,12 @@ void prepare_dim1_grid(const char grid_name[])
         if(strncmp(grid_name, "wr50a_090301.nc", 64) == 0) {
             min_lon = -180;
             max_lon = 180;
+            max_lat = 90;
+        }
+        if(strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0) {
+            min_lon = 0;
+            max_lon = 360;
+            min_lat = -83;
             max_lat = 90;
         }
 
