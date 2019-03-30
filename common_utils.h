@@ -33,6 +33,9 @@
 #define relative_eq(a, b)       relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE)
 #define relative_eq_hi(a, b)    relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE_HI)
 
+typedef long double PAT_REAL;
+typedef __int128_t PAT_INT;
+
 class PDLN_Timer
 {
     public:

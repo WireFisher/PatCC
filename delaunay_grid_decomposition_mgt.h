@@ -56,18 +56,19 @@ private:
 
     Boundry* kernel_boundry;
     Boundry* expand_boundry;
-    Boundry* rotated_kernel_boundry;
+    Boundry* rotated_kernel_boundry; //TODO:Change name
     Boundry* rotated_expand_boundry;
     Boundry* real_boundry;
 
-    double  center[2];
-    double* kernel_coord[2];
-    double* expand_coord[2];
+    double    center[2];
+    double*   kernel_coord[2];
+    double*   expand_coord[2];
+    PAT_REAL* projected_coord[2];
+
     int*    kernel_index;
     int*    expand_index;
     bool*   kernel_mask;
     bool*   expand_mask;
-    double* projected_coord[2];
 
     int     len_expand_coord_buf;
     int     num_kernel_points;
