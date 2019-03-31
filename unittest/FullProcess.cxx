@@ -241,17 +241,6 @@ void prepare_big_three_polar_grid()
     circle[4] = 65.6;
     circle[5] = 0.75;
     disabling_data = circle;
-
-    //int disabled_idx[] = {6191765, 6191778, 6191789};
-    //int* disabled_idx = new int[3];
-    //disabling_method = NO_DISABLED_POINTS;
-    //disabling_num = 0;
-    //disabled_idx[0] = 6191765;
-    //disabled_idx[1] = 6191778;
-    //disabled_idx[2] = 6191789;
-    //disabling_data = disabled_idx;
-
-    printf("num of points: %d\n", num_points);
 }
 
 
@@ -397,18 +386,18 @@ TEST_F(FullProcess, Basic) {
         int new_mpi_size;
         MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
@@ -443,18 +432,18 @@ TEST_F(FullProcess, LatLonGrid) {
         int new_mpi_size;
         MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
@@ -487,18 +476,18 @@ TEST_F(FullProcess, LatLonSinglePolar) {
         int new_mpi_size;
         MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
@@ -532,18 +521,18 @@ TEST_F(FullProcess, LatLonMutiPolars) {
         int new_mpi_size;
         MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
@@ -576,18 +565,18 @@ TEST_F(FullProcess, ThreePolar) {
         int new_mpi_size;
         MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
@@ -931,7 +920,6 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             delete comp;
 
             if (mpi_rank == 0) {
-
                 FILE *fp;
                 char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
