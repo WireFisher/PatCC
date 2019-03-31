@@ -27,7 +27,7 @@
 #define float_eq(a, b)     (fabs(a - b) <= PDLN_ABS_TOLERANCE)
 #define float_eq_hi(a, b)  (fabs(a - b) <= PDLN_ABS_TOLERANCE_HI)
 
-#define relative_eq_int(a, b, t) (fabs((double)a - (double)b)/(fabs((double)a) + fabs((double)b)) <= t)
+#define relative_eq_int(a, b, t) (std::fabs(a - b)/(std::fabs(a) + std::fabs(b)) <= t)
 
 #define relative_eq_low(a, b)   relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE_LOW)
 #define relative_eq(a, b)       relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE)

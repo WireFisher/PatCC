@@ -82,7 +82,7 @@ static inline void calculate_unit_vectors(double t_lon, double t_lat,
 
 
 const PAT_REAL multip_ratio = 100;
-void calculate_stereographic_projection(double p_lon, double p_lat, double t_lon, double t_lat, PAT_REAL &X, PAT_REAL &Y)
+void calculate_stereographic_projection(double p_lon, double p_lat, double t_lon, double t_lat, double &X, double &Y)
 {
     PAT_REAL q_x, q_y, q_z;
     PAT_REAL e1_x, e1_y, e1_z;
@@ -91,11 +91,8 @@ void calculate_stereographic_projection(double p_lon, double p_lat, double t_lon
     stereo_lonlat2xyz(p_lon, p_lat, t_lon, t_lat, &q_x, &q_y, &q_z);
     calculate_unit_vectors(t_lon, t_lat, &e1_x, &e1_y, &e1_z, &e2_x, &e2_y, &e2_z);
 
-    X = q_x * e1_x + q_y * e1_y + q_z * e1_z;
-    Y = q_x * e2_x + q_y * e2_y + q_z * e2_z;
-
-    X *= multip_ratio;
-    Y *= multip_ratio;
+    X = (q_x * e1_x + q_y * e1_y + q_z * e1_z) * multip_ratio;
+    Y = (q_x * e2_x + q_y * e2_y + q_z * e2_z) * multip_ratio;
 }
 
 
@@ -109,17 +106,14 @@ void fast_stereographic_projection(double p_lon, double p_lat,
                                    PAT_REAL t_x, PAT_REAL t_y, PAT_REAL t_z,
                                    PAT_REAL e1_x, PAT_REAL e1_y, PAT_REAL e1_z,
                                    PAT_REAL e2_x, PAT_REAL e2_y, PAT_REAL e2_z,
-                                   PAT_REAL &X, PAT_REAL &Y)
+                                   double &X, double &Y)
 {
     PAT_REAL q_x, q_y, q_z;
 
     fast_stereo_lonlat2xyz(p_lon, p_lat, t_x, t_y, t_z, &q_x, &q_y, &q_z);
 
-    X = q_x * e1_x + q_y * e1_y + q_z * e1_z;
-    Y = q_x * e2_x + q_y * e2_y + q_z * e2_z;
-
-    X *= multip_ratio;
-    Y *= multip_ratio;
+    X = (q_x * e1_x + q_y * e1_y + q_z * e1_z) * multip_ratio;
+    Y = (q_x * e2_x + q_y * e2_y + q_z * e2_z) * multip_ratio;
 }
 
 

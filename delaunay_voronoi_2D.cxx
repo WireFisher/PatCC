@@ -150,17 +150,6 @@ Point::Point(double x, double y, int id, bool msk, int fd, int bk)
 }
 
 
-Point::Point(PAT_REAL x, PAT_REAL y, int id, bool msk, int fd, int bk)
-    : x(x)
-    , y(y)
-    , id(id)
-    , mask(msk)
-    , next(fd)
-    , prev(bk)
-{
-}
-
-
 double Point::calculate_distance(const Point *pt) const
 {
     double dx = pt->x - x;
@@ -680,11 +669,11 @@ void Triangle::calulate_circum_circle(const Point* v0, const Point* v1, const Po
     cd = ((PAT_REAL)v1->x * (PAT_REAL)v1->x) + ((PAT_REAL)v1->y * (PAT_REAL)v1->y);
     ef = ((PAT_REAL)v2->x * (PAT_REAL)v2->x) + ((PAT_REAL)v2->y * (PAT_REAL)v2->y);
 
-    circum_center[0] = (ab * (v2->y - v1->y) + cd * (v0->y - v2->y) + ef * (v1->y - v0->y)) /
-                       (v0->x * (v2->y - v1->y) + v1->x * (v0->y - v2->y) + v2->x * (v1->y - v0->y)) * 0.5;
-    circum_center[1] = (ab * (v2->x - v1->x) + cd * (v0->x - v2->x) + ef * (v1->x - v0->x)) /
-                       (v0->y * (v2->x - v1->x) + v1->y * (v0->x - v2->x) + v2->y * (v1->x - v0->x)) * 0.5;
-    circum_radius2 = ((v0->x - circum_center[0]) * (v0->x - circum_center[0])) + ((v0->y - circum_center[1]) * (v0->y - circum_center[1]));
+    circum_center[0] = (ab * ((PAT_REAL)v2->y - (PAT_REAL)v1->y) + cd * ((PAT_REAL)v0->y - (PAT_REAL)v2->y) + ef * ((PAT_REAL)v1->y - (PAT_REAL)v0->y)) /
+                       ((PAT_REAL)v0->x * ((PAT_REAL)v2->y - (PAT_REAL)v1->y) + (PAT_REAL)v1->x * ((PAT_REAL)v0->y - (PAT_REAL)v2->y) + (PAT_REAL)v2->x * ((PAT_REAL)v1->y - (PAT_REAL)v0->y)) * 0.5;
+    circum_center[1] = (ab * ((PAT_REAL)v2->x - (PAT_REAL)v1->x) + cd * ((PAT_REAL)v0->x - (PAT_REAL)v2->x) + ef * ((PAT_REAL)v1->x - (PAT_REAL)v0->x)) /
+                       ((PAT_REAL)v0->y * ((PAT_REAL)v2->x - (PAT_REAL)v1->x) + (PAT_REAL)v1->y * ((PAT_REAL)v0->x - (PAT_REAL)v2->x) + (PAT_REAL)v2->y * ((PAT_REAL)v1->x - (PAT_REAL)v0->x)) * 0.5;
+    circum_radius2 = (((PAT_REAL)v0->x - circum_center[0]) * ((PAT_REAL)v0->x - circum_center[0])) + (((PAT_REAL)v0->y - circum_center[1]) * ((PAT_REAL)v0->y - circum_center[1]));
 }
 
 
@@ -811,7 +800,7 @@ void Delaunay_Voronoi::initialize_edge(Edge* e, int head, int tail)
  */
 int Triangle::circum_circle_contains(Point* whole_points, Point *p, double tolerance)
 {
-    PAT_REAL dist2 = ((p->x - circum_center[0]) * (p->x - circum_center[0])) + ((p->y - circum_center[1]) * (p->y - circum_center[1]));
+    PAT_REAL dist2 = (((PAT_REAL)p->x - circum_center[0]) * ((PAT_REAL)p->x - circum_center[0])) + (((PAT_REAL)p->y - circum_center[1]) * ((PAT_REAL)p->y - circum_center[1]));
 
     if(relative_eq_int(dist2, circum_radius2, tolerance) &&
        really_on_circum_circle(whole_points, p, tolerance))
@@ -844,12 +833,12 @@ bool Triangle::really_on_circum_circle(Point* whole_points, Point *p, double tol
     PAT_REAL ef = ((PAT_REAL)pt[2]->x * (PAT_REAL)pt[2]->x) + ((PAT_REAL)pt[2]->y * (PAT_REAL)pt[2]->y);
 
     PAT_REAL center[2];
-    center[0] = (ab * (pt[2]->y - pt[1]->y) + cd * (pt[0]->y - pt[2]->y) + ef * (pt[1]->y - pt[0]->y)) /
-                       (pt[0]->x * (pt[2]->y - pt[1]->y) + pt[1]->x * (pt[0]->y - pt[2]->y) + pt[2]->x * (pt[1]->y - pt[0]->y)) * 0.5;
-    center[1] = (ab * (pt[2]->x - pt[1]->x) + cd * (pt[0]->x - pt[2]->x) + ef * (pt[1]->x - pt[0]->x)) /
-                       (pt[0]->y * (pt[2]->x - pt[1]->x) + pt[1]->y * (pt[0]->x - pt[2]->x) + pt[2]->y * (pt[1]->x - pt[0]->x)) * 0.5;
-    PAT_REAL radius2 = ((pt[0]->x - center[0]) * (pt[0]->x - center[0])) + ((pt[0]->y - center[1]) * (pt[0]->y - center[1]));
-    PAT_REAL dist2 = ((pt[3]->x - center[0]) * (pt[3]->x - center[0])) + ((pt[3]->y - center[1]) * (pt[3]->y - center[1]));
+    center[0] = (ab * ((PAT_REAL)pt[2]->y - (PAT_REAL)pt[1]->y) + cd * ((PAT_REAL)pt[0]->y - (PAT_REAL)pt[2]->y) + ef * ((PAT_REAL)pt[1]->y - (PAT_REAL)pt[0]->y)) /
+                       ((PAT_REAL)pt[0]->x * ((PAT_REAL)pt[2]->y - (PAT_REAL)pt[1]->y) + (PAT_REAL)pt[1]->x * ((PAT_REAL)pt[0]->y - (PAT_REAL)pt[2]->y) + (PAT_REAL)pt[2]->x * ((PAT_REAL)pt[1]->y - (PAT_REAL)pt[0]->y)) * 0.5;
+    center[1] = (ab * ((PAT_REAL)pt[2]->x - (PAT_REAL)pt[1]->x) + cd * ((PAT_REAL)pt[0]->x - (PAT_REAL)pt[2]->x) + ef * ((PAT_REAL)pt[1]->x - (PAT_REAL)pt[0]->x)) /
+                       ((PAT_REAL)pt[0]->y * ((PAT_REAL)pt[2]->x - (PAT_REAL)pt[1]->x) + (PAT_REAL)pt[1]->y * ((PAT_REAL)pt[0]->x - (PAT_REAL)pt[2]->x) + (PAT_REAL)pt[2]->y * ((PAT_REAL)pt[1]->x - (PAT_REAL)pt[0]->x)) * 0.5;
+    PAT_REAL radius2 = (((PAT_REAL)pt[0]->x - center[0]) * ((PAT_REAL)pt[0]->x - center[0])) + (((PAT_REAL)pt[0]->y - center[1]) * ((PAT_REAL)pt[0]->y - center[1]));
+    PAT_REAL dist2 = (((PAT_REAL)pt[3]->x - center[0]) * ((PAT_REAL)pt[3]->x - center[0])) + (((PAT_REAL)pt[3]->y - center[1]) * ((PAT_REAL)pt[3]->y - center[1]));
 
     return relative_eq_int(dist2, radius2, tolerance);
 }
@@ -1353,6 +1342,12 @@ void Delaunay_Voronoi::map_buffer_index_to_point_index()
         point_idx_to_buf_idx[all_points[i].id] = i;
     }
 
+#ifdef DEBUG
+    //for (int i = 0; i < num_points; i++) {
+    //    PDASSERT(x_store[i] == all_points[point_idx_to_buf_idx[i]].x);
+    //    PDASSERT(y_store[i] == all_points[point_idx_to_buf_idx[i]].y);
+    //}
+#endif
 }
 
 
@@ -1431,10 +1426,10 @@ inline bool Delaunay_Voronoi::point_in_triangle(double x, double y, Triangle* t)
 
 
 struct Bound {
-    PAT_REAL min_x;
-    PAT_REAL max_x;
-    PAT_REAL min_y;
-    PAT_REAL max_y;
+    double min_x;
+    double max_x;
+    double min_y;
+    double max_y;
 };
 
 
@@ -1451,7 +1446,7 @@ Bound* Delaunay_Voronoi::make_bounding_box()
 
     for (unsigned i = 0; i < num_triangles; i++){
         Triangle* lf = all_leaf_triangles[i];
-        PAT_REAL x[3], y[3];
+        double x[3], y[3];
         for (int j = 0; j < 3; j++) {
             x[j] = vertex(lf, j)->x;
             y[j] = vertex(lf, j)->y;
@@ -1473,7 +1468,7 @@ Bound* Delaunay_Voronoi::make_bounding_box()
 }
 
 
-static inline unsigned hash_point(PAT_REAL x, PAT_REAL y, unsigned block_size, PAT_REAL min_x, PAT_REAL len_x, PAT_REAL min_y, PAT_REAL len_y)
+static inline unsigned hash(double x, double y, double block_size, double min_x, double len_x, double min_y, double len_y)
 {
     unsigned x_idx = (x-min_x) / len_x * block_size;
     unsigned y_idx = (y-min_y) / len_y * block_size;
@@ -1482,7 +1477,7 @@ static inline unsigned hash_point(PAT_REAL x, PAT_REAL y, unsigned block_size, P
 }
 
 
-static inline void hash_bounding_box(const Bound* bound, unsigned block_size, PAT_REAL min_x, PAT_REAL len_x, PAT_REAL min_y, PAT_REAL len_y,
+static inline void hash(const Bound* bound, double block_size, double min_x, double len_x, double min_y, double len_y,
                    unsigned* x_idx_bgn, unsigned* x_idx_end, unsigned* y_idx_bgn, unsigned* y_idx_end)
 {
     *x_idx_bgn = (bound->min_x-min_x) / len_x * block_size; // FIXME: optimise
@@ -1498,13 +1493,13 @@ static inline void hash_bounding_box(const Bound* bound, unsigned block_size, PA
 #define PAT_MAX_BLOCK (10000)
 void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* y, int num, int** output_nexts)
 {
-    PAT_REAL min_x = all_points[0].x;
-    PAT_REAL max_y = all_points[0].y;
-    PAT_REAL max_x = all_points[2].x;
-    PAT_REAL min_y = all_points[2].y;
+    double min_x = all_points[0].x;
+    double max_y = all_points[0].y;
+    double max_x = all_points[2].x;
+    double min_y = all_points[2].y;
 
-    PAT_REAL len_x = max_x - min_x;
-    PAT_REAL len_y = max_y - min_y;
+    double len_x = max_x - min_x;
+    double len_y = max_y - min_y;
 
     unsigned num_triangles = all_leaf_triangles.size();
     int* nexts = new int[num];
@@ -1528,13 +1523,13 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
 
         /* first scan: counting */
         for (int i = 0; i < num; i++) {
-            unsigned idx = hash_point(x[i], y[i], block_size, min_x, len_x, min_y, len_y);
+            unsigned idx = hash(x[i], y[i], block_size, min_x, len_x, min_y, len_y);
             num_including_points[idx]++;
         }
 
         for (unsigned i = 0; i < num_triangles; i++) {
             unsigned x_idx_bgn, y_idx_bgn, x_idx_end, y_idx_end;
-            hash_bounding_box(&bound[i], block_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
+            hash(&bound[i], block_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
             for (unsigned j = y_idx_bgn; j <= y_idx_end; j++)
                 for (unsigned k = x_idx_bgn; k <= x_idx_end; k++) {
                     unsigned idx = k + j * block_size;
@@ -1563,162 +1558,14 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
         memset(num_including_triangles, 0, sizeof(unsigned)*block_size*block_size);
 
         for (int i = 0; i < num; i++) {
-            unsigned idx = hash_point(x[i], y[i], block_size, min_x, len_x, min_y, len_y);
+            unsigned idx = hash(x[i], y[i], block_size, min_x, len_x, min_y, len_y);
             including_points[idx][num_including_points[idx]] = i;
             num_including_points[idx]++;
         }
 
         for (unsigned i = 0; i < num_triangles; i++) {
             unsigned x_idx_bgn, y_idx_bgn, x_idx_end, y_idx_end;
-            hash_bounding_box(&bound[i], block_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
-            for (unsigned j = y_idx_bgn; j <= y_idx_end; j++)
-                for (unsigned k = x_idx_bgn; k <= x_idx_end; k++) {
-                    unsigned idx = k + j * block_size;
-                    if (including_triangles[idx]) {
-                        including_triangles[idx][num_including_triangles[idx]] = i;
-                        num_including_triangles[idx]++;
-                    }
-                }
-        }
-
-        /* distributing points into triangles in the same mesh */
-        for (unsigned m = 0; m < block_size*block_size; m++) {
-            if (including_points[m] == NULL)
-                continue;
-
-            unsigned* p_idxs = including_points[m];
-            unsigned* t_idxs = including_triangles[m];
-            unsigned  p_num = num_including_points[m];
-            unsigned  t_num = num_including_triangles[m];
-
-            for (unsigned i = 0; i < p_num; i++) {
-                unsigned p_idx = p_idxs[i];
-                for (unsigned j = 0; j < t_num; j++) {
-                    unsigned t_idx = t_idxs[j];
-                    if (!all_leaf_triangles[t_idx]->is_leaf)
-                        continue;
-
-                    if (!point_in_bound(x[p_idx], y[p_idx], &bound[t_idx]))
-                        continue;
-
-                    if (point_in_triangle(x[p_idx], y[p_idx], all_leaf_triangles[t_idx])) {
-                        if (all_leaf_triangles[t_idx]->remained_points_head == -1)
-                            all_leaf_triangles[t_idx]->remained_points_head = all_leaf_triangles[t_idx]->remained_points_tail = p_idx;
-                        else
-                            all_leaf_triangles[t_idx]->remained_points_tail = nexts[all_leaf_triangles[t_idx]->remained_points_tail] = p_idx;
-                        break;
-                    }
-                }
-            }
-        }
-
-        /* freeing memory */
-        for (unsigned i = 0; i < block_size*block_size; i++) {
-            delete[] including_points[i];
-            delete[] including_triangles[i];
-        }
-        delete[] including_points;
-        delete[] including_triangles;
-
-        delete[] num_including_points;
-        delete[] num_including_triangles;
-        delete[] bound;
-    } else {
-        for (int i = 0; i < num; i++) {
-            for (unsigned j = 0; j < num_triangles; j++) {
-               if (!all_leaf_triangles[j]->is_leaf)
-                   continue;
-
-               if (point_in_triangle(x[i], y[i], all_leaf_triangles[j])) {
-                   if (all_leaf_triangles[j]->remained_points_head == -1)
-                       all_leaf_triangles[j]->remained_points_head = all_leaf_triangles[j]->remained_points_tail = i;
-                   else
-                       all_leaf_triangles[j]->remained_points_tail = nexts[all_leaf_triangles[j]->remained_points_tail] = i;
-                   break;
-               }
-            }
-        }
-    }
-
-    *output_nexts = nexts;
-}
-
-
-void Delaunay_Voronoi::distribute_initial_points(const PAT_REAL* x, const PAT_REAL* y, int num, int** output_nexts)
-{
-    PAT_REAL min_x = all_points[0].x;
-    PAT_REAL max_y = all_points[0].y;
-    PAT_REAL max_x = all_points[2].x;
-    PAT_REAL min_y = all_points[2].y;
-
-    PAT_REAL len_x = max_x - min_x;
-    PAT_REAL len_y = max_y - min_y;
-
-    unsigned num_triangles = all_leaf_triangles.size();
-    int* nexts = new int[num];
-
-    memset(nexts, -1, num*sizeof(int));
-
-    unsigned block_size = std::sqrt(std::min(num_triangles / PAT_TRIANGLES_PER_BLOCK, (unsigned)PAT_MAX_BLOCK));
-
-    if (block_size*block_size > 2) {
-        Bound* bound = make_bounding_box();
-
-        for (unsigned i = 0; i < num_triangles; i++) {
-            PDASSERT(bound[i].min_x >= min_x);
-            PDASSERT(bound[i].max_x <= max_x);
-            PDASSERT(bound[i].min_y >= min_y);
-            PDASSERT(bound[i].max_y <= max_y);
-        }
-
-        unsigned* num_including_points = new unsigned[block_size*block_size]();
-        unsigned* num_including_triangles = new unsigned[block_size*block_size]();
-
-        /* first scan: counting */
-        for (int i = 0; i < num; i++) {
-            unsigned idx = hash_point(x[i], y[i], block_size, min_x, len_x, min_y, len_y);
-            num_including_points[idx]++;
-        }
-
-        for (unsigned i = 0; i < num_triangles; i++) {
-            unsigned x_idx_bgn, y_idx_bgn, x_idx_end, y_idx_end;
-            hash_bounding_box(&bound[i], block_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
-            for (unsigned j = y_idx_bgn; j <= y_idx_end; j++)
-                for (unsigned k = x_idx_bgn; k <= x_idx_end; k++) {
-                    unsigned idx = k + j * block_size;
-                    PDASSERT(j < block_size);
-                    PDASSERT(k < block_size);
-                    PDASSERT(idx < block_size*block_size);
-                    num_including_triangles[idx]++;
-                }
-        }
-
-        /* allocing memory */
-        unsigned** including_points = new unsigned*[block_size*block_size];
-        unsigned** including_triangles = new unsigned*[block_size*block_size];
-        for (unsigned i = 0; i < block_size*block_size; i++) {
-            if (num_including_points[i] > 0) {
-                including_points[i] = new unsigned[num_including_points[i]];
-                including_triangles[i] = new unsigned[num_including_triangles[i]];
-            } else {
-                including_points[i] = NULL;
-                including_triangles[i] = NULL;
-            }
-        }
-
-        /* second scan: distributing points and triangles into mesh */
-        memset(num_including_points, 0, sizeof(unsigned)*block_size*block_size);
-        memset(num_including_triangles, 0, sizeof(unsigned)*block_size*block_size);
-
-        for (int i = 0; i < num; i++) {
-            unsigned idx = hash_point(x[i], y[i], block_size, min_x, len_x, min_y, len_y);
-            including_points[idx][num_including_points[idx]] = i;
-            num_including_points[idx]++;
-        }
-
-        for (unsigned i = 0; i < num_triangles; i++) {
-            unsigned x_idx_bgn, y_idx_bgn, x_idx_end, y_idx_end;
-            hash_bounding_box(&bound[i], block_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
+            hash(&bound[i], block_size, min_x, len_x, min_y, len_y, &x_idx_bgn, &x_idx_end, &y_idx_bgn, &y_idx_end);
             for (unsigned j = y_idx_bgn; j <= y_idx_end; j++)
                 for (unsigned k = x_idx_bgn; k <= x_idx_end; k++) {
                     unsigned idx = k + j * block_size;
@@ -1794,10 +1641,10 @@ void Delaunay_Voronoi::distribute_initial_points(const PAT_REAL* x, const PAT_RE
 
 void Delaunay_Voronoi::enlarge_super_rectangle(const double* x, const double* y, int num)
 {
-    PAT_REAL min_x = 1e10;
-    PAT_REAL max_x = -1e10;
-    PAT_REAL min_y = 1e10;
-    PAT_REAL max_y = -1e10;
+    double min_x = 1e10;
+    double max_x = -1e10;
+    double min_y = 1e10;
+    double max_y = -1e10;
 
     for (int i = 0; i < num; i++) {
         if (x[i] < min_x) min_x = x[i];
@@ -1806,45 +1653,10 @@ void Delaunay_Voronoi::enlarge_super_rectangle(const double* x, const double* y,
         if (y[i] > max_y) max_y = y[i];
     }
 
-    const PAT_REAL ratio  = 0.1;
-    PAT_REAL dx = max_x - min_x;
-    PAT_REAL dy = max_y - min_y;
-    PAT_REAL delta = std::max(dx, dy) * ratio;
-
-    min_x -= delta;
-    max_x += delta;
-    min_y -= delta;
-    max_y += delta;
-
-    all_points[0].x = std::min(min_x, all_points[0].x);
-    all_points[0].y = std::max(max_y, all_points[0].y);
-    all_points[1].x = std::min(min_x, all_points[1].x);
-    all_points[1].y = std::min(min_y, all_points[1].y);
-    all_points[2].x = std::max(max_x, all_points[2].x);
-    all_points[2].y = std::min(min_y, all_points[2].y);
-    all_points[3].x = std::max(max_x, all_points[3].x);
-    all_points[3].y = std::max(max_y, all_points[3].y);
-}
-
-
-void Delaunay_Voronoi::enlarge_super_rectangle(const PAT_REAL* x, const PAT_REAL* y, int num)
-{
-    PAT_REAL min_x = 1e10;
-    PAT_REAL max_x = -1e10;
-    PAT_REAL min_y = 1e10;
-    PAT_REAL max_y = -1e10;
-
-    for (int i = 0; i < num; i++) {
-        if (x[i] < min_x) min_x = x[i];
-        if (x[i] > max_x) max_x = x[i];
-        if (y[i] < min_y) min_y = y[i];
-        if (y[i] > max_y) max_y = y[i];
-    }
-
-    const PAT_REAL ratio  = 0.1;
-    PAT_REAL dx = max_x - min_x;
-    PAT_REAL dy = max_y - min_y;
-    PAT_REAL delta = std::max(dx, dy) * ratio;
+    const double ratio  = 0.1;
+    double dx = max_x - min_x;
+    double dy = max_y - min_y;
+    double delta = std::max(dx, dy) * ratio;
 
     min_x -= delta;
     max_x += delta;
@@ -1943,56 +1755,9 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, const bool* 
     num_points += num;
 
 #ifdef DEBUG
-    bool* check = new bool[num_points]();
-    for (int i = 4; i < num_points; i++) {
-        PDASSERT(check[all_points[i].id] == 0);
-        check[all_points[i].id] = 1;
-    }
-#endif
+    x_store = x;
+    y_store = y;
 
-    delete[] nexts;
-}
-
-
-void Delaunay_Voronoi::add_points(const PAT_REAL* x, const PAT_REAL* y, const bool* mask, int num)
-{
-#ifdef DEBUG
-    PDASSERT(have_redundent_points(x, y, num) == false);
-#endif
-    PDASSERT(x != NULL);
-    PDASSERT(y != NULL);
-
-    if(stack_size == 0)
-        initialize(num);
-    else if (num_points + num > max_points)
-        extend_points_buffer(num);
-
-    enlarge_super_rectangle(x, y, num);
-
-    int *nexts;
-
-    distribute_initial_points(x, y, num, &nexts);
-
-    dirty_triangles_count = 0;
-    int buf_idx_cur = num_points;
-    int local_idx_start = num_points - PAT_NUM_LOCAL_VPOINTS;
-    for (unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        int head = buf_idx_cur;
-        for (int p = all_leaf_triangles[i]->remained_points_head; p != -1; p = nexts[p]) {
-            new(&all_points[buf_idx_cur]) Point(x[p], y[p], local_idx_start+p, mask ? mask[p] : true, buf_idx_cur+1, buf_idx_cur-1);
-            buf_idx_cur++;
-        }
-
-        if (head != buf_idx_cur) {
-            all_points[head].prev = -1;
-            all_points[buf_idx_cur-1].next = -1;
-            all_leaf_triangles[i]->set_remained_points(head, buf_idx_cur-1);
-            push(&dirty_triangles_count, all_leaf_triangles[i]);
-        }
-    }
-    num_points += num;
-
-#ifdef DEBUG
     bool* check = new bool[num_points]();
     for (int i = 4; i < num_points; i++) {
         PDASSERT(check[all_points[i].id] == 0);
@@ -2219,14 +1984,6 @@ static inline unsigned long long hash_two_double(double a, double b)
 }
 
 
-static inline unsigned long long hash_two_real(PAT_REAL a, PAT_REAL b)
-{
-    PAT_INT *aa = reinterpret_cast<PAT_INT *>(&a);
-    PAT_INT *bb = reinterpret_cast<PAT_INT *>(&b);
-    return (*aa > 1) ^ *bb;
-}
-
-
 bool have_redundent_points(const double *x, const double *y, int num)
 {
     std::tr1::unordered_map<unsigned long long, std::list<int> > hash_table;
@@ -2265,44 +2022,6 @@ bool have_redundent_points(const double *x, const double *y, int num)
 }
 
 
-bool have_redundent_points(const PAT_REAL *x, const PAT_REAL *y, int num)
-{
-    std::tr1::unordered_map<unsigned long long, std::list<int> > hash_table;
-    std::tr1::unordered_map<unsigned long long, std::list<int> >::iterator it_hash;
-
-    if(num == 0)
-        return false;
-
-    bool have_redundent = false;
-    for(int i = 0; i < num; i++) {
-        it_hash = hash_table.find(hash_two_real(x[i], y[i]));
-        if(it_hash != hash_table.end()) {
-            bool same = false;
-            for(std::list<int>::iterator it_list = it_hash->second.begin(); it_list != it_hash->second.end(); it_list ++)
-                if(x[*it_list] == x[i] && y[*it_list] == y[i]) {
-                    same = true;
-                    break;
-                }
-            if(same){
-                printf("redundent_point: %.20lf, %.20lf\n", x[i], y[i]);
-                have_redundent = true;
-            }
-            else {
-                it_hash->second.push_back(i);
-            }
-        }
-        else {
-            hash_table[hash_two_real(x[i], y[i])].push_back(i);
-        }
-    }
-
-    if(have_redundent)
-        return true;
-
-    return false;
-}
-
-
 void report_redundent_points(const double *x, const double *y, const int *index, int num)
 {
     std::tr1::unordered_map<unsigned long long, std::list<int> > hash_table;
@@ -2321,35 +2040,6 @@ void report_redundent_points(const double *x, const double *y, const int *index,
                     same = true;
                     have_redundent = true;
                     printf("Point %d same as point %d: %.20lf, %.20lf\n", index[*it_list], index[i], x[i], y[i]);
-                    break;
-                }
-            if (!same)
-                it_hash->second.push_back(i);
-        } else {
-            hash_table[hash_two_double(x[i], y[i])].push_back(i);
-        }
-    }
-}
-
-
-void report_redundent_points(const PAT_REAL *x, const PAT_REAL *y, const int *index, int num)
-{
-    std::tr1::unordered_map<unsigned long long, std::list<int> > hash_table;
-    std::tr1::unordered_map<unsigned long long, std::list<int> >::iterator it_hash;
-
-    if (num == 0)
-        return;
-
-    bool have_redundent = false;
-    for (int i = 0; i < num; i++) {
-        it_hash = hash_table.find(hash_two_real(x[i], y[i]));
-        if (it_hash != hash_table.end()) {
-            bool same = false;
-            for (std::list<int>::iterator it_list = it_hash->second.begin(); it_list != it_hash->second.end(); it_list ++)
-                if (x[*it_list] == x[i] && y[*it_list] == y[i]) {
-                    same = true;
-                    have_redundent = true;
-                    printf("Point %d same as point %d: %.20llf, %.20llf\n", index[*it_list], index[i], x[i], y[i]);
                     break;
                 }
             if (!same)

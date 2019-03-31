@@ -13,8 +13,8 @@ class Triangle_inline;
 class Point
 {
     public:
-        PAT_REAL x;
-        PAT_REAL y;
+        double x;
+        double y;
         int    id:31;
         int    mask:1;
         int    next;

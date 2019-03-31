@@ -40,9 +40,7 @@ void sort_points_in_triangle(Triangle_inline*, int);
 void sort_triangles(Triangle_inline*, int);
 
 bool have_redundent_points(const double*, const double*, int);
-bool have_redundent_points(const PAT_REAL*, const PAT_REAL*, int);
 void report_redundent_points(const double *, const double *, const int *, int);
-void report_redundent_points(const PAT_REAL*, const PAT_REAL*, const int *, int);
 void delete_redundent_points(double *&x, double *&y, int &num);
 
 struct Bound;
@@ -91,6 +89,8 @@ class Delaunay_Voronoi
         double avoiding_circle_radius[2];
 
 #ifdef DEBUG
+        const double* x_store;
+        const double* y_store;
         vector<Triangle*> triangles_containing_vpolar;
 #endif
 
@@ -103,9 +103,7 @@ class Delaunay_Voronoi
         void initialize(int);
         void extend_points_buffer(int);
         void distribute_initial_points(const double* x, const double* y, int num, int** output_nexts);
-        void distribute_initial_points(const PAT_REAL* x, const PAT_REAL* y, int num, int** output_nexts);
         void enlarge_super_rectangle(const double* x, const double* y, int num);
-        void enlarge_super_rectangle(const PAT_REAL* x, const PAT_REAL* y, int num);
         Bound* make_bounding_box();
         bool point_in_triangle(double x, double y, Triangle* t);
         bool point_in_bound(double x, double y, Bound* b);
@@ -163,7 +161,6 @@ class Delaunay_Voronoi
         ~Delaunay_Voronoi();
 
         void add_points(const double*, const double*, const bool*, int);
-        void add_points(const PAT_REAL*, const PAT_REAL*, const bool*, int);
         void map_global_index(const int*);
         void set_virtual_polar_index(int);
         void set_origin_coord(const double *, const double *, int);

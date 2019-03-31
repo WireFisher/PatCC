@@ -60,10 +60,10 @@ private:
     Boundry* rotated_expand_boundry;
     Boundry* real_boundry;
 
-    double    center[2];
-    double*   kernel_coord[2];
-    double*   expand_coord[2];
-    PAT_REAL* projected_coord[2];
+    double  center[2];
+    double* kernel_coord[2];
+    double* expand_coord[2];
+    double* projected_coord[2];
 
     int*    kernel_index;
     int*    expand_index;

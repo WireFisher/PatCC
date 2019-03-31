@@ -254,7 +254,7 @@ void Search_tree_node::update_region_ids(int start, int end)
 }
 
 
-inline void calculate_circle_center(PAT_REAL x[3], PAT_REAL y[3], PAT_REAL *center_x, PAT_REAL *center_y)
+inline void calculate_circle_center(double x[3], double y[3], double *center_x, double *center_y)
 {
     PAT_REAL mid_x[2], mid_y[2];
     PAT_REAL k[2];
@@ -274,7 +274,7 @@ inline void calculate_circle_center(PAT_REAL x[3], PAT_REAL y[3], PAT_REAL *cent
  * a latitude circle on the shpere surface */
 void Search_tree_node::calculate_latitude_circle_projection(double lat, Point* circle_center, double* radius)
 {
-    PAT_REAL x[3], y[3];
+    double x[3], y[3];
 
     calculate_stereographic_projection(0,   lat, center[PDLN_LON], center[PDLN_LAT], x[0], y[0]);
     calculate_stereographic_projection(90,  lat, center[PDLN_LON], center[PDLN_LAT], x[1], y[1]);
@@ -306,7 +306,7 @@ void Search_tree_node::calculate_cyclic_boundary_projection(unsigned mode, Point
     }
 
     double lon = (real_boundry->max_lon + real_boundry->min_lon + 360.0) * 0.5;
-    PAT_REAL head_lon, head_lat, tail_lon, tail_lat;
+    double head_lon, head_lat, tail_lon, tail_lat;
 
     calculate_stereographic_projection(lon, polar_lat, center[PDLN_LON], center[PDLN_LAT], head_lon, head_lat);
     calculate_stereographic_projection(lon, equat_lat, center[PDLN_LON], center[PDLN_LAT], tail_lon, tail_lat);
@@ -788,7 +788,6 @@ void Search_tree_node::add_expand_points(double *lon_value, double *lat_value, i
 void Search_tree_node::add_expand_points(double *coord_value[2], int *global_idx, bool *mask, int num_points)
 {
     double* tmp_coord[2];
-    PAT_REAL* tmp_buf[2];
     int*    tmp_index;
     bool*   tmp_mask;
 
@@ -820,17 +819,17 @@ void Search_tree_node::add_expand_points(double *coord_value[2], int *global_idx
             expand_mask = tmp_mask;
 
         if (projected_coord[0] != NULL) {
-            tmp_buf[0] = new PAT_REAL[num_kernel_points + len_expand_coord_buf];
-            tmp_buf[1] = new PAT_REAL[num_kernel_points + len_expand_coord_buf];
+            tmp_coord[0] = new double[num_kernel_points + len_expand_coord_buf];
+            tmp_coord[1] = new double[num_kernel_points + len_expand_coord_buf];
 
-            memcpy(tmp_buf[0], projected_coord[0], sizeof(PAT_REAL) * (num_kernel_points + num_expand_points));
-            memcpy(tmp_buf[1], projected_coord[1], sizeof(PAT_REAL) * (num_kernel_points + num_expand_points));
+            memcpy(tmp_coord[0], projected_coord[0], sizeof(double) * (num_kernel_points + num_expand_points));
+            memcpy(tmp_coord[1], projected_coord[1], sizeof(double) * (num_kernel_points + num_expand_points));
 
             delete[] projected_coord[0];
             delete[] projected_coord[1];
 
-            projected_coord[0] = tmp_buf[0];
-            projected_coord[1] = tmp_buf[1];
+            projected_coord[0] = tmp_coord[0];
+            projected_coord[1] = tmp_coord[1];
         }
     }
 
@@ -991,8 +990,8 @@ void Search_tree_node::project_grid()
     calculate_unit_vectors(center[PDLN_LON], center[PDLN_LAT], &uv1_x, &uv1_y, &uv1_z, &uv2_x, &uv2_y, &uv2_z);
 
     if(projected_coord[0] == NULL) {
-        projected_coord[0] = new PAT_REAL[num_kernel_points + len_expand_coord_buf];
-        projected_coord[1] = new PAT_REAL[num_kernel_points + len_expand_coord_buf];
+        projected_coord[0] = new double[num_kernel_points + len_expand_coord_buf];
+        projected_coord[1] = new double[num_kernel_points + len_expand_coord_buf];
 
         for(int i = 0; i < num_kernel_points; i++) {
             fast_stereographic_projection(kernel_coord[PDLN_LON][i], kernel_coord[PDLN_LAT][i],
