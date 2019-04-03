@@ -47,7 +47,7 @@ for file_name in list:
 						result.append(once_result)
 						once_result=[]
 						last_result=lines.index(line)
-
+table_sorted = sorted(result, key=itemgetter(2, 5))
 # write the result to csv
 csv_writer=csv.writer(open('result.csv','w'),dialect='excel')
-csv_writer.writerows(result)
+csv_writer.writerows(table_sorted)
