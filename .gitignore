@@ -10,3 +10,5 @@ backup/*
 .DS_Store
 *.dat
 *.nc
+*.out
+*.err
