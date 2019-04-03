@@ -2769,26 +2769,25 @@ void plot_triangles_into_file(const char *prefix, Triangle_inline *t, int num, b
     tail_coord[1] = new double[num_edges];
 
     num_edges = 0;
-    for(int i = 0; i < num; i ++)
-        if (t[i].v[0].calculate_distance(&t[i].v[1]) < PAT_CYCLIC_EDGE_THRESHOLD &&
-            t[i].v[1].calculate_distance(&t[i].v[2]) < PAT_CYCLIC_EDGE_THRESHOLD &&
-            t[i].v[2].calculate_distance(&t[i].v[0]) < PAT_CYCLIC_EDGE_THRESHOLD )
-            for(int j = 0; j < 3; j++) {
-                head_coord[0][num_edges] = t[i].v[j].x;
-                head_coord[1][num_edges] = t[i].v[j].y;
-                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
-                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
-            }
-        else if(plot_cyclic_triangles) {
+    for(int i = 0; i < num; i ++) {
+        if (t[i].v[0].x > 360 || t[i].v[1].x > 360 || t[i].v[2].x > 360) {
+            for(int j = 0; j < 3; j++)
+                t[i].v[j].x -= 360;
+        } else if (plot_cyclic_triangles &&
+                   (t[i].v[0].calculate_distance(&t[i].v[1]) >= PAT_CYCLIC_EDGE_THRESHOLD ||
+                   t[i].v[1].calculate_distance(&t[i].v[2]) >= PAT_CYCLIC_EDGE_THRESHOLD ||
+                   t[i].v[2].calculate_distance(&t[i].v[0]) >= PAT_CYCLIC_EDGE_THRESHOLD )) {
             for(int j = 0; j < 3; j++)
                 if(t[i].v[j].x > 180) t[i].v[j].x -= 360;
-            for(int j = 0; j < 3; j++) {
-                head_coord[0][num_edges] = t[i].v[j].x;
-                head_coord[1][num_edges] = t[i].v[j].y;
-                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
-                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
-            }
         }
+
+        for(int j = 0; j < 3; j++) {
+            head_coord[0][num_edges] = t[i].v[j].x;
+            head_coord[1][num_edges] = t[i].v[j].y;
+            tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
+            tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
+        }
+    }
 
     PDASSERT(num_edges%3 == 0);
     snprintf(filename, 128, "%s.png", prefix);
