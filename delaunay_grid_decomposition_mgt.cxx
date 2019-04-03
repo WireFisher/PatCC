@@ -134,8 +134,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], 
     , fast_triangulate(false)
     , kernel_boundry(NULL)
     , expand_boundry(NULL)
-    , rotated_kernel_boundry(NULL)
-    , rotated_expand_boundry(NULL)
+    , project_boundry(NULL)
     , real_boundry(NULL)
     , len_expand_coord_buf(0)
     , num_kernel_points(num_points)
@@ -208,8 +207,7 @@ Search_tree_node::~Search_tree_node()
     delete kernel_boundry;
     delete expand_boundry;
     delete real_boundry;
-    delete rotated_kernel_boundry;
-    delete rotated_expand_boundry;
+    delete project_boundry;
     for(int i = 0; i < 3; i ++)
         delete children[i];
     delete triangulation;
@@ -355,7 +353,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     //    printf("%.20lf, %.20lf. (%.20lf, %.20lf)\n", ori_lon[i], ori_lat[i], projected_coord[PDLN_LON][i], projected_coord[PDLN_LAT][i]);
 
 #ifdef DEBUG
-    if (rotated_expand_boundry)
+    if (project_boundry)
         report_redundent_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], ori_idx, num_kernel_points+num_expand_points);
 #endif
 
@@ -388,7 +386,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
             }
         }
         
-        if (rotated_expand_boundry) {
+        if (project_boundry) {
             triangulation->add_points(projected_coord[PDLN_LON], projected_coord[PDLN_LAT], ori_mask, num_kernel_points+num_expand_points);
             triangulation->set_origin_coord(ori_lon, ori_lat, num_kernel_points + num_expand_points);
 
@@ -411,7 +409,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
         num_old_points = num_expand_points;
     } else {
         /* Case: incremental triangulation */
-        if (rotated_expand_boundry) {
+        if (project_boundry) {
             triangulation->add_points(projected_coord[PDLN_LON]+num_kernel_points+num_old_points,
                                       projected_coord[PDLN_LAT]+num_kernel_points+num_old_points,
                                       ori_mask ? ori_mask+num_kernel_points+num_old_points : NULL,
@@ -433,17 +431,17 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     triangulation->triangulate();
 
     /* After triangulating */
-    if (rotated_expand_boundry == NULL) {
+    if (project_boundry == NULL) {
         //triangulation->uncyclic_all_points();
         //triangulation->recognize_cyclic_triangles();
     }
 
-    //if(rotated_expand_boundry && node_type != PDLN_NODE_TYPE_COMMON)
+    //if(project_boundry && node_type != PDLN_NODE_TYPE_COMMON)
     //    if(PDLN_INSERT_VIRTUAL_POINT && polars_local_index->size() > 1)
     //        reset_polars(ori_lat);
 
-    if (rotated_expand_boundry && node_type == PDLN_NODE_TYPE_COMMON) {
-        if (expand_boundry->max_lon - expand_boundry->min_lon > 90) {
+    if (project_boundry && node_type == PDLN_NODE_TYPE_COMMON) {
+        if (expand_boundry->max_lon - expand_boundry->min_lon > 45) {
             double radius;
             Point  circle_center;
             Point  boundary_head, boundary_tail;
@@ -1024,11 +1022,11 @@ void Search_tree_node::project_grid()
         if (projected_coord[PDLN_LAT][i] < bot) bot = projected_coord[PDLN_LAT][i];
         if (projected_coord[PDLN_LAT][i] > top) top = projected_coord[PDLN_LAT][i];
     }
-    if(rotated_expand_boundry != NULL) {
-        PDASSERT(rotated_expand_boundry->min_lon >= left && rotated_expand_boundry->max_lon <= right && rotated_expand_boundry->min_lat >= bot && rotated_expand_boundry->max_lat <= top);
-        delete rotated_expand_boundry;
+    if(project_boundry != NULL) {
+        PDASSERT(project_boundry->min_lon >= left && project_boundry->max_lon <= right && project_boundry->min_lat >= bot && project_boundry->max_lat <= top);
+        delete project_boundry;
     }
-    rotated_expand_boundry = new Boundry(left, right, bot, top);
+    project_boundry = new Boundry(left, right, bot, top);
     //gettimeofday(&end, NULL);
     //fprintf(stderr, "[%3d] one project: %ld us\n", region_id, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
 }
@@ -1888,6 +1886,9 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->min_lat = shifted_polar_lat;
 
+        if (search_tree_root->children[0]->num_kernel_points > average_workload * 4)
+            search_tree_root->children[0]->fast_triangulate = true;
+
 #ifdef TIME_PERF
         printf("[ - ] Pseudo Point 1&2: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
         time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
@@ -1943,6 +1944,9 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         gettimeofday(&end, NULL);
         if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
             search_tree_root->real_boundry->max_lat = shifted_polar_lat;
+
+        if (search_tree_root->children[2]->num_kernel_points > average_workload * 4)
+            search_tree_root->children[2]->fast_triangulate = true;
 
 #ifdef TIME_PERF
         printf("[ - ] Pseudo Point 1&2: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
@@ -2233,9 +2237,6 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     }while(!tree_node->expanding_success(go_on));
 
     //printf("expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
-
-    if (tree_node->num_kernel_points + tree_node->num_expand_points > average_workload * 4)
-        tree_node->fast_triangulate = true;
 
     return 0;
 }
@@ -2809,7 +2810,6 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             for(unsigned j = 0; j < waiting_lists[i].size(); j++) {
-                //fprintf(stderr, "waiting %p\n", waiting_lists[i]);
                 MPI_Wait(waiting_lists[i][j], MPI_STATUS_IGNORE);
                 delete waiting_lists[i][j];
             }
@@ -2837,13 +2837,10 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         }
 #endif
 
-        if(global_finish) {
-            //for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
-            //    fprintf(stderr, "Region %2d: kernel %d, expand %d\n", local_leaf_nodes[i]->region_id, local_leaf_nodes[i]->num_kernel_points, local_leaf_nodes[i]->num_expand_points);
+        if(global_finish)
             break;
-        }
-        else
-            expanding_ratio += 0.1;
+
+        expanding_ratio += 0.1;
         iter++;
     }
 

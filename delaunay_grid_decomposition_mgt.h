@@ -56,8 +56,7 @@ private:
 
     Boundry* kernel_boundry;
     Boundry* expand_boundry;
-    Boundry* rotated_kernel_boundry; //TODO:Change name
-    Boundry* rotated_expand_boundry;
+    Boundry* project_boundry;
     Boundry* real_boundry;
 
     double  center[2];
