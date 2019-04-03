@@ -82,7 +82,7 @@ class Delaunay_Voronoi
         Point  bound_vertexes[4];
         double checking_threshold;
         vector<Triangle_inline> bound_triangles[4];
-        vector<pair<pair<Point, Point>, unsigned> > checksum_storage;
+        vector<pair<pair<Point, Point>, unsigned long> > checksum_storage;
         Point  avoiding_line_head[2];
         Point  avoiding_line_tail[2];
         Point  avoiding_circle_center[2];
@@ -178,7 +178,7 @@ class Delaunay_Voronoi
 
         unsigned calculate_checksum(Point, Point, double = 0);
         int bound_direction(const Point*, const Point*);
-        unsigned cal_checksum(Point, Point, double = 0);
+        unsigned long cal_checksum(Point, Point, double = 0);
 
         bool is_triangle_in_circle(Triangle*, Point, double);
 

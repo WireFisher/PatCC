@@ -141,8 +141,8 @@ public:
     static bool is_coordinate_in_halo(double x, double y, const Boundry *inner, const Boundry *outer);
 
     /* Consistency checking */
-    void reduce_num_neighbors_on_boundry(unsigned);
-    void clear_expanding_count(unsigned);
+    void reduce_num_neighbors_on_boundry(unsigned long);
+    void clear_expanding_count(unsigned long);
 
     friend class Delaunay_grid_decomposition;
     friend bool node_ptr_comp(Search_tree_node*, Search_tree_node*);
@@ -176,7 +176,6 @@ private:
     double*   workloads;
     double    average_workload;
     int*      regionID_to_unitID;
-    unsigned* regionID_to_checksum;
     int*      all_group_intervals;
 
     /* Temp buffer */
@@ -216,10 +215,10 @@ private:
     /* Consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
     unsigned compute_common_boundry(Search_tree_node*, Search_tree_node*, Point*, Point*, Point*, Point*);
-    void send_recv_checksums_with_neighbors(Search_tree_node*, unsigned*, unsigned*, vector<MPI_Request*> *, int);
-    bool are_checksums_identical(Search_tree_node*, unsigned*, unsigned*);
-    void send_checksum_to_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req);
-    void recv_checksum_from_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req);
+    void send_recv_checksums_with_neighbors(Search_tree_node*, unsigned long*, unsigned long*, vector<MPI_Request*> *, int);
+    bool are_checksums_identical(Search_tree_node*, unsigned long*, unsigned long*);
+    void send_checksum_to_remote(int src_common_id, int dst_common_id, unsigned long* , int tag, MPI_Request** req);
+    void recv_checksum_from_remote(int src_common_id, int dst_common_id, unsigned long*, int tag, MPI_Request** req);
     
     /* Process thread communication */
     int recv_triangles_from_remote(int, int, Triangle_inline *, int, int);

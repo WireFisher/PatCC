@@ -1562,14 +1562,14 @@ bool Delaunay_grid_decomposition::do_two_regions_overlap(Boundry region1, Boundr
     return true;
 }
 
-#define PDLN_BOUNDRY_TYPE_CLEAR     (0x0FFFFFFF)
-#define PDLN_BOUNDRY_TYPE_NON       (0x00000000)
-#define PDLN_BOUNDRY_TYPE_U         (0x10000000)
-#define PDLN_BOUNDRY_TYPE_D         (0x20000000)
-#define PDLN_BOUNDRY_TYPE_L         (0x40000000)
-#define PDLN_BOUNDRY_TYPE_R         (0x80000000)
-#define PDLN_BOUNDRY_TYPE_LR        (0xC0000000)
-#define PDLN_BOUNDRY_TYPE_INVALID   (0xF0000000)
+#define PDLN_BOUNDRY_TYPE_CLEAR     (0x0FFFFFFFFFFFFFFF)
+#define PDLN_BOUNDRY_TYPE_NON       (0x0000000000000000)
+#define PDLN_BOUNDRY_TYPE_U         (0x1000000000000000)
+#define PDLN_BOUNDRY_TYPE_D         (0x2000000000000000)
+#define PDLN_BOUNDRY_TYPE_L         (0x4000000000000000)
+#define PDLN_BOUNDRY_TYPE_R         (0x8000000000000000)
+#define PDLN_BOUNDRY_TYPE_LR        (0xC000000000000000)
+#define PDLN_BOUNDRY_TYPE_INVALID   (0xF000000000000000)
 #define set_boundry_type(val, type) ((val & PDLN_BOUNDRY_TYPE_CLEAR) | type)
 #define get_boundry_type(val)       (val & ~PDLN_BOUNDRY_TYPE_CLEAR)
 /*
@@ -1657,36 +1657,36 @@ unsigned Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *t
 
 
 /* non-block */
-void Delaunay_grid_decomposition::send_checksum_to_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req)
+void Delaunay_grid_decomposition::send_checksum_to_remote(int src_common_id, int dst_common_id, unsigned long* checksum, int tag, MPI_Request** req)
 {
     if(processing_info->get_local_process_id() == processing_info->get_processing_unit(dst_common_id)->process_id) {
         *req = NULL;
-        processing_info->send_to_local_thread(checksum, 1, sizeof(unsigned),
+        processing_info->send_to_local_thread(checksum, 1, sizeof(unsigned long),
                                               processing_info->get_processing_unit(src_common_id)->thread_id,
                                               processing_info->get_processing_unit(dst_common_id)->thread_id, tag);
     } else {
         *req = new MPI_Request;
         #pragma omp critical
         {
-            MPI_Isend(checksum, 1, MPI_UNSIGNED, processing_info->get_processing_unit(dst_common_id)->process_id, 
+            MPI_Isend(checksum, 1, MPI_UNSIGNED_LONG, processing_info->get_processing_unit(dst_common_id)->process_id, 
                       tag, processing_info->get_mpi_comm(), *req);
         }
     }
 }
 
 
-void Delaunay_grid_decomposition::recv_checksum_from_remote(int src_common_id, int dst_common_id, unsigned* checksum, int tag, MPI_Request** req)
+void Delaunay_grid_decomposition::recv_checksum_from_remote(int src_common_id, int dst_common_id, unsigned long* checksum, int tag, MPI_Request** req)
 {
     if(processing_info->get_local_process_id() == processing_info->get_processing_unit(src_common_id)->process_id) {
         *req = NULL;
-        processing_info->recv_from_local_thread(checksum, 1, sizeof(unsigned),
+        processing_info->recv_from_local_thread(checksum, 1, sizeof(unsigned long),
                                                 processing_info->get_processing_unit(src_common_id)->thread_id,
                                                 processing_info->get_processing_unit(dst_common_id)->thread_id, tag);
     } else {
         *req = new MPI_Request;
         #pragma omp critical
         {
-            MPI_Irecv(checksum, 1, MPI_UNSIGNED, processing_info->get_processing_unit(src_common_id)->process_id, 
+            MPI_Irecv(checksum, 1, MPI_UNSIGNED_LONG, processing_info->get_processing_unit(src_common_id)->process_id, 
                      tag, processing_info->get_mpi_comm(), *req);
         }
     }
@@ -1731,8 +1731,8 @@ namespace std
 #define PDLN_SET_TAG_SRC(tag, id)       ((id<<20&0xFFF00000) | tag)
 #define PDLN_SET_TAG_DST(tag, id)       ((id<< 8&0x000FFF00) | tag)
 #define PDLN_SET_TAG(src, dst, iter)    (PDLN_SET_TAG_DST(PDLN_SET_TAG_SRC(PDLN_SET_TAG_ITER(iter), src), dst))
-void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree_node *leaf_node, unsigned *local_checksums,
-                                                                     unsigned *remote_checksums, vector<MPI_Request*> *waiting_list, int iter)
+void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree_node *leaf_node, unsigned long *local_checksums,
+                                                                     unsigned long *remote_checksums, vector<MPI_Request*> *waiting_list, int iter)
 {
     /* calculate local checksum and send to neighbor */
     Point common_boundary_head, common_boundary_tail, cyclic_common_boundary_head, cyclic_common_boundary_tail;
@@ -1754,7 +1754,7 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
                                               &cyclic_common_boundary_head, &cyclic_common_boundary_tail);
         
         /* calculate checksum */
-        unsigned checksum = 0;
+        unsigned long checksum = 0;
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE)
             checksum ^= leaf_node->triangulation->cal_checksum(common_boundary_head, common_boundary_tail, threshold);
 
@@ -1787,7 +1787,7 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
 }
 
 
-bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf_node, unsigned *local_checksums, unsigned *remote_checksums)
+bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf_node, unsigned long *local_checksums, unsigned long*remote_checksums)
 {
     if(leaf_node->neighbors.size() == 0) {
         printf("some region has no neighbor, that's weird\n");
@@ -1796,16 +1796,17 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
 
     bool ok = true;
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
-        if((local_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR) == (remote_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR)) {
+        unsigned long l_checksum = local_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR;
+        unsigned long r_checksum = remote_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR;
+        if(l_checksum == r_checksum) {
             leaf_node->neighbors[i].second = true;
             leaf_node->reduce_num_neighbors_on_boundry(get_boundry_type(local_checksums[i]));
             leaf_node->clear_expanding_count(get_boundry_type(local_checksums[i]));
-            //printf("[%d] neighbor %d done, %x vs %x\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id, local_checksums[i], remote_checksums[i]);
-        }
-        else {
+            //printf("%3d -> %3d same, %016lx vs %016lx\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id, l_checksum, r_checksum);
+        } else {
             leaf_node->neighbors[i].second = false;
             ok = false;
-            //printf("[%d] neighbor %d not , %x vs %x\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id, local_checksums[i], remote_checksums[i]);
+            //printf("%3d -> %3d diff, %016lx vs %016lx\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id, l_checksum, r_checksum);
         }
     }
 
@@ -2600,7 +2601,7 @@ void Search_tree_node::init_num_neighbors_on_boundry(int n)
 }
 
 
-void Search_tree_node::reduce_num_neighbors_on_boundry(unsigned type)
+void Search_tree_node::reduce_num_neighbors_on_boundry(unsigned long type)
 {
     switch(type) {
         case PDLN_BOUNDRY_TYPE_U: num_neighbors_on_boundry[PDLN_UP]--; break;
@@ -2617,7 +2618,7 @@ void Search_tree_node::reduce_num_neighbors_on_boundry(unsigned type)
 }
 
 
-void Search_tree_node::clear_expanding_count(unsigned type)
+void Search_tree_node::clear_expanding_count(unsigned long type)
 {
     switch(type) {
         case PDLN_BOUNDRY_TYPE_U: edge_expanding_count[PDLN_UP] = 0; break;
@@ -2669,8 +2670,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 {
     timeval start, end;
     bool* is_local_leaf_node_finished = new bool[local_leaf_nodes.size()]();
-    unsigned** local_leaf_checksums   = new unsigned*[local_leaf_nodes.size()];
-    unsigned** remote_leaf_checksums  = new unsigned*[local_leaf_nodes.size()];
+    unsigned long** local_leaf_checksums   = new unsigned long*[local_leaf_nodes.size()];
+    unsigned long** remote_leaf_checksums  = new unsigned long*[local_leaf_nodes.size()];
     Boundry* outer_bound = new Boundry[local_leaf_nodes.size()];
 
 #ifdef DEBUG
@@ -2683,8 +2684,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
     set_binding_relationship();
 
     for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
-        local_leaf_checksums[i] = new unsigned[PDLN_MAX_NUM_NEIGHBORS];
-        remote_leaf_checksums[i] = new unsigned[PDLN_MAX_NUM_NEIGHBORS];
+        local_leaf_checksums[i] = new unsigned long[PDLN_MAX_NUM_NEIGHBORS];
+        remote_leaf_checksums[i] = new unsigned long[PDLN_MAX_NUM_NEIGHBORS];
     }
 
     vector<MPI_Request*> *waiting_lists = new vector<MPI_Request*> [local_leaf_nodes.size()];
