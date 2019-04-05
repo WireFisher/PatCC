@@ -7,6 +7,7 @@ log/*
 *.log
 tmp*
 backup/*
+gridfile/*
 .DS_Store
 *.dat
 *.nc
