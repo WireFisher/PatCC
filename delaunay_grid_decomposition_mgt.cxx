@@ -441,7 +441,7 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int num_inse
     //        reset_polars(ori_lat);
 
     if (project_boundry && node_type == PDLN_NODE_TYPE_COMMON) {
-        if (expand_boundry->max_lon - expand_boundry->min_lon > 45) {
+        if (expand_boundry->max_lon - expand_boundry->min_lon > 90) {
             double radius;
             Point  circle_center;
             Point  boundary_head, boundary_tail;
@@ -1171,7 +1171,7 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 }
 
 
-#define PDLN_GVPOINT_DENSITY  (20)
+#define PDLN_GVPOINT_DENSITY  (5)
 #define PDLN_INSERT_EXPAND_RATIO (0.01)
 int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], bool **mask, Boundry *boundry, int num_points)
 {
@@ -1222,16 +1222,16 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], bo
     double v_miny = minY-dMax*PDLN_INSERT_EXPAND_RATIO;
     double v_maxy = maxY+dMax*PDLN_INSERT_EXPAND_RATIO;
 
-    double r_minx = is_cyclic && v_minx < 0   ?   1 : v_minx;
-    double r_maxx = is_cyclic && v_maxx > 360 ? 359 : v_maxx;
-    double r_miny = v_miny < -90 ? -89 : v_miny;
-    double r_maxy = v_maxy > 90  ?  89 : v_maxy;
+    double r_minx = std::max(v_minx, 0.0);
+    double r_maxx = std::min(v_maxx, 360.0);
+    double r_miny = std::max(v_miny, -89.9999);
+    double r_maxy = std::min(v_maxy, 89.9999);
     
     /*
      * x * y = num_points
      * x : y = dx : dy
      */
-    unsigned num_x = (unsigned)sqrt(num_points * dx / (double)dy);
+    unsigned num_x = (unsigned)sqrt(num_points * dx / dy);
     unsigned num_y = num_x * dy / dx;
     num_x /= PDLN_GVPOINT_DENSITY;
     num_y /= PDLN_GVPOINT_DENSITY;
@@ -1244,37 +1244,41 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], bo
     if (*mask)
         tmp3 = new bool[num_points + 2*num_x + 2*num_y];
 
-    /* store inserted points first */
-    if(!float_eq(boundry->max_lat, 90) && v_maxy < 90) {
+    /* Firstly, store inserted points */
+    if(!float_eq(boundry->min_lat, -90)) {
         for(unsigned i = 1; i < num_x-1; i++) {
-            inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/num_x*i;
-            inserted_coord[PDLN_LAT][num_inserted++] = r_maxy;
-        }
-        if(boundry->max_lat < r_maxy) boundry->max_lat = r_maxy;
-    }
-    if(!float_eq(boundry->min_lat, -90) && v_miny > -90) {
-        for(unsigned i = 1; i < num_x-1; i++) {
-            inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/num_x*i;
+            inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/(num_x-1)*i;
             inserted_coord[PDLN_LAT][num_inserted++] = r_miny;
         }
         if(boundry->min_lat > r_miny) boundry->min_lat = r_miny;
     }
+
+    if(!float_eq(boundry->max_lat, 90)) {
+        for(unsigned i = 1; i < num_x-1; i++) {
+            inserted_coord[PDLN_LON][num_inserted] = r_minx+(r_maxx-r_minx)/(num_x-1)*i;
+            inserted_coord[PDLN_LAT][num_inserted++] = r_maxy;
+        }
+        if(boundry->max_lat < r_maxy) boundry->max_lat = r_maxy;
+    }
+
     if(!is_cyclic) {
         for(unsigned i = 1; i < num_y-1; i++) {
-            inserted_coord[PDLN_LON][num_inserted] = v_minx;
-            inserted_coord[PDLN_LAT][num_inserted++] = v_miny+(v_maxy-v_miny)/num_y*i;
+            inserted_coord[PDLN_LON][num_inserted] = r_minx;
+            inserted_coord[PDLN_LAT][num_inserted++] = r_miny+(r_maxy-r_miny)/(num_y-1)*i;
         }
         for(unsigned i = 1; i < num_y-1; i++) {
-            inserted_coord[PDLN_LON][num_inserted] = v_maxx;
-            inserted_coord[PDLN_LAT][num_inserted++] = v_miny+(v_maxy-v_miny)/num_y*i;
+            inserted_coord[PDLN_LON][num_inserted] = r_maxx;
+            inserted_coord[PDLN_LAT][num_inserted++] = r_miny+(r_maxy-r_miny)/(num_y-1)*i;
         }
         if(boundry->min_lon > r_minx) boundry->min_lon = r_minx;
         if(boundry->max_lon < r_maxx) boundry->max_lon = r_maxx;
     }
+
     PDASSERT((unsigned)num_inserted <= 2*num_x + 2*num_y);
 
     if (*mask)
         memset(tmp3, 1, num_inserted);
+
     /* Then original points follow */
     memcpy(inserted_coord[PDLN_LON]+num_inserted, coord_values[PDLN_LON], num_points*sizeof(double));
     memcpy(inserted_coord[PDLN_LAT]+num_inserted, coord_values[PDLN_LAT], num_points*sizeof(double));
