@@ -31,7 +31,7 @@ test_objs = \
 			ProcessingResourceTest.o
 			#DelaunayVoronoi2D.o
 
-ADDED_FLAGS := -O2
+ADDED_FLAGS := -O1
 COMMON_FLAGS := -Wall -fopenmp -pthread -std=c++11 
 
 ifeq ($(PDLN_TIMING),true)
