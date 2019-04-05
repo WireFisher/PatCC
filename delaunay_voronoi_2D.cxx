@@ -2267,9 +2267,9 @@ void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, doub
 }
 
 
-static inline unsigned hash_triangle_by_id(Triangle_inline triangle)
+static inline unsigned long hash_triangle_by_id(Triangle_inline triangle)
 {
-    return (((triangle.v[0].id << 3) ^ triangle.v[1].id ) << 3) ^ triangle.v[2].id;
+    return ((unsigned long)triangle.v[0].id << 32) ^ ((unsigned long)triangle.v[1].id << 16) ^ triangle.v[2].id;
 }
 
 
@@ -2294,7 +2294,7 @@ int Delaunay_Voronoi::bound_direction(const Point* a, const Point* b)
 }
 
 
-unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold)
+unsigned long Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold)
 {
     checksum_storage.clear(); //FIXME
     if (float_eq(head.x, tail.x) && float_eq(head.y, tail.y))
@@ -2309,7 +2309,7 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
     int dir = bound_direction(&head, &tail);
     PDASSERT(dir > -1);
 
-    unsigned checksum = 0;
+    unsigned long checksum = 0;
 
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
         if (bound_triangles[dir][i].is_cyclic) {
@@ -2324,6 +2324,9 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
             i++;
         }
     }
+
+    /* highest 4 bits are reserved */
+    checksum &= 0x0FFFFFFFFFFFFFFF;
 
 
     /* storing checksum */
@@ -2350,10 +2353,10 @@ unsigned Delaunay_Voronoi::cal_checksum(Point head, Point tail, double threshold
     char filename[64];
     int rank;
     MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
-    snprintf(filename, 64, "log/image_boundary_triangles_%d_%x", rank, checksum);
+    snprintf(filename, 64, "log/image_boundary_triangles_%03d_%016lx", rank, checksum);
     plot_triangles_into_file(filename, plot_triangles, size_plot);
 
-    snprintf(filename, 64, "log/boundary_triangles_%d_%x", rank, checksum);
+    snprintf(filename, 64, "log/boundary_triangles_%03d_%016lx", rank, checksum);
     FILE* fp = fopen(filename, "w");
     for (int i = 0; i < size_plot; i++)
         fprintf(fp, "%d, %d, %d\n", plot_triangles[i].v[0].id, 
@@ -2766,26 +2769,25 @@ void plot_triangles_into_file(const char *prefix, Triangle_inline *t, int num, b
     tail_coord[1] = new double[num_edges];
 
     num_edges = 0;
-    for(int i = 0; i < num; i ++)
-        if (t[i].v[0].calculate_distance(&t[i].v[1]) < PAT_CYCLIC_EDGE_THRESHOLD &&
-            t[i].v[1].calculate_distance(&t[i].v[2]) < PAT_CYCLIC_EDGE_THRESHOLD &&
-            t[i].v[2].calculate_distance(&t[i].v[0]) < PAT_CYCLIC_EDGE_THRESHOLD )
-            for(int j = 0; j < 3; j++) {
-                head_coord[0][num_edges] = t[i].v[j].x;
-                head_coord[1][num_edges] = t[i].v[j].y;
-                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
-                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
-            }
-        else if(plot_cyclic_triangles) {
+    for(int i = 0; i < num; i ++) {
+        if (t[i].v[0].x > 360 || t[i].v[1].x > 360 || t[i].v[2].x > 360) {
+            for(int j = 0; j < 3; j++)
+                t[i].v[j].x -= 360;
+        } else if (plot_cyclic_triangles &&
+                   (t[i].v[0].calculate_distance(&t[i].v[1]) >= PAT_CYCLIC_EDGE_THRESHOLD ||
+                   t[i].v[1].calculate_distance(&t[i].v[2]) >= PAT_CYCLIC_EDGE_THRESHOLD ||
+                   t[i].v[2].calculate_distance(&t[i].v[0]) >= PAT_CYCLIC_EDGE_THRESHOLD )) {
             for(int j = 0; j < 3; j++)
                 if(t[i].v[j].x > 180) t[i].v[j].x -= 360;
-            for(int j = 0; j < 3; j++) {
-                head_coord[0][num_edges] = t[i].v[j].x;
-                head_coord[1][num_edges] = t[i].v[j].y;
-                tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
-                tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
-            }
         }
+
+        for(int j = 0; j < 3; j++) {
+            head_coord[0][num_edges] = t[i].v[j].x;
+            head_coord[1][num_edges] = t[i].v[j].y;
+            tail_coord[0][num_edges] = t[i].v[(j+1)%3].x;
+            tail_coord[1][num_edges++] = t[i].v[(j+1)%3].y;
+        }
+    }
 
     PDASSERT(num_edges%3 == 0);
     snprintf(filename, 128, "%s.png", prefix);
