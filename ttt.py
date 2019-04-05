@@ -1,14 +1,13 @@
 import os
 import re
 import csv
-
+from operator import itemgetter
 result=[]
-result.append(['compiler','optimize','process','thread','status','test case','time','failed grid'])
+#result.append(['compiler','optimize','process','thread','status','test case','time','failed grid'])
 list = os.listdir('.')
 for file_name in list:
-    if(len(file_name.split())==4):
-
-		split_name=file_name.split('.')
+	split_name=file_name.split('.')
+	if(len(split_name)==4 and split_name[3]=='out'):
 		complie_name=split_name[0]+'.'+split_name[1]+'.'+split_name[3]
 		complier=""
 		with open(complie_name) as f:
@@ -29,7 +28,7 @@ for file_name in list:
 						result1 = line.replace(' ','')
 						result2 = re.split(r'[\[\]\(\)]',result1)
 						once_result.append(complier)
-						once_result.append('-O'+str(optimize_degree))
+						once_result.append('\-O'+str(optimize_degree))
 						once_result.append(process_num)
 						once_result.append(thread_num)
 						once_result.append(result2[1])
@@ -48,6 +47,25 @@ for file_name in list:
 						once_result=[]
 						last_result=lines.index(line)
 table_sorted = sorted(result, key=itemgetter(2, 5))
-# write the result to csv
-csv_writer=csv.writer(open('result.csv','w'),dialect='excel')
+csv_writer=csv.writer(open('all_result.csv','w'),dialect='excel')
 csv_writer.writerows(table_sorted)
+
+# write the result to csv
+dict={ }
+for line in result:
+	if(line[5] not in dict.keys()):
+		dict[line[5]]={}
+	if(line[1] not in dict[line[5]].keys()):
+		dict[line[5]][line[1]]=[]	
+	dict[line[5]][line[1]].append([line[2],line[3],line[4]])
+late_result=[]
+for key in dict.keys():
+	for key2 in dict[key].keys():
+		dict[key][key2].sort()
+		temp_result=[key,key2]
+		for i in range(0,len(dict[key][key2])):
+			temp_result.append(dict[key][key2][i][2])
+		late_result.append(temp_result)
+
+csv_writer=csv.writer(open('late_result.csv','w'),dialect='excel')
+csv_writer.writerows(late_result)
