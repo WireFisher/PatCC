@@ -2269,7 +2269,7 @@ void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, doub
 
 static inline unsigned long hash_triangle_by_id(Triangle_inline triangle)
 {
-    return ((unsigned long)triangle.v[0].id << 32) ^ ((unsigned long)triangle.v[1].id << 16) ^ triangle.v[2].id;
+    return ((unsigned long)triangle.v[0].id * (unsigned long)triangle.v[1].id) ^ (unsigned long)triangle.v[2].id;
 }
 
 
@@ -2314,8 +2314,9 @@ unsigned long Delaunay_Voronoi::cal_checksum(Point head, Point tail, double thre
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
         if (bound_triangles[dir][i].is_cyclic) {
             if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
-               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold))
+               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold)) {
                 checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
+            }
             i += 3;
         } else {
             if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold)) {
@@ -2579,14 +2580,15 @@ void Delaunay_Voronoi::remove_triangles_only_containing_virtual_polar()
 }
 
 
-void Delaunay_Voronoi::remove_triangles_till(int max_global_index)
+void Delaunay_Voronoi::remove_triangles_containing_vertexs(int idx_start, int num)
 {
+    int idx_end = idx_start + num;
     for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
         if(!all_leaf_triangles[i]->is_leaf)
             continue;
-        if((global_index[vertex(all_leaf_triangles[i], 0)->id] < max_global_index && global_index[vertex(all_leaf_triangles[i], 0)->id] >= 0) ||
-           (global_index[vertex(all_leaf_triangles[i], 1)->id] < max_global_index && global_index[vertex(all_leaf_triangles[i], 1)->id] >= 0) ||
-           (global_index[vertex(all_leaf_triangles[i], 2)->id] < max_global_index && global_index[vertex(all_leaf_triangles[i], 2)->id] >= 0))
+        if((global_index[vertex(all_leaf_triangles[i], 0)->id] < idx_end && global_index[vertex(all_leaf_triangles[i], 0)->id] >= idx_start) ||
+           (global_index[vertex(all_leaf_triangles[i], 1)->id] < idx_end && global_index[vertex(all_leaf_triangles[i], 1)->id] >= idx_start) ||
+           (global_index[vertex(all_leaf_triangles[i], 2)->id] < idx_end && global_index[vertex(all_leaf_triangles[i], 2)->id] >= idx_start))
             remove_leaf_triangle(all_leaf_triangles[i]);
     }
 }

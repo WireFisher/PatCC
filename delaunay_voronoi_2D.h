@@ -191,7 +191,7 @@ class Delaunay_Voronoi
         void update_points_coord_y(double, vector<int> *);
         void remove_triangles_only_containing_virtual_polar();
         void uncyclic_all_points();
-        void remove_triangles_till(int);
+        void remove_triangles_containing_vertexs(int, int);
 
         void make_final_triangle();
         void make_final_triangle_pack();
