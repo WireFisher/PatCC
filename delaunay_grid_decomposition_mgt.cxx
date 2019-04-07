@@ -1249,7 +1249,7 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], bo
     memcpy(inserted_coord[PDLN_LON], coord_values[PDLN_LON], num_points*sizeof(double));
     memcpy(inserted_coord[PDLN_LAT], coord_values[PDLN_LAT], num_points*sizeof(double));
     if (*mask)
-        memcpy(inserted_mask, (*mask), num_points*sizeof(bool));
+        memcpy(inserted_mask, *mask, num_points*sizeof(bool));
 
     /* Then, inserted points follow */
     int num_current = num_points;
@@ -1287,9 +1287,9 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], bo
     }
 
     if (*mask)
-        memset(&inserted_mask[num_points], 1, num_current);
+        memset(&inserted_mask[num_points], 1, num_current - num_points);
 
-    PDASSERT((unsigned)num_current - num_points <= 2*num_x + 2*num_y);
+    PDASSERT(num_current - num_points <= 2*num_x + 2*num_y);
 
     coord_values[PDLN_LON] = inserted_coord[PDLN_LON];
     coord_values[PDLN_LAT] = inserted_coord[PDLN_LAT];
