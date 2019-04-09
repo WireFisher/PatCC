@@ -10,9 +10,9 @@
  */
 static inline void lonlat2xyz(double lon, double lat, PAT_REAL *x, PAT_REAL *y, PAT_REAL *z)
 {
-    *x = cosl(DEGREE_TO_RADIAN(lat)) * sinl(DEGREE_TO_RADIAN(lon));
-    *y = sinl(DEGREE_TO_RADIAN(lat));
-    *z = cosl(DEGREE_TO_RADIAN(lat)) * cosl(DEGREE_TO_RADIAN(lon));
+    *x = cosl(DEGREE_TO_RADIAN((PAT_REAL)lat)) * sinl(DEGREE_TO_RADIAN((PAT_REAL)lon));
+    *y = sinl(DEGREE_TO_RADIAN((PAT_REAL)lat));
+    *z = cosl(DEGREE_TO_RADIAN((PAT_REAL)lat)) * cosl(DEGREE_TO_RADIAN((PAT_REAL)lon));
 }
 
 
