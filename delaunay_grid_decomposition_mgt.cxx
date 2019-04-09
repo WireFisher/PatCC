@@ -949,6 +949,8 @@ static inline void normalize_vector(PAT_REAL *x, PAT_REAL *y, PAT_REAL *z)
 }
 
 
+using std::fabs;
+using std::min;
 static inline void calculate_unit_vectors(double lon_tan, double lat_tan,
                                           PAT_REAL *v1_x, PAT_REAL *v1_y, PAT_REAL *v1_z,
                                           PAT_REAL *v2_x, PAT_REAL *v2_y, PAT_REAL *v2_z)
@@ -957,9 +959,24 @@ static inline void calculate_unit_vectors(double lon_tan, double lat_tan,
 
     lonlat2xyz(lon_tan, lat_tan, &t_x, &t_y, &t_z);
 
-    PAT_REAL axis_x = 1.0;
-    PAT_REAL axis_y = 0.0;
-    PAT_REAL axis_z = 0.0;
+    PAT_REAL min_dir = min(fabs(t_x),min(fabs(t_y),fabs(t_z)));
+    PAT_REAL axis_x, axis_y, axis_z;
+
+    if (min_dir == fabs(t_x)) {
+        axis_x = 1.0;
+        axis_y = 0.0;
+        axis_z = 0.0;
+    } else if (min_dir == fabs(t_y)) {
+        axis_x = 0.0;
+        axis_y = 1.0;
+        axis_z = 0.0;
+    } else if (min_dir == fabs(t_z)) {
+        axis_x = 0.0;
+        axis_y = 0.0;
+        axis_z = 1.0;
+    } else {
+        assert(false);
+    }
 
     *v1_x = t_y * axis_z - t_z * axis_y;
     *v1_y = t_z * axis_x - t_x * axis_z;
