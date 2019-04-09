@@ -124,7 +124,7 @@ public:
 
     /* Triangulation */
     void project_grid();
-    void generate_local_triangulation(bool, int, bool);
+    void generate_local_triangulation(bool, int, int, bool);
 
     /* Expanding */
     Boundry expand();
@@ -183,7 +183,7 @@ private:
     bool**    buf_bool;
 
     /* Main processes */
-    int  initialze_workload(bool, bool);
+    int  initialze_workloads(bool, bool);
     void initialze_buffer();
     int  assign_polars(bool, bool);
 

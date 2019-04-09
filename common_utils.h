@@ -13,8 +13,6 @@
     #define PDASSERT(cond) static_cast<void>(0)
 #endif
 
-#define PI ((double) 3.1415926535897932384626433)
-
 #define PDLN_ABS_TOLERANCE_LOW ((double) 1e-8)
 #define PDLN_ABS_TOLERANCE     ((double) 1e-10) // if less than 1e-10, will three point in a line, if more than 1e-15, will not pass check
 #define PDLN_ABS_TOLERANCE_HI  ((double) 1e-11) // normal grid less than 1e-11
@@ -35,6 +33,8 @@
 
 typedef long double PAT_REAL;
 typedef __int128_t PAT_INT;
+
+#define PI ((PAT_REAL) 3.1415926535897932384626433)
 
 class PDLN_Timer
 {
