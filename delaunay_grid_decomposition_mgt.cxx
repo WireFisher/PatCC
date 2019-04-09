@@ -1171,7 +1171,7 @@ Delaunay_grid_decomposition::~Delaunay_grid_decomposition()
 }
 
 
-#define PDLN_GVPOINT_DENSITY  (5)
+#define PDLN_GVPOINT_DENSITY  (1)
 #define PDLN_INSERT_EXPAND_RATIO (0.01)
 int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], bool **mask, Boundry *boundry, int num_points)
 {
@@ -1231,12 +1231,10 @@ int Delaunay_grid_decomposition::dup_inserted_points(double *coord_values[2], bo
      * x * y = num_points
      * x : y = dx : dy
      */
-    const int num_vpoints_per_region = 5;
-
-    unsigned num_region_x = std::max((unsigned)sqrt(num_regions * dx / dy), 1u);
-    unsigned num_region_y = std::max((unsigned)(num_regions * dy / dx), 1u);
-    unsigned num_x = num_region_x * num_vpoints_per_region;
-    unsigned num_y = num_region_y * num_vpoints_per_region;
+    unsigned num_x = (unsigned)sqrt(num_points * dx / dy);
+    unsigned num_y = num_x * dy / dx;
+    num_x /= PDLN_GVPOINT_DENSITY;
+    num_y /= PDLN_GVPOINT_DENSITY;
 
     double* inserted_coord[2];
     bool*   inserted_mask = NULL;
@@ -1328,15 +1326,10 @@ int Delaunay_grid_decomposition::calculate_num_inserted_points(Boundry *boundry,
      * x * y = num_points
      * x : y = dx : dy
      */
-    const int num_vpoints_per_region = 5;
-
-    int max_punits   = (num_points + min_points_per_chunk - 1) / min_points_per_chunk;
-    int total_punits = processing_info->get_num_total_processing_units();
-    int num_regions  = std::max(std::min(total_punits, max_punits), 4);
-    unsigned num_region_x = std::max((unsigned)sqrt(num_regions * dx / dy), 1u);
-    unsigned num_region_y = std::max((unsigned)(num_regions * dy / dx), 1u);
-    unsigned num_x = num_region_x * num_vpoints_per_region;
-    unsigned num_y = num_region_y * num_vpoints_per_region;
+    unsigned num_x = (unsigned)sqrt(num_points * dx / dy);
+    unsigned num_y = num_x * dy / dx;
+    num_x /= PDLN_GVPOINT_DENSITY;
+    num_y /= PDLN_GVPOINT_DENSITY;
 
     int num_inserted = 0;
 
