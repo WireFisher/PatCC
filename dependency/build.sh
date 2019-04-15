@@ -1,9 +1,8 @@
 #!/bin/bash
 
-GXX=g++
+GXX=mpiicpc
 GTEST_DIR=$(pwd)/googletest/
 GMOCK_DIR=$(pwd)/googlemock/
-CPP=/opt/gcc-5.4.0/bin/g++
 cd ${GTEST_DIR}
 ${GXX} -isystem ${GTEST_DIR}/include -I${GTEST_DIR} -pthread -c ${GTEST_DIR}/src/gtest-all.cc
 ar -rv libgtest.a gtest-all.o

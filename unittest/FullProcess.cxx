@@ -398,7 +398,9 @@ TEST_F(FullProcess, Basic) {
             fgets(md5[0], 64, fp);
 //            fgets(md5[1], 64, fp);
 //            EXPECT_STREQ(md5[0], md5[1]);
-			fprintf(test_log, "Basic %s\n",md5[0]);           
+			fprintf(test_log, "Basic %s\n",md5[0]);          
+			char mv[] = "mv log/global_triangles_* log/check/global_triangles_Basic";
+			fp = popen(mv, "r");
         }
 //    }
 };
@@ -446,6 +448,8 @@ TEST_F(FullProcess, LatLonGrid) {
 //            fgets(md5[1], 64, fp);
 //            EXPECT_STREQ(md5[0], md5[1]);
             fprintf(test_log, "LatLonGrid %s\n",md5[0]);
+			char mv[] = "mv log/global_triangles_* log/check/global_triangles_LatLonGrid";
+            fp = popen(mv, "r");
         }
 //    }
 };
@@ -491,6 +495,8 @@ TEST_F(FullProcess, LatLonSinglePolar) {
 //            fgets(md5[1], 64, fp);
 //            EXPECT_STREQ(md5[0], md5[1]);
 			fprintf(test_log,"LatLonSinglePolar %s\n",md5[0]);            
+			char mv[] = "mv log/global_triangles_* log/check/global_triangles_LatLonSinglePolar";
+            fp = popen(mv, "r");
         }
 //    }
 };
@@ -537,6 +543,9 @@ TEST_F(FullProcess, LatLonMutiPolars) {
 //            fgets(md5[1], 64, fp);
 //            EXPECT_STREQ(md5[0], md5[1]);
 			fprintf(test_log,"LatLonMutiPolars %s\n",md5[0]);            
+			char mv[] = "mv log/global_triangles_* log/check/global_triangles_LatLonMutiPolar";
+            fp = popen(mv, "r");
+
 		}
 //    }
 };
@@ -582,6 +591,9 @@ TEST_F(FullProcess, ThreePolar) {
 //            fgets(md5[1], 64, fp);
 //            EXPECT_STREQ(md5[0], md5[1]);
 			fprintf(test_log,"ThreePolar %s\n",md5[0]);
+			char mv[] = "mv log/global_triangles_* log/check/global_triangles_ThreePolar";
+            fp = popen(mv, "r");
+
 		}
 //    }
 };
@@ -619,20 +631,15 @@ TEST_F(FullProcess, ThreePolarBig) {
 
             char md5[2][64];
             memset(md5[0], 0, 64);
-//            memset(md5[1], 0, 64);
+//          memset(md5[1], 0, 64);
             fp = popen(cmd, "r");
             fgets(md5[0], 64, fp);
-//            fgets(md5[1], 64, fp);
-//            EXPECT_STREQ(md5[0], md5[1]);
-
-//            if(strncmp(md5[0], md5[1], 64) == 0) {
-//                char cmd[256];
-//                snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_big_three_poles.png");
-//                system(cmd);
-//                snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_big_three_poles.png");
-//                system(cmd);
-//            }
+//          fgets(md5[1], 64, fp);
+//          EXPECT_STREQ(md5[0], md5[1]);	
 			fprintf(test_log,"ThreePolarBig %s\n",md5[0]);
+			char mv[] = "mv log/global_triangles_* log/check/global_triangles_ThreePolarBig";
+			fp = popen(mv, "r");
+
 		}
         MPI_Barrier(MPI_COMM_WORLD);
 //    }
@@ -642,7 +649,7 @@ TEST_F(FullProcess, ThreePolarBig) {
 #define CHECK_PARALLEL_CONSISTENCY (true)
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
-    /*"ne30np4-t2.nc",
+    "ne30np4-t2.nc",
     "ne60np4_pentagons_100408.nc",
     "gx3v5_Present_DP_x3.nc",
     "Gamil_360x180_Grid.nc",
@@ -664,7 +671,7 @@ const char dim1_grid_name[][64] = {
     "R05_Grid.nc",
     "CUBE_grid_2.5.nc",
     "CUBE_grid_1.nc",
-    "CUBE_grid_0.3.nc",*/
+    "CUBE_grid_0.3.nc",
     "CUBE_grid_0.1.nc",
 };
 const char dim1_global_grid_name[][64] = {
@@ -887,13 +894,9 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
     printf("pid: %d\n", getpid());
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
-//    MPI_Comm split_world;
 
     ON_CALL(*mock_grid_info_manager, get_grid_mask(1))
         .WillByDefault(ReturnPointee(&grid_mask));
-
-//    if (mpi_size/3 > 1)
-//        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
 
     for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
@@ -930,15 +933,12 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
                 fgets(md5[0], 64, fp);
 //              fgets(md5[1], 64, fp);
 //              EXPECT_STREQ(md5[0], md5[1]);
+            	fprintf(test_log,"%s %s\n",dim1_grid_name[i],md5[0]);
+				char mv[] = "mv log/global_triangles_* log/check/global_triangle_Many_";
+				char tep[100];
+				sprintf(tep,"%s%s",mv,dim1_grid_name[i]);
+				fp = popen(tep, "r");
 
-//              if(strncmp(md5[0], md5[1], 64) == 0) {
-//                  char cmd[256];
-//                  snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", dim1_grid_name[i]);
-//                  system(cmd);
-//                  snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", dim1_grid_name[i]);
-//                 system(cmd);
-                
-				fprintf(test_log,"%s %s\n",dim1_grid_name[i],md5[0]);
 			}
             MPI_Barrier(MPI_COMM_WORLD);
 //        }
@@ -1151,6 +1151,10 @@ TEST_F(FullProcess, Performance) {
             fp = popen(cmd, "r");
             fgets(md5[0], 64, fp);
 			fprintf(test_log,"%s %s\n",autogen_grid_name[i], md5[0]);
+			char mv[] = "mv log/global_triangles_* log/check/global_triangle_Perf_";
+            char tep[100];
+		    sprintf(tep,"%s%s",mv,autogen_grid_name[i]);
+		    fp = popen(tep, "r");
 		}
     }
 };

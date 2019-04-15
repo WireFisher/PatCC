@@ -1,13 +1,13 @@
-#CXX := mpiicpc
-CXX := mpicxx
-#MPI_PATH := /opt/intel/impi/3.2.0.011/
-MPI_PATH := /opt/mpich-3.2-gcc5.4.0
+CXX := mpiicpc
+#CXX := mpicxx
+MPI_PATH := /opt/intel/impi/3.2.0.011/
+#MPI_PATH := /opt/mpich-3.2-gcc4.4.7/
 PDLN_USE_OPENCV := true
 PDLN_USE_NETCDF := true
 PDLN_DEBUG := true
 #PDLN_TIMING := true
-NETCDF_PATH := /opt/netCDF-gcc5.4.0
-#NETCDF_PATH := /opt/netCDF4-intel/netcdf4
+NETCDF_PATH := /opt/netCDF-gcc4.4.7/
+#NETCDF_PATH := /opt/netCDF-intel13-without-hdf5
 OPENCV_PATH := /home/yanghy/opt/opencv
 CXXFLAGS :=
 
@@ -35,8 +35,8 @@ test_objs = \
 			ProcessingResourceTest.o
 			#DelaunayVoronoi2D.o
 
-ADDED_FLAGS := -O0
-COMMON_FLAGS := -Wall -fopenmp -pthread -DDEBUG  
+ADDED_FLAGS := -O3
+COMMON_FLAGS := -Wall -fopenmp -pthread 
 
 ifeq ($(PDLN_TIMING),true)
 	COMMON_FLAGS += -DTIME_PERF
