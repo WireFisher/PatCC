@@ -4,6 +4,12 @@ GXX=mpiicpc
 GTEST_DIR=$(pwd)/googletest/
 GMOCK_DIR=$(pwd)/googlemock/
 cd ${GTEST_DIR}
+
+rm googlemock/*.a
+rm googlemock/*.o
+rm googletest/*.o
+rm googletest/*.a
+
 ${GXX} -isystem ${GTEST_DIR}/include -I${GTEST_DIR} -pthread -c ${GTEST_DIR}/src/gtest-all.cc
 ar -rv libgtest.a gtest-all.o
 
