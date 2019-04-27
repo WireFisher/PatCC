@@ -53,7 +53,7 @@ class Edge
 
         inline void ref_inc() {ref_count++;};
 #ifdef OPENCV
-        friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
+        friend void draw_line(cv::Mat, Point*, Edge*, double, double, double, double, cv::Scalar);
 #endif
         friend class Triangle;
         friend class Delaunay_Voronoi;
