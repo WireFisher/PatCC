@@ -1291,10 +1291,10 @@ void prepare_real_grid(const char grid_name[]){
 		        coord_values[PDLN_LON][i] -= 360;
 		    while(coord_values[PDLN_LON][i] < 0)
 		        coord_values[PDLN_LON][i] += 360;
-		if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
-		if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
-	    if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
-	    if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
+        if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
+        if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
+        if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
+        if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
 		
 		}
 		delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
@@ -1317,10 +1317,10 @@ void prepare_real_grid(const char grid_name[]){
 		    while(coord_values[PDLN_LON][i] < 0)
 		        coord_values[PDLN_LON][i] += 360;
 		
-		 if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
-         if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
-		 if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
-		 if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
+		if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
+        if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
+        if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
+		if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
 		
 		}
 		delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
@@ -1370,10 +1370,10 @@ void prepare_real_grid(const char grid_name[]){
 	    min_lat = -80.0;
 	    max_lat = 90.0;
 	}else if(strcmp(grid_name,"MITgcm_H2D_grid@mitgcm.nc")==0){
-		 min_lon = 0.0;
-         max_lon = 360.0;
-	     min_lat = 30.0;
-		 max_lat = 90.0;
+		min_lon = 0.0;
+        max_lon = 360.0;
+	    min_lat = 30.0;
+		max_lat = 90.0;
 	}else if(strcmp(grid_name,"pom_grid_via_local@pom@POM_TOP_d01.nc")==0 || 
 			 strcmp(grid_name,"wrf_grid_via_local@wrf@WRF_TOP_d01.nc")==0){
 		min_lon = 30.0;
