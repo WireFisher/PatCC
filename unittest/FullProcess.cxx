@@ -15,8 +15,10 @@
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
 
-FILE* test_log = fopen("all_grid_checksum", "w+");
+FILE* test_log = fopen("all_grid_checksum", "a+");
 double max_point_lat;
+extern int my_argc;
+extern char** my_argv;
 class Mock_Process_thread_manager3 : public Process_thread_manager
 {
 public:
@@ -360,7 +362,7 @@ void prepare_latlon_singlepolar()
 #endif
 
 
-TEST_F(FullProcess, Basic) {
+TEST_F(FullProcess, OLD_Basic) {
     comm = MPI_COMM_WORLD;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -408,7 +410,7 @@ TEST_F(FullProcess, Basic) {
 
 
 #ifdef NETCDF
-TEST_F(FullProcess, LatLonGrid) {
+TEST_F(FullProcess, OLD_LatLonGrid) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -457,7 +459,7 @@ TEST_F(FullProcess, LatLonGrid) {
 };
 
 
-TEST_F(FullProcess, LatLonSinglePolar) {
+TEST_F(FullProcess, OLD_LatLonSinglePolar) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -506,7 +508,7 @@ TEST_F(FullProcess, LatLonSinglePolar) {
 
 
 
-TEST_F(FullProcess, LatLonMutiPolars) {
+TEST_F(FullProcess, OLD_LatLonMutiPolars) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -555,7 +557,7 @@ TEST_F(FullProcess, LatLonMutiPolars) {
 };
 
 
-TEST_F(FullProcess, ThreePolar) {
+TEST_F(FullProcess, OLD_ThreePolar) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -604,7 +606,7 @@ TEST_F(FullProcess, ThreePolar) {
 };
 
 
-TEST_F(FullProcess, ThreePolarBig) {
+TEST_F(FullProcess, OLD_ThreePolarBig) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -904,11 +906,17 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
     ON_CALL(*mock_grid_info_manager, get_grid_mask(1))
         .WillByDefault(ReturnPointee(&grid_mask));
 
-    for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
+//  for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
-        printf("processing: %s\n", dim1_grid_name[i]);
+        printf("processing: %s\n", my_argv[1]);
         comm = MPI_COMM_WORLD;
-        prepare_dim1_grid(dim1_grid_name[i]);
+
+		if(mpi_rank == 0){
+	        fprintf(test_log,"\n%s ", my_argv[1]);
+	        fflush(test_log);
+		}
+
+        prepare_dim1_grid(my_argv[1]);
 
         Component* comp;
         comp = new Component(0);
@@ -939,17 +947,16 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
                 fgets(md5[0], 64, fp);
 //              fgets(md5[1], 64, fp);
 //              EXPECT_STREQ(md5[0], md5[1]);
-            	fprintf(test_log,"%s %s\n",dim1_grid_name[i],md5[0]);
+            	fprintf(test_log,"%s",md5[0]);
 				fflush(test_log);
 				char mv[] = "mv log/global_triangles_* log/check/global_triangle_Many_";
 				char tep[100];
-				sprintf(tep,"%s%s",mv,dim1_grid_name[i]);
+				sprintf(tep,"%s%s",mv,my_argv[1]);
 				fp = popen(tep, "r");
-
 			}
             MPI_Barrier(MPI_COMM_WORLD);
 //        }
-    }
+//    }
 };
 #endif
 
@@ -1134,13 +1141,26 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
 TEST_F(FullProcess, Performance) {
     MPI_Barrier(MPI_COMM_WORLD);
     comm = MPI_COMM_WORLD;
-
+	
+	int grid_size=0;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    for(unsigned i = 0; i < sizeof(autogen_grid_name)/64; i++) {
-        printf("processing: %s\n", autogen_grid_name[i]);
-        prepare_autogen_grid(autogen_grid_name[i], autogen_grid_size[i]);
+	for(unsigned i = 0; i < sizeof(autogen_grid_name)/64; i++) {
+		if(strcmp(my_argv[1],autogen_grid_name[i])==0){
+			grid_size = autogen_grid_size[i];
+			break;
+		}
+	}
+
+	if(mpi_rank == 0){
+	        fprintf(test_log,"\n%s ", my_argv[1]);
+	        fflush(test_log);
+	}
+
+//    for(unsigned i = 0; i < sizeof(autogen_grid_name)/64; i++) {
+        printf("processing: %s\n", my_argv[1]);
+        prepare_autogen_grid(my_argv[1],grid_size);
 
         Component* comp;
         comp = new Component(0);
@@ -1157,14 +1177,14 @@ TEST_F(FullProcess, Performance) {
 //          memset(md5[1], 0, 64);
             fp = popen(cmd, "r");
             fgets(md5[0], 64, fp);
-			fprintf(test_log,"%s %s\n",autogen_grid_name[i], md5[0]);
+			fprintf(test_log,"%s", md5[0]);
 			fflush(test_log);
 			char mv[] = "mv log/global_triangles_* log/check/global_triangle_Perf_";
             char tep[100];
-		    sprintf(tep,"%s%s",mv,autogen_grid_name[i]);
+		    sprintf(tep,"%s%s",mv,my_argv[1]);
 		    fp = popen(tep, "r");
 		}
-    }
+ 
 };
 
 
@@ -1196,10 +1216,10 @@ const char real_grid_name[][64]={
 		"ice_grid_at_ice_comp@cesm@ICE.nc",
 		"ocn_grid_at_ocn_comp@cesm@OCN.nc",
 		"MITgcm_H2D_grid@mitgcm.nc",
-		"datamodel_GIGC_H2D_grid@gamil.nc",
+//		"datamodel_GIGC_H2D_grid@gamil.nc",
 		"gigc_H2D_grid@GIGC.nc",
 		"gigc_H2D_grid_temp@GIGC.nc",
-//		"pom_grid_via_local@pom@POM_TOP_d01.nc",
+		"pom_grid_via_local@pom@POM_TOP_d01.nc",
 		"wrf_H2D_grid_no_mask@wrf.nc",
 		"wrf_H2D_grid_ocn_mask@wrf.nc",
 		"wrf_grid_via_local@wrf@WRF_TOP_d01.nc",
@@ -1215,6 +1235,24 @@ const char real_grid_name[][64]={
 		"gamil_H2D_grid@gamil.nc",
 		"gamil_H2D_grid_temp@gamil.nc",
 		"cfs_ocn_H2D_grid@cfs_ocn.nc",
+		"bccam_2D_grid@bccam.nc",
+		"bccam_2D_grid_temp@bccam.nc",
+		"bccavim_lnd_grid@bccavim.nc",
+		"bccavim_river_grid@bccavim.nc",
+		"bccavim_river_grid_temp@bccavim.nc",
+		"cpl_atm_grid@cpl.nc",
+		"cpl_ice_grid@cpl.nc",
+		"cpl_lnd_grid@cpl.nc",
+		"cpl_lnd_grid_temp@cpl.nc",
+		"cpl_ocn_grid@cpl.nc",
+		"cpl_river_grid@cpl.nc",
+		"mom_ocn_grid@mom.nc",
+		"mom_ocn_grid_temp@mom.nc",
+		"sis_ice_grid@sis.nc",
+		"sis_ice_grid_temp@sis.nc",
+		"grapes_h2d_ocn_grid@grapes.nc",
+		"grapes_h2d_T_grid@grapes.nc",
+
 };
 
 const char real_global_grid_name[][64]={
@@ -1369,6 +1407,7 @@ void prepare_real_grid(const char grid_name[]){
 	    max_lon = 360.0;
 	    min_lat = -80.0;
 	    max_lat = 90.0;
+		is_cyclic = true;
 	}else if(strcmp(grid_name,"MITgcm_H2D_grid@mitgcm.nc")==0){
 		min_lon = 0.0;
         max_lon = 360.0;
@@ -1381,6 +1420,24 @@ void prepare_real_grid(const char grid_name[]){
 		min_lat = -15.0;
 		max_lat = 30.0;
 		is_cyclic = false;
+	}else if(strcmp(grid_name,"cpl_ocn_grid@cpl.nc")==0 ||
+			 strcmp(grid_name,"sis_ice_grid@sis.nc")==0 || 
+			 strcmp(grid_name,"mom_ocn_grid@mom.nc")==0 || 
+			 strcmp(grid_name,"mom_ocn_grid_temp@mom.nc")==0 || 
+			 strcmp(grid_name,"sis_ice_grid_temp@sis.nc")==0 || 
+			 strcmp(grid_name,"cpl_ice_grid@cpl.nc")==0){
+        min_lon = 0.0;
+        max_lon = 360.0;
+        min_lat = -82.0;
+        max_lat = 90.0;
+        is_cyclic = true;
+	}else if(strcmp(grid_name,"cfs_ocn_H2D_grid@cfs_ocn.nc")==0){
+		min_lon = 0.0;
+		max_lon = 360.0;
+		min_lat = -81.0;
+		max_lat = 90.0;
+		is_cyclic = true;
+	
 	}
 
 	MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -1403,32 +1460,38 @@ TEST_F(FullProcess, RealGridTest) {
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
-
-    for(unsigned i = 0; i < sizeof(real_grid_name)/64; i++) {
-		printf("processing real grid: %s\n", real_grid_name[i]);
-        prepare_real_grid(real_grid_name[i]);
-
-        Component* comp;
-        comp = new Component(0);
-        comp->register_grid(new Grid(1));
-		int ret = comp->generate_delaunay_trianglulation(1, true);
-        EXPECT_EQ(ret, 0);
-        delete comp;
-
-		if (mpi_rank == 0) {
-			FILE *fp;
-			char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-			char md5[2][64];
-			memset(md5[0], 0, 64);
-			memset(md5[1], 0, 64);
-			fp = popen(cmd, "r");
-			fgets(md5[0], 64, fp);
-            fprintf(test_log,"%s %s\n",real_grid_name[i], md5[0]);
-            fflush(test_log);
-            char mv[] = "mv log/global_triangles_* log/check/global_triangle_Real_";
-            char tep[100];
-            sprintf(tep,"%s%s",mv,real_grid_name[i]);
-            fp = popen(tep, "r");
-		}
+	
+//   for(unsigned i = 0; i < sizeof(real_grid_name)/64; i++) { 
+	printf("processing real grid: %s\n", my_argv[1]);
+    prepare_real_grid(my_argv[1]);
+    
+	if(mpi_rank == 0){
+		fprintf(test_log,"\n%s ", my_argv[1]);
+		fflush(test_log);
 	}
+
+    Component* comp;
+    comp = new Component(0);
+    comp->register_grid(new Grid(1));
+	int ret = comp->generate_delaunay_trianglulation(1, true);
+    EXPECT_EQ(ret, 0);
+    delete comp;
+/*
+	if (mpi_rank == 0) {
+		FILE *fp;
+		char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
+		char md5[2][64];
+		memset(md5[0], 0, 64);
+		memset(md5[1], 0, 64);
+		fp = popen(cmd, "r");
+		fgets(md5[0], 64, fp);
+        fprintf(test_log,"%s", my_argv[1]);
+        fflush(test_log);
+        char mv[] = "mv log/global_triangles_* log/check/global_triangle_Real_";
+        char tep[100];
+        sprintf(tep,"%s%s",mv,my_argv[1]);
+        fp = popen(tep, "r");
+	}
+   }
+  */
 }

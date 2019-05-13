@@ -11,16 +11,18 @@
 
 Grid_info_manager *grid_info_mgr;
 Process_thread_manager *process_thread_mgr;
-
+int my_argc;
+char ** my_argv;
 int main(int argc, char** argv) {
-    int result = 0;
-    int rank,mpi_size;
+    int result = 0, rank;
     char *log_path;
 
     ::testing::InitGoogleMock(&argc, argv);
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
+	
+	my_argc = argc;
+	my_argv = argv;
 
 	log_path = new char[32];
     snprintf(log_path, 32, "log/log.%d", rank);
