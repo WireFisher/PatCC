@@ -366,8 +366,8 @@ TEST_F(FullProcess, Basic) {
 
     prepare_grid();
 
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
@@ -377,7 +377,7 @@ TEST_F(FullProcess, Basic) {
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
@@ -412,8 +412,8 @@ TEST_F(FullProcess, LatLonGrid) {
 
     prepare_latlon_grid();
 
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
@@ -423,7 +423,7 @@ TEST_F(FullProcess, LatLonGrid) {
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
@@ -456,8 +456,8 @@ TEST_F(FullProcess, LatLonSinglePolar) {
 
     prepare_latlon_singlepolar();
 
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
@@ -467,7 +467,7 @@ TEST_F(FullProcess, LatLonSinglePolar) {
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
@@ -501,8 +501,8 @@ TEST_F(FullProcess, LatLonMutiPolars) {
 
     prepare_latlon_mutipolars();
 
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
@@ -512,7 +512,7 @@ TEST_F(FullProcess, LatLonMutiPolars) {
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
@@ -545,8 +545,8 @@ TEST_F(FullProcess, ThreePolar) {
 
     prepare_three_polar_grid();
 
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
@@ -556,7 +556,7 @@ TEST_F(FullProcess, ThreePolar) {
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
@@ -590,8 +590,8 @@ TEST_F(FullProcess, ThreePolarBig) {
     prepare_big_three_polar_grid();
 
     printf("processing...\n");
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
@@ -602,7 +602,7 @@ TEST_F(FullProcess, ThreePolarBig) {
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
         printf("part of processes...\n");
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
@@ -667,6 +667,7 @@ const char dim1_grid_name[][64] = {
     */
 };
 const char dim1_global_grid_name[][64] = {
+    "ne30np4-t2.nc",
     "Gamil_128x60_Grid.nc",
     "fv1.9x2.5_050503.nc",
     "Gamil_360x180_Grid.nc",
@@ -901,8 +902,8 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
         comm = MPI_COMM_WORLD;
         prepare_dim1_grid(dim1_grid_name[i]);
 
-        Component* comp;
-        comp = new Component(0);
+        Patcc* comp;
+        comp = new Patcc(0);
         comp->register_grid(new Grid(1));
         int ret = comp->generate_delaunay_trianglulation(1, true);
         EXPECT_EQ(ret, 0);
@@ -912,7 +913,7 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             printf("spliting world: %s\n", dim1_grid_name[i]);
             comm = split_world;
             MPI_Barrier(split_world);
-            comp = new Component(1);
+            comp = new Patcc(1);
             comp->register_grid(new Grid(1));
             int ret = comp->generate_delaunay_trianglulation(1, true);
             EXPECT_EQ(ret, 0);
@@ -1135,8 +1136,8 @@ TEST_F(FullProcess, Performance) {
         printf("processing: %s\n", autogen_grid_name[i]);
         prepare_autogen_grid(autogen_grid_name[i], autogen_grid_size[i]);
 
-        Component* comp;
-        comp = new Component(0);
+        Patcc* comp;
+        comp = new Patcc(0);
         comp->register_grid(new Grid(1));
         int ret = comp->generate_delaunay_trianglulation(1);
         EXPECT_EQ(ret, 0);
