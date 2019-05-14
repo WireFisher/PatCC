@@ -632,7 +632,7 @@ TEST_F(FullProcess, OLD_ThreePolarBig) {
 //
 //        delete comp;
 //
-        if (mpi_rank == 0) {
+/*        if (mpi_rank == 0) {
             FILE *fp;
             char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
@@ -649,6 +649,7 @@ TEST_F(FullProcess, OLD_ThreePolarBig) {
 			fp = popen(mv, "r");
 
 		}
+		*/
         MPI_Barrier(MPI_COMM_WORLD);
 //    }
 };
@@ -906,57 +907,20 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
     ON_CALL(*mock_grid_info_manager, get_grid_mask(1))
         .WillByDefault(ReturnPointee(&grid_mask));
 
-//  for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
-        MPI_Barrier(MPI_COMM_WORLD);
-        printf("processing: %s\n", my_argv[1]);
-        comm = MPI_COMM_WORLD;
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("processing: %s\n", my_argv[1]);
+    comm = MPI_COMM_WORLD;
 
-		if(mpi_rank == 0){
-	        fprintf(test_log,"\n%s ", my_argv[1]);
-	        fflush(test_log);
-		}
+    prepare_dim1_grid(my_argv[1]);
 
-        prepare_dim1_grid(my_argv[1]);
+    Component* comp;
+    comp = new Component(0);
+    comp->register_grid(new Grid(1));
+    int ret = comp->generate_delaunay_trianglulation(1, true);
+    EXPECT_EQ(ret, 0);
+    delete comp;
 
-        Component* comp;
-        comp = new Component(0);
-        comp->register_grid(new Grid(1));
-        int ret = comp->generate_delaunay_trianglulation(1, true);
-        EXPECT_EQ(ret, 0);
-        delete comp;
-
-//        if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
-//            printf("spliting world: %s\n", dim1_grid_name[i]);
-//            comm = split_world;
-//            MPI_Barrier(split_world);
-//            comp = new Component(1);
-//            comp->register_grid(new Grid(1));
-//            int ret = comp->generate_delaunay_trianglulation(1, true);
-//            EXPECT_EQ(ret, 0);
-//
-//            delete comp;
-//
-            if (mpi_rank == 0) {
-                FILE *fp;
-                char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-                char md5[2][64];
-                memset(md5[0], 0, 64);
-//              memset(md5[1], 0, 64);
-                fp = popen(cmd, "r");
-                fgets(md5[0], 64, fp);
-//              fgets(md5[1], 64, fp);
-//              EXPECT_STREQ(md5[0], md5[1]);
-            	fprintf(test_log,"%s",md5[0]);
-				fflush(test_log);
-				char mv[] = "mv log/global_triangles_* log/check/global_triangle_Many_";
-				char tep[100];
-				sprintf(tep,"%s%s",mv,my_argv[1]);
-				fp = popen(tep, "r");
-			}
-            MPI_Barrier(MPI_COMM_WORLD);
-//        }
-//    }
+    MPI_Barrier(MPI_COMM_WORLD);
 };
 #endif
 
@@ -1152,41 +1116,16 @@ TEST_F(FullProcess, Performance) {
 			break;
 		}
 	}
+    printf("processing: %s\n", my_argv[1]);
+    prepare_autogen_grid(my_argv[1],grid_size);
 
-	if(mpi_rank == 0){
-	        fprintf(test_log,"\n%s ", my_argv[1]);
-	        fflush(test_log);
-	}
-
-//    for(unsigned i = 0; i < sizeof(autogen_grid_name)/64; i++) {
-        printf("processing: %s\n", my_argv[1]);
-        prepare_autogen_grid(my_argv[1],grid_size);
-
-        Component* comp;
-        comp = new Component(0);
-        comp->register_grid(new Grid(1));
-//      int ret = comp->generate_delaunay_trianglulation(1);
-        int ret = comp->generate_delaunay_trianglulation(1, true);
-        EXPECT_EQ(ret, 0);
-        delete comp;
-        if (mpi_rank == 0) {
-			FILE *fp;
-		    char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-		    char md5[2][64];
-		    memset(md5[0], 0, 64);
-//          memset(md5[1], 0, 64);
-            fp = popen(cmd, "r");
-            fgets(md5[0], 64, fp);
-			fprintf(test_log,"%s", md5[0]);
-			fflush(test_log);
-			char mv[] = "mv log/global_triangles_* log/check/global_triangle_Perf_";
-            char tep[100];
-		    sprintf(tep,"%s%s",mv,my_argv[1]);
-		    fp = popen(tep, "r");
-		}
- 
+    Component* comp;
+    comp = new Component(0);
+    comp->register_grid(new Grid(1));
+    int ret = comp->generate_delaunay_trianglulation(1, true);
+    EXPECT_EQ(ret, 0);
+    delete comp;
 };
-
 
 static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
 {
@@ -1216,7 +1155,6 @@ const char real_grid_name[][64]={
 		"ice_grid_at_ice_comp@cesm@ICE.nc",
 		"ocn_grid_at_ocn_comp@cesm@OCN.nc",
 		"MITgcm_H2D_grid@mitgcm.nc",
-//		"datamodel_GIGC_H2D_grid@gamil.nc",
 		"gigc_H2D_grid@GIGC.nc",
 		"gigc_H2D_grid_temp@GIGC.nc",
 		"pom_grid_via_local@pom@POM_TOP_d01.nc",
@@ -1267,8 +1205,6 @@ const char real_global_grid_name[][64]={
 		"cfs_ocn_H2D_grid@cfs_ocn.nc",
 		
 };
-
-
 
 void prepare_real_grid(const char grid_name[]){
 	int num_dims;
@@ -1461,15 +1397,9 @@ TEST_F(FullProcess, RealGridTest) {
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 	
-//   for(unsigned i = 0; i < sizeof(real_grid_name)/64; i++) { 
 	printf("processing real grid: %s\n", my_argv[1]);
     prepare_real_grid(my_argv[1]);
     
-	if(mpi_rank == 0){
-		fprintf(test_log,"\n%s ", my_argv[1]);
-		fflush(test_log);
-	}
-
     Component* comp;
     comp = new Component(0);
     comp->register_grid(new Grid(1));
@@ -1492,6 +1422,5 @@ TEST_F(FullProcess, RealGridTest) {
         sprintf(tep,"%s%s",mv,my_argv[1]);
         fp = popen(tep, "r");
 	}
-   }
-  */
+*/
 }
