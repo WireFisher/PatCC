@@ -139,17 +139,41 @@ void Patcc::grid_preprocessing(int grid_id)
     bool do_disabled_point_making = mask_method == DISABLE_POINTS_BY_RANGE;
 
     double split_line = (min_lon + max_lon) * 0.5;
-    double min_lat_except_pole = 1e10;
-    double max_lat_except_pole = -1e10;
 
-    double minX = coord_values[PDLN_LON][0];
-    double maxX = coord_values[PDLN_LON][0];
-    double minY = coord_values[PDLN_LAT][0];
-    double maxY = coord_values[PDLN_LAT][0];
-    #pragma omp parallel for shared(min_lat_except_pole, max_lat_except_pole, minX, maxX, minY, maxY)
+    double min_lat_except_pole_public = 1e10;
+    double max_lat_except_pole_public = -1e10;
+    double minX_public = 1e10;
+    double maxX_public = -1e10;
+    double minY_public = 1e10;
+    double maxY_public = -1e10;
+
+    double* all_min_lats = new double[total_threads];
+    double* all_max_lats = new double[total_threads];
+    double* all_minX = new double[total_threads];
+    double* all_maxX = new double[total_threads];
+    double* all_minY = new double[total_threads];
+    double* all_maxY = new double[total_threads];
+
+    for (int i = 0; i < total_threads; i++) {
+        all_min_lats[i] = 1e10;
+        all_max_lats[i] = -1e10;
+        all_minX[i] = 1e10;
+        all_maxX[i] = -1e10;
+        all_minY[i] = 1e10;
+        all_maxY[i] = -1e10;
+    }
+
+    #pragma omp parallel for
     for (int k = 0; k < total_threads; k++) {
         int local_start = k * (num_points / total_threads);
         int local_num   = k==total_threads-1 ? num_points/total_threads+num_points%total_threads : num_points / total_threads;
+
+        double min_lat_except_pole = 1e10;
+        double max_lat_except_pole = -1e10;
+        double minX = 1e10;
+        double maxX = -1e10;
+        double minY = 1e10;
+        double maxY = -1e10;
 
         for(int i = local_start; i < local_start+local_num; i++) {
             if (do_normalize) {
@@ -193,6 +217,22 @@ void Patcc::grid_preprocessing(int grid_id)
             if (coord_values[PDLN_LAT][i] < minY) minY = coord_values[PDLN_LAT][i];
             if (coord_values[PDLN_LAT][i] > maxY) maxY = coord_values[PDLN_LAT][i];
         }
+
+        all_min_lats[k] = min_lat_except_pole;
+        all_max_lats[k] = max_lat_except_pole;
+        all_minX[k] = minX;
+        all_maxX[k] = maxX;
+        all_minY[k] = minY;
+        all_maxY[k] = maxY;
+    }
+
+    for (int i = 0; i < total_threads; i++) {
+        if (min_lat_except_pole_public > all_min_lats[i]) min_lat_except_pole_public = all_min_lats[i];
+        if (max_lat_except_pole_public < all_max_lats[i]) max_lat_except_pole_public = all_max_lats[i];
+        if (minX_public > all_minX[i]) minX_public = all_minX[i];
+        if (maxX_public < all_maxX[i]) maxX_public = all_maxX[i];
+        if (minY_public > all_minY[i]) minY_public = all_minY[i];
+        if (maxY_public < all_maxY[i]) maxY_public = all_maxY[i];
     }
 
     if(is_cyclic) {
@@ -206,14 +246,14 @@ void Patcc::grid_preprocessing(int grid_id)
     }
 
     if(do_spole_processing && shifted_spoles_index.size() != 1) {
-        double shifting_lat = (-90.0 + min_lat_except_pole) * 0.5;
+        double shifting_lat = (-90.0 + min_lat_except_pole_public) * 0.5;
 
         for(unsigned i = 0; i < shifted_spoles_index.size(); i++)
             coord_values[PDLN_LAT][shifted_spoles_index[i]] = shifting_lat;
     }
 
     if(do_npole_processing && shifted_npoles_index.size() != 1) {
-        double shifting_lat = (90.0 + max_lat_except_pole) * 0.5;
+        double shifting_lat = (90.0 + max_lat_except_pole_public) * 0.5;
 
         for(unsigned i = 0; i < shifted_npoles_index.size(); i++)
             coord_values[PDLN_LAT][shifted_npoles_index[i]] = shifting_lat;
@@ -235,14 +275,14 @@ void Patcc::grid_preprocessing(int grid_id)
         num_current = num_points;
     } else {
         /* do_fence_point_inserting */
-        double dx   = maxX - minX;
-        double dy   = maxY - minY;
+        double dx   = maxX_public - minX_public;
+        double dy   = maxY_public - minY_public;
         double dMax = std::max(dx, dy);
 
-        double v_minx = minX-dMax*PAT_INSERT_EXPAND_RATIO;
-        double v_maxx = maxX+dMax*PAT_INSERT_EXPAND_RATIO;
-        double v_miny = minY-dMax*PAT_INSERT_EXPAND_RATIO;
-        double v_maxy = maxY+dMax*PAT_INSERT_EXPAND_RATIO;
+        double v_minx = minX_public-dMax*PAT_INSERT_EXPAND_RATIO;
+        double v_maxx = maxX_public+dMax*PAT_INSERT_EXPAND_RATIO;
+        double v_miny = minY_public-dMax*PAT_INSERT_EXPAND_RATIO;
+        double v_maxy = maxY_public+dMax*PAT_INSERT_EXPAND_RATIO;
 
         double r_minx = is_cyclic ? std::max(v_minx, 0.) : v_minx;
         double r_maxx = is_cyclic ? std::min(v_maxx, 360.) : v_maxx;
@@ -393,7 +433,7 @@ int Patcc::generate_delaunay_trianglulation(int grid_id, bool sort)
         return -1;
     }
 #ifdef OPENCV
-    //operating_grid->plot_triangles_into_file();
+    operating_grid->plot_triangles_into_file();
 #endif
     operating_grid->merge_all_triangles(sort);
     gettimeofday(&end, NULL);

@@ -702,6 +702,7 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
     }
     else
         PDASSERT(false);
+    //printf("[%lf, %lf, %lf, %lf] -> [%lf, %lf, %lf, %lf] + [%lf, %lf, %lf, %lf]\n",kernel_boundry->min_lon,kernel_boundry->max_lon,kernel_boundry->min_lat,kernel_boundry->max_lat, c_boundry[0].min_lon, c_boundry[0].max_lon, c_boundry[0].min_lat, c_boundry[0].max_lat, c_boundry[1].min_lon, c_boundry[1].max_lon, c_boundry[1].min_lat, c_boundry[1].max_lat);
 }
 
 
@@ -715,6 +716,7 @@ void Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, d
                                      int offset, int num_points, int count, Midline* midline, int c_num_points[2]) {
     PDASSERT(num_points >= 0);
 
+    //printf("divide_points: l: %lf, r: %lf\n", left_expt, rite_expt);
     if (float_eq(rite_expt, 0)) {
         midline->value = rite_bound;
         c_num_points[0] = num_points;
@@ -728,6 +730,7 @@ void Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, d
 
     int tmp_num[2];
     sort_by_line_internal(coord, index, mask, midline, offset, num_points, &tmp_num[0], &tmp_num[1]);
+    //printf("midline: %lf. %d vs %d\n", midline->value, tmp_num[0], tmp_num[1]);
 
     PDASSERT(tmp_num[0] >= 0);
     PDASSERT(tmp_num[0] <= num_points);
@@ -1101,12 +1104,14 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(Grid_info grid_info, Pr
         plot_points_into_file(filename, coord_values[PDLN_LON], coord_values[PDLN_LAT], mask, num_points, PDLN_PLOT_GLOBAL);
     }
 
-    if(processing_info->get_local_process_id() == 0) {
-        FILE *fp = fopen("log/original_input_points.txt", "w");
-        for (int i = 0; i < num_points; i ++)
-            fprintf(fp, "%lf, %lf, %d\n", coord_values[PDLN_LON][i], coord_values[PDLN_LAT][i], global_index[i]);
-        fclose(fp);
-    }
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    char filename[128];
+    snprintf(filename, 128, "log/original_input_points.txt_%d", rank);
+    FILE *fp = fopen(filename, "w");
+    for (int i = 0; i < num_points; i ++)
+        fprintf(fp, "%lf, %lf, %d\n", coord_values[PDLN_LON][i], coord_values[PDLN_LAT][i], global_index[i]);
+    fclose(fp);
     */
 
     initialze_buffer();
@@ -1453,6 +1458,8 @@ unsigned Delaunay_grid_decomposition::compute_common_boundry(Search_tree_node *t
     }
     *cyclic_boundry_head = Point(coord_value[0][PDLN_LON], coord_value[0][PDLN_LAT], -1);
     *cyclic_boundry_tail = Point(coord_value[1][PDLN_LON], coord_value[1][PDLN_LAT], -1);
+    //printf("inner : %d -> %d, (%lf, %lf)-(%lf, %lf)\n", tree_node->region_id, neighbor_node->region_id, coord_value[0][PDLN_LON], coord_value[0][PDLN_LAT], coord_value[1][PDLN_LON], coord_value[1][PDLN_LAT]);
+    //printf("inner : %d -> %d, (%lf, %lf)-(%lf, %lf)\n", tree_node->region_id, neighbor_node->region_id, boundry_head->x, boundry_head->y, boundry_tail->x, boundry_tail->y);
     return boundry_type;
 }
 
@@ -1553,7 +1560,8 @@ void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree
         /* compute shared boundry of leaf_node and its neighbor */
         unsigned boundry_type = compute_common_boundry(leaf_node, leaf_node->neighbors[i].first, &common_boundary_head, &common_boundary_tail,
                                               &cyclic_common_boundary_head, &cyclic_common_boundary_tail);
-        
+
+        //printf("boundary: %d -> %d, (%lf, %lf)-(%lf, %lf)\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id, common_boundary_head.x, common_boundary_head.y, common_boundary_tail.x, common_boundary_tail.y);
         /* calculate checksum */
         unsigned long checksum = 0;
         if(common_boundary_head.x != PDLN_DOUBLE_INVALID_VALUE)
@@ -1596,6 +1604,7 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
     }
 
     bool ok = true;
+
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
         unsigned long l_checksum = local_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR;
         unsigned long r_checksum = remote_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR;
@@ -2524,15 +2533,18 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
                 }
             }
         }
-        int all_threads_ret = 0;
-        #pragma omp parallel for shared(all_threads_ret)
+
+        volatile int all_threads_ret = 0;
+        #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
             if(!is_local_leaf_node_finished[i]) {
-                all_threads_ret |= expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+                int local_ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+                #pragma omp critical
+                all_threads_ret |= local_ret;
             }
 
         int all_ret = 0;
-        MPI_Allreduce(&all_threads_ret, &all_ret, 1, MPI_UNSIGNED, MPI_BOR, processing_info->get_mpi_comm());
+        MPI_Allreduce((int*)(&all_threads_ret), &all_ret, 1, MPI_UNSIGNED, MPI_BOR, processing_info->get_mpi_comm());
 
         gettimeofday(&end, NULL);
 
