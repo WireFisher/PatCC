@@ -22,6 +22,7 @@ struct Midline {
     double value;
 };
 
+
 class Boundry {
 public:
     double min_lon;
@@ -42,9 +43,22 @@ public:
     void move_close(double**, int, int);
 };
 
+
+struct Grid_info
+{
+    double* coord_values[2];
+    bool*   mask;
+    int     num_total_points;
+    int     num_vitual_poles;
+    int     num_fence_points;
+    Boundry boundary;
+    bool    is_cyclic;
+};
+
 class Search_tree_node;
 class Delaunay_grid_decomposition;
 typedef vector<pair<Search_tree_node*, bool> > Neighbors;
+
 
 class Search_tree_node {
 private:
@@ -150,38 +164,24 @@ public:
 };
 
 class Delaunay_grid_decomposition {
+public:
+    Delaunay_grid_decomposition(Grid_info, Processing_resource*, int);
+    ~Delaunay_grid_decomposition();
+
+    int generate_grid_decomposition(bool =true);
+    int generate_trianglulation_for_local_decomp();
+    vector<Search_tree_node*> get_local_leaf_nodes() {return local_leaf_nodes; };
+
+    /* Debug */
+    void print_whole_search_tree_info();
+    void merge_all_triangles(bool);
+
+#ifdef OPENCV
+    void plot_grid_decomposition(const char*);
+    void plot_local_triangles(const char*);
+#endif
+
 private:
-    /* Search tree info */
-    Search_tree_node*         search_tree_root;
-    Search_tree_node*         current_tree_node;
-    vector<Search_tree_node*> all_leaf_nodes;
-    vector<Search_tree_node*> local_leaf_nodes;
-    int  min_points_per_chunk;
-
-    /* Grid info */
-    int     original_grid;
-    bool    is_cyclic;
-    double* coord_values[2];
-    bool*   mask;
-    int*    global_index;
-    int     num_points;
-    int     num_inserted;
-
-    /* Proc info */
-    Processing_resource* processing_info;
-    int       num_regions;
-    bool*     active_processing_units_flag;
-    bool      is_local_proc_active;
-    double*   workloads;
-    double    average_workload;
-    int*      regionID_to_unitID;
-    int*      all_group_intervals;
-
-    /* Temp buffer */
-    double** buf_double[2];
-    int**    buf_int;
-    bool**    buf_bool;
-
     /* Main processes */
     int  initialze_workloads(bool, bool);
     void initialze_buffer();
@@ -227,22 +227,37 @@ private:
     void print_tree_node_info_recursively(Search_tree_node*);
     void save_unique_triangles_into_file(Triangle_inline *&, int, bool);
 
-public:
-    Delaunay_grid_decomposition(int, Processing_resource*, int);
-    ~Delaunay_grid_decomposition();
+    /* Search tree info */
+    Search_tree_node*         search_tree_root;
+    Search_tree_node*         current_tree_node;
+    vector<Search_tree_node*> all_leaf_nodes;
+    vector<Search_tree_node*> local_leaf_nodes;
+    int  min_points_per_chunk;
 
-    int generate_grid_decomposition(bool =true);
-    int generate_trianglulation_for_local_decomp();
-    vector<Search_tree_node*> get_local_leaf_nodes() {return local_leaf_nodes; };
+    /* Grid info */
+    int     original_grid;
+    bool    is_cyclic;
+    double* coord_values[2];
+    bool*   mask;
+    int*    global_index;
+    int     num_points;
+    int     num_fence_points;
+    Boundry boundary_from_user;
 
-    /* Debug */
-    void print_whole_search_tree_info();
-    void merge_all_triangles(bool);
+    /* Proc info */
+    Processing_resource* processing_info;
+    int       num_regions;
+    bool*     active_processing_units_flag;
+    bool      is_local_proc_active;
+    double*   workloads;
+    double    average_workload;
+    int*      regionID_to_unitID;
+    int*      all_group_intervals;
 
-#ifdef OPENCV
-    void plot_grid_decomposition(const char*);
-    void plot_local_triangles(const char*);
-#endif
+    /* Temp buffer */
+    double** buf_double[2];
+    int**    buf_int;
+    bool**    buf_bool;
 
     friend void decompose_common_node_recursively(Delaunay_grid_decomposition *, Search_tree_node *, bool);
     friend void extend_search_tree(Delaunay_grid_decomposition *, Search_tree_node *, const Boundry*, int);

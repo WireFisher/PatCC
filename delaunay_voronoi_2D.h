@@ -203,6 +203,7 @@ class Delaunay_Voronoi
         /* Test */
         vector<Edge*> get_all_delaunay_edge();
         vector<Edge*> get_all_legal_delaunay_edge();
+        Point* get_all_points_buf() {return all_points; };
 #ifdef OPENCV
         void plot_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void plot_projection_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
