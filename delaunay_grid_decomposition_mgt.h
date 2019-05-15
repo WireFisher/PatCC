@@ -126,10 +126,10 @@ public:
     ~Search_tree_node();
 
     /* Grid Decomposition */
-    void decompose_by_processing_units_number(double*, double**, int**, bool**, int*, Boundry*, int*, int*, int, int** =NULL, int* =NULL);
+    void decompose_by_processing_units_number(double*, double**, int**, bool**, int*, Boundry*, int*, int*, int, int**, int*, int);
     void divide_at_fix_line(Midline, double**, int**, bool**, int*);
-    void reorganize_kernel_points(double, double, double, double, int, int, int, Midline*, int*);
-    static void divide_points(double**, int*, bool*, double, double, double, double, int, int, int, Midline*, int*);
+    void reorganize_kernel_points(double, double, double, double, int, int, Midline*, int*, int);
+    static int divide_points(double**, int*, bool*, double, double, double, double, int, int, int, Midline*, int*, double, double, double, int);
 
     /* Getter & Setter */
     void update_region_ids(int, int);
@@ -159,8 +159,8 @@ public:
 
     friend class Delaunay_grid_decomposition;
     friend bool node_ptr_comp(Search_tree_node*, Search_tree_node*);
-    friend void decompose_common_node_recursively(Delaunay_grid_decomposition *, Search_tree_node *, bool);
-    friend void extend_search_tree(Delaunay_grid_decomposition *, Search_tree_node *, const Boundry*, int);
+    friend void decompose_common_node_recursively(Delaunay_grid_decomposition *, Search_tree_node *, int, bool);
+    friend void extend_search_tree(Delaunay_grid_decomposition *, Search_tree_node *, const Boundry*, int, int);
 };
 
 class Delaunay_grid_decomposition {
@@ -194,7 +194,7 @@ private:
     /* Helper */
     bool have_local_region_ids(int, int);
     void update_workloads(int, int, int, bool);
-    Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, bool*, int, Boundry, int, int, int, bool=true);
+    Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, bool*, int, Boundry, int, int, int, bool=false);
     bool is_polar_node(Search_tree_node*) const;
     void set_binding_relationship();
 
@@ -259,8 +259,8 @@ private:
     int**    buf_int;
     bool**    buf_bool;
 
-    friend void decompose_common_node_recursively(Delaunay_grid_decomposition *, Search_tree_node *, bool);
-    friend void extend_search_tree(Delaunay_grid_decomposition *, Search_tree_node *, const Boundry*, int);
+    friend void decompose_common_node_recursively(Delaunay_grid_decomposition *, Search_tree_node *, int, bool);
+    friend void extend_search_tree(Delaunay_grid_decomposition *, Search_tree_node *, const Boundry*, int, int);
 };
 
 
