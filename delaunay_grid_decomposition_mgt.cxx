@@ -2056,10 +2056,13 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         else
             fail_count = 0;
 
+        //printf("adjt boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         //if(fail_count > 20) {
         //    fprintf(stderr, "[%03d] expanding failed too many times\n", tree_node->region_id);
         //    return -1;
         //}
+
+        //printf("kernel boundary: %lf, %lf, %lf, %lf\n", search_tree_root->kernel_boundry->min_lon, search_tree_root->kernel_boundry->max_lon, search_tree_root->kernel_boundry->min_lat, search_tree_root->kernel_boundry->max_lat);
         if(new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
            new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
             fprintf(stderr, "[%03d] expanded too large\n", tree_node->region_id);
@@ -2170,11 +2173,14 @@ void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double
     c_num_points[0] = c_num_points[1] = 0;
     Search_tree_node::divide_points(coord, idx, mask, l, r, boundry_values[linetype], boundry_values[linetype+2], offset, num, 0, &midline, c_num_points, 0, 0, PDLN_DOUBLE_INVALID_VALUE, 0);
 
+
     PDASSERT(c_num_points[0] >= 0);
     PDASSERT(c_num_points[1] >= 0);
 
-    if (save_option == PDLN_SAVE_L) {
-        //PDASSERT(c_num_points[0] > 0);
+    if (midline.value == PDLN_DOUBLE_INVALID_VALUE) {
+        *offset_picked = offset;
+        *num_picked = num;
+    } else if (save_option == PDLN_SAVE_L) {
         *offset_picked = offset;
         *num_picked = c_num_points[0];
         if (linetype == PDLN_LON)
@@ -2182,7 +2188,6 @@ void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double
         else
             bound->max_lat = midline.value;
     } else {
-        //PDASSERT(c_num_points[1] > 0);
         *offset_picked = offset + c_num_points[0];
         *num_picked = c_num_points[1];
         if (linetype == PDLN_LON)
