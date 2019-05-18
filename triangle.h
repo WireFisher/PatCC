@@ -74,8 +74,7 @@ class Triangle
         PAT_REAL circum_radius2;
         int      stack_ref_count;
 
-        int  circum_circle_contains(Point*, Point*, double tolerance=PDLN_ABS_TOLERANCE);
-        bool really_on_circum_circle(Point*, Point*, double);
+        int  circum_circle_position_to(Point*, double=PDLN_ABS_TOLERANCE);
 
     public:
         Triangle();

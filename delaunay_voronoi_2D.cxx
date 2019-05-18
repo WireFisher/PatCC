@@ -213,13 +213,23 @@ bool operator != (Point p1, Point p2)
  */
 int Point::position_to_edge(const Point *pt1, const Point *pt2) const
 {
-    double res1 = det(pt1, pt2, this);
+    //double delta1_x = pt2->x - pt1->x;
+    //double delta1_y = pt2->y - pt1->y;
+    //double delta2_x = x - pt1->x;
+    //double delta2_y = y - pt1->y;
 
+    //double left  = delta1_x*delta2_y;
+    //double right = delta2_x*delta1_y;
+
+    //if (relative_eq_hi(left, right))
+    double res1 = det(pt1, pt2, this);
     if (float_eq_hi(res1, 0))
         return 0;
+    //else if (left > right)
     else if (res1 > 0)
         return 1;
-    else return -1;
+    else
+        return -1;
 }
 
 
@@ -389,7 +399,7 @@ enum REASON {
 } reason;
 
 
-bool Delaunay_Voronoi::is_triangle_legal(int p_idx, const Edge *edge)
+bool Delaunay_Voronoi::is_edge_legal(int p_idx, const Edge *edge)
 {
 #ifdef DEBUG
     reason = SUCCESS;
@@ -407,7 +417,8 @@ bool Delaunay_Voronoi::is_triangle_legal(int p_idx, const Edge *edge)
         return true;
     }
 
-    int ret = edge->triangle->circum_circle_contains(&all_points[0], head(edge->twin_edge->prev_edge_in_triangle), tolerance);
+    int ret = circum_circle_contains_reliably(edge, head(edge->twin_edge->prev_edge_in_triangle), tolerance);
+
     if (ret == -1) {
         return true;
     }
@@ -489,13 +500,14 @@ bool Delaunay_Voronoi::is_triangle_ambiguous(int p_idx, Edge *edge)
                 p[i]->x -= 360;
                 modified[i] = true;
             }
-        ret = edge->triangle->circum_circle_contains(&all_points[0], head(edge->twin_edge->prev_edge_in_triangle), tolerance);
+        ret = circum_circle_contains_reliably(edge, head(edge->twin_edge->prev_edge_in_triangle), tolerance);
         for (int i = 0; i < 4; i++)
             if (modified[i])
                 p[i]->x += 360;
+    } else {
+        ret = circum_circle_contains_reliably(edge, head(edge->twin_edge->prev_edge_in_triangle), tolerance);
     }
-    else
-        ret = edge->triangle->circum_circle_contains(&all_points[0], head(edge->twin_edge->prev_edge_in_triangle), tolerance);
+
     if (ret == 0) {
         return is_angle_ambiguous(p_idx, edge);
     }
@@ -507,7 +519,7 @@ bool Delaunay_Voronoi::is_triangle_ambiguous(int p_idx, Edge *edge)
 bool Delaunay_Voronoi::is_triangle_legal(const Triangle *t)
 {
     for(int i = 0; i < 3; i++)
-        if(!is_triangle_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i])) {
+        if(!is_edge_legal(t->edge[i]->prev_edge_in_triangle->head, t->edge[i])) {
             //printf("[%d] +illegal triangle: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", 1, vertex(t, 0)->x, vertex(t, 0)->y, vertex(t, 1)->x, vertex(t, 1)->y, vertex(t, 2)->x, vertex(t, 2)->y);
             Triangle *tt = t->edge[i]->twin_edge->triangle;
             //printf("[%d] -illegal triangle: (%lf, %lf), (%lf, %lf), (%lf, %lf)\n", 1, vertex(tt, 0)->x, vertex(tt, 0)->y, vertex(tt, 1)->x, vertex(tt, 1)->y, vertex(tt, 2)->x, vertex(tt, 2)->y);
@@ -564,7 +576,7 @@ bool Delaunay_Voronoi::is_delaunay_legal(const Point *pt, const Edge *edge)
         return true;
     }
 
-    int ret = edge->triangle->circum_circle_contains(&all_points[0], head(edge->twin_edge->prev_edge_in_triangle), 1e-6);
+    int ret = circum_circle_contains_reliably(edge, head(edge->twin_edge->prev_edge_in_triangle), tolerance);
     if (ret == 1)
         return false;
     
@@ -585,7 +597,7 @@ bool Delaunay_Voronoi::is_delaunay_legal(const Point *pt, const Edge *edge)
  */
 void Delaunay_Voronoi::legalize_triangles(int vr_idx, Edge *edge, unsigned stack_base, unsigned *stack_top)
 {
-    if (is_triangle_legal(vr_idx, edge))
+    if (is_edge_legal(vr_idx, edge))
         return;
 
     PDASSERT(edge->triangle->is_leaf);
@@ -702,6 +714,7 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
 #ifdef DEBUG
         if(float_eq_hi(det(pt1, pt2, pt3), 0) || float_eq_hi(det(pt2, pt3, pt1), 0) || float_eq_hi(det(pt3, pt1, pt2), 0)) {
             fprintf(stderr, "(%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
+            //fprintf(stderr, "(%.20lf, %.20lf, %d), (%.20lf, %.20lf, %d), (%.20lf, %.20lf, %d)\n", x_ref[pt1->id], y_ref[pt1->id], global_index[pt1->id], x_ref[pt2->id], y_ref[pt2->id], global_index[pt2->id], x_ref[pt3->id], y_ref[pt3->id], global_index[pt3->id]);
             fprintf(stderr, "std::fabs(det(pt1, pt2, pt3)): %.20lf\nstd::fabs(det(pt2, pt3, pt1)): %.20lf\nstd::fabs(det(pt3, pt1, pt2)): %.20lf\n", std::fabs(det(pt1, pt2, pt3)),
                                                                                                                                std::fabs(det(pt2, pt3, pt1)),
                                                                                                                                std::fabs(det(pt3, pt1, pt2)));
@@ -728,6 +741,8 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
             t->edge[2] = edge3;
         }
         else {
+            fprintf(stderr, "not counterclockwise (%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", x_ref[pt1->id], y_ref[pt1->id], x_ref[pt2->id], y_ref[pt2->id], x_ref[pt3->id], y_ref[pt3->id]);
+            fprintf(stderr, "not counterclockwise (%.20lf, %.20lf), (%.20lf, %.20lf), (%.20lf, %.20lf)\n", pt1->x, pt1->y, pt2->x, pt2->y, pt3->x, pt3->y);
             PDASSERT(false);
             t->v[1] = edge3->head;
             t->v[2] = edge2->head;
@@ -758,6 +773,7 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
         //        }
         //}
     }
+
     t->remained_points_head = -1;
     t->remained_points_tail = -1;
     
@@ -798,49 +814,38 @@ void Delaunay_Voronoi::initialize_edge(Edge* e, int head, int tail)
  *          0    point is on circum circle
  *         -1    point is out of circum circle
  */
-int Triangle::circum_circle_contains(Point* whole_points, Point *p, double tolerance)
+int Delaunay_Voronoi::circum_circle_contains_reliably(const Edge *edge, Point *p, double tolerance)
 {
-    PAT_REAL dist2 = (((PAT_REAL)p->x - circum_center[0]) * ((PAT_REAL)p->x - circum_center[0])) + (((PAT_REAL)p->y - circum_center[1]) * ((PAT_REAL)p->y - circum_center[1]));
+    int ret1 = edge->triangle->circum_circle_position_to(p, tolerance);
+    int ret2 = edge->twin_edge->triangle->circum_circle_position_to(&all_points[edge->prev_edge_in_triangle->head], tolerance);
 
-    if(relative_eq_int(dist2, circum_radius2, tolerance) &&
-       really_on_circum_circle(whole_points, p, tolerance))
+    if(ret1 > 0 && ret2 > 0) {
         return 0;
-    else if(dist2 < circum_radius2)
+    } else if(ret1 == 0 || ret1 == 2) {
         return 1;
-    else
+    } else {
         return -1;
+    }
 }
 
 
-bool Triangle::really_on_circum_circle(Point* whole_points, Point *p, double tolerance)
+/*
+ * Input : Point to be checked
+ * Return:  2  on/in
+ *          1  on/out
+ *          0  in
+ *         -1  out
+ */
+int Triangle::circum_circle_position_to(Point *p, double tolerance)
 {
-    Point *pt[4];
+    PAT_REAL dist2 = (((PAT_REAL)p->x - circum_center[0]) * ((PAT_REAL)p->x - circum_center[0])) + (((PAT_REAL)p->y - circum_center[1]) * ((PAT_REAL)p->y - circum_center[1]));
 
-    for(int i = 0; i < 3; i++)
-        pt[i] = &whole_points[v[i]];
-    pt[3] = p;
+    int ret = dist2 > circum_radius2 ? -1 : 0;
 
-    for(int j = 3; j > 0; j--)
-        for(int i = 0; i < j; i++)
-            if(pt[i]->id > pt[i+1]->id) {
-                Point *tmp = pt[i];
-                pt[i] = pt[i+1];
-                pt[i+1] = tmp;
-            }
+    if(relative_eq_int(dist2, circum_radius2, tolerance))
+        ret += 2;
 
-    PAT_REAL ab = ((PAT_REAL)pt[0]->x * (PAT_REAL)pt[0]->x) + ((PAT_REAL)pt[0]->y * (PAT_REAL)pt[0]->y);
-    PAT_REAL cd = ((PAT_REAL)pt[1]->x * (PAT_REAL)pt[1]->x) + ((PAT_REAL)pt[1]->y * (PAT_REAL)pt[1]->y);
-    PAT_REAL ef = ((PAT_REAL)pt[2]->x * (PAT_REAL)pt[2]->x) + ((PAT_REAL)pt[2]->y * (PAT_REAL)pt[2]->y);
-
-    PAT_REAL center[2];
-    center[0] = (ab * ((PAT_REAL)pt[2]->y - (PAT_REAL)pt[1]->y) + cd * ((PAT_REAL)pt[0]->y - (PAT_REAL)pt[2]->y) + ef * ((PAT_REAL)pt[1]->y - (PAT_REAL)pt[0]->y)) /
-                       ((PAT_REAL)pt[0]->x * ((PAT_REAL)pt[2]->y - (PAT_REAL)pt[1]->y) + (PAT_REAL)pt[1]->x * ((PAT_REAL)pt[0]->y - (PAT_REAL)pt[2]->y) + (PAT_REAL)pt[2]->x * ((PAT_REAL)pt[1]->y - (PAT_REAL)pt[0]->y)) * 0.5;
-    center[1] = (ab * ((PAT_REAL)pt[2]->x - (PAT_REAL)pt[1]->x) + cd * ((PAT_REAL)pt[0]->x - (PAT_REAL)pt[2]->x) + ef * ((PAT_REAL)pt[1]->x - (PAT_REAL)pt[0]->x)) /
-                       ((PAT_REAL)pt[0]->y * ((PAT_REAL)pt[2]->x - (PAT_REAL)pt[1]->x) + (PAT_REAL)pt[1]->y * ((PAT_REAL)pt[0]->x - (PAT_REAL)pt[2]->x) + (PAT_REAL)pt[2]->y * ((PAT_REAL)pt[1]->x - (PAT_REAL)pt[0]->x)) * 0.5;
-    PAT_REAL radius2 = (((PAT_REAL)pt[0]->x - center[0]) * ((PAT_REAL)pt[0]->x - center[0])) + (((PAT_REAL)pt[0]->y - center[1]) * ((PAT_REAL)pt[0]->y - center[1]));
-    PAT_REAL dist2 = (((PAT_REAL)pt[3]->x - center[0]) * ((PAT_REAL)pt[3]->x - center[0])) + (((PAT_REAL)pt[3]->y - center[1]) * ((PAT_REAL)pt[3]->y - center[1]));
-
-    return relative_eq_int(dist2, radius2, tolerance);
+    return ret;
 }
 
 
@@ -904,31 +909,47 @@ void Delaunay_Voronoi::swap_points(int idx1, int idx2)
 }
 
 
+/*
+ *   head:  head of linked list of points.
+ *   tail:  tail of linked list of points.
+ *   base:  base of the triangle stack.
+ *   top:   top of the triangle stack.
+ */
 void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, unsigned base, unsigned top)
 {
     int start = head;
+    int end, j;
+
     if (tail == -1)
         return;
+
     PDASSERT(head != -1);
 
     for (unsigned i = base+1; i <= top; i++) {
         if (!triangle_stack[i] || !triangle_stack[i]->is_leaf)
             continue;
 
-        int end = tail;
-        int j = start;
-        for (; j != end && j > -1;) {
+        end = tail;
+
+        /* put points in current triangle together */
+        for (j = start; j != end && j > -1;) {
             int* v_idx = triangle_stack[i]->v;
-            if (all_points[j].position_to_triangle(&all_points[v_idx[0]], &all_points[v_idx[1]], &all_points[v_idx[2]]) >= 0) {
+            if (all_points[j].position_to_triangle(&all_points[v_idx[0]], &all_points[v_idx[1]], &all_points[v_idx[2]]) >= 0) { // in triangles or on the edge
                 j = all_points[j].next;
             } else {
                 swap_points(j, end);
                 end = all_points[end].prev;
             }
         }
+
         int* v_idx = triangle_stack[i]->v;
         if (j > -1 && all_points[end].position_to_triangle(&all_points[v_idx[0]], &all_points[v_idx[1]], &all_points[v_idx[2]]) < 0) // Case "j == end"
             end = all_points[end].prev;
+
+        /* set triangle remained points info */
+        triangle_stack[i]->set_remained_points(start, end);
+
+        /* go on */
         triangle_stack[i]->set_remained_points(start, end);
         if (end > -1) {
             start = all_points[end].next;
@@ -939,6 +960,7 @@ void Delaunay_Voronoi::distribute_points_into_triangles(int head, int tail, unsi
                 break;
         }
     }
+
     PDASSERT(start == -1);
 }
 
@@ -1948,7 +1970,7 @@ void Delaunay_Voronoi::validate_result()
             break;
         }
     }
-    assert(valid);
+    PDASSERT(valid);
 
     bool* have_triangle = new bool[num_points - PAT_NUM_LOCAL_VPOINTS]();
     for (unsigned i = 0; i < all_leaf_triangles.size(); i ++) {
@@ -1961,7 +1983,7 @@ void Delaunay_Voronoi::validate_result()
     }
 
     for (int i = 0; i < num_points - PAT_NUM_LOCAL_VPOINTS; i ++)
-        assert(have_triangle[i]);
+        PDASSERT(have_triangle[i]);
 }
 
 

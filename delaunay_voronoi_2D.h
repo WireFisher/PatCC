@@ -47,115 +47,6 @@ struct Bound;
 
 class Delaunay_Voronoi
 {
-    private:
-        /* Storage */
-        Point*            all_points;
-        vector<Triangle*> all_leaf_triangles;
-        int               max_points;
-
-        /* Memory management */
-        Triangle_pool triangle_allocator;
-        Edge_pool edge_allocator;
-        Triangle** triangle_stack;
-        unsigned   stack_size;
-
-        /* Property */
-        bool   polar_mode;
-        bool   fast_mode;
-        double tolerance;
-
-        /* Grid info */
-        int num_points;
-        int vpolar_local_index;
-        const double* x_ref;
-        const double* y_ref;
-        const int*    global_index;
-
-        /* Triangulating stuff */
-        Point* virtual_point[4];
-        int*   point_idx_to_buf_idx;
-        vector<Point*>    extra_virtual_point;
-        unsigned dirty_triangles_count;
-
-        /* Consistency checking boundary */
-        bool   have_bound;
-        Point  bound_vertexes[4];
-        double checking_threshold;
-        vector<Triangle_inline> bound_triangles[4];
-        vector<pair<pair<Point, Point>, unsigned long> > checksum_storage;
-        Point  avoiding_line_head[2];
-        Point  avoiding_line_tail[2];
-        Point  avoiding_circle_center[2];
-        double avoiding_circle_radius[2];
-
-#ifdef DEBUG
-        const double* x_store;
-        const double* y_store;
-        vector<Triangle*> triangles_containing_vpolar;
-#endif
-
-        unsigned triangulating_process(Triangle*, unsigned);
-        void fast_triangulate(int, int, bool);
-        void map_buffer_index_to_point_index();
-        void push(unsigned *, Triangle*);
-
-        /* preparing function */
-        void initialize(int);
-        void extend_points_buffer(int);
-        void distribute_initial_points(const double* x, const double* y, int num, int** output_nexts);
-        void enlarge_super_rectangle(const double* x, const double* y, int num);
-        Bound* make_bounding_box();
-        bool point_in_triangle(double x, double y, Triangle* t);
-        bool point_in_bound(double x, double y, Bound* b);
-
-        void distribute_points_into_triangles(int, int, unsigned, unsigned);
-        void link_remained_list(unsigned, unsigned, int*, int*);
-        void swap_points(int, int);
-
-        void mark_special_triangles();
-        bool check_uniqueness(int, const Edge *edge);
-        bool is_angle_ambiguous(int, const Edge *edge);
-        int  get_lowest_point_of_four(int, int, int, int);
-        Edge* make_twins_edge(Edge*);
-
-        bool is_triangle_legal(int, const Edge *edge);
-        bool is_triangle_legal(const Triangle *);
-        bool is_triangle_ambiguous(int, Edge *edge);
-        void relegalize_triangles(int, Edge*);
-        void remove_leaf_triangle(Triangle*);
-        bool is_delaunay_legal(const Point *pt, const Edge *edge);
-        bool is_delaunay_legal(const Triangle *);
-        void validate_result();
-
-        Triangle_inline pack_triangle(Triangle*);
-        void add_to_bound_triangles(Triangle_inline&, unsigned);
-
-        bool is_triangle_valid(Triangle* tri);
-        bool is_triangle_on_line(Triangle* tri, Point* head, Point* tail);
-
-        void legalize_triangles(int, Edge *edge, unsigned, unsigned*);
-
-        Edge* allocate_edge(int, int);
-        Triangle* allocate_triangle(Edge*, Edge*, Edge*, bool = false);
-        Triangle* allocate_triangle(int, int, int, bool = false);
-        void initialize_triangle_with_edges(Triangle*, Edge*, Edge*, Edge*, bool = false);
-        void initialize_edge(Edge* e, int head, int tail);
-
-        inline void ref_inc(Edge* e) {e->ref_count++;};
-        inline void ref_dec(Edge* e) {
-            e->ref_count--;
-            if(e->ref_count <= 0) {
-                if (e->twin_edge)
-                    e->twin_edge->twin_edge = NULL;
-                edge_allocator.deleteElement(e);
-            }
-        };
-        void clean_triangle(Triangle*);
-
-        inline Point* vertex(const Triangle* t, int i) { return &all_points[t->v[i]]; };
-        inline Point* head(const Edge* e) { return &all_points[e->head]; };
-        inline Point* tail(const Edge* e) { return &all_points[e->tail]; };
-
     public:
         Delaunay_Voronoi();
         ~Delaunay_Voronoi();
@@ -209,6 +100,116 @@ class Delaunay_Voronoi
         void plot_projection_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void plot_original_points_into_file(const char*, double min_x=0.0, double max_x=0.0, double min_y=0.0, double max_y=0.0);
         void plot_current_step_into_file(const char*);
+#endif
+    private:
+
+        unsigned triangulating_process(Triangle*, unsigned);
+        void fast_triangulate(int, int, bool);
+        void map_buffer_index_to_point_index();
+        void push(unsigned *, Triangle*);
+
+        /* preparing function */
+        void initialize(int);
+        void extend_points_buffer(int);
+        void distribute_initial_points(const double* x, const double* y, int num, int** output_nexts);
+        void enlarge_super_rectangle(const double* x, const double* y, int num);
+        Bound* make_bounding_box();
+        bool point_in_triangle(double x, double y, Triangle* t);
+        bool point_in_bound(double x, double y, Bound* b);
+
+        void distribute_points_into_triangles(int, int, unsigned, unsigned);
+        void link_remained_list(unsigned, unsigned, int*, int*);
+        void swap_points(int, int);
+
+        void mark_special_triangles();
+        bool check_uniqueness(int, const Edge *edge);
+        bool is_angle_ambiguous(int, const Edge *edge);
+        int  get_lowest_point_of_four(int, int, int, int);
+        Edge* make_twins_edge(Edge*);
+
+        bool is_edge_legal(int, const Edge *edge);
+        bool is_triangle_legal(const Triangle *);
+        bool is_triangle_ambiguous(int, Edge *edge);
+        void relegalize_triangles(int, Edge*);
+        void remove_leaf_triangle(Triangle*);
+        bool is_delaunay_legal(const Point *pt, const Edge *edge);
+        bool is_delaunay_legal(const Triangle *);
+        void validate_result();
+        int  circum_circle_contains_reliably(const Edge*, Point*, double);
+
+        Triangle_inline pack_triangle(Triangle*);
+        void add_to_bound_triangles(Triangle_inline&, unsigned);
+
+        bool is_triangle_valid(Triangle* tri);
+        bool is_triangle_on_line(Triangle* tri, Point* head, Point* tail);
+
+        void legalize_triangles(int, Edge *edge, unsigned, unsigned*);
+
+        Edge* allocate_edge(int, int);
+        Triangle* allocate_triangle(Edge*, Edge*, Edge*, bool = false);
+        Triangle* allocate_triangle(int, int, int, bool = false);
+        void initialize_triangle_with_edges(Triangle*, Edge*, Edge*, Edge*, bool = false);
+        void initialize_edge(Edge* e, int head, int tail);
+
+        inline void ref_inc(Edge* e) {e->ref_count++;};
+        inline void ref_dec(Edge* e) {
+            e->ref_count--;
+            if(e->ref_count <= 0) {
+                if (e->twin_edge)
+                    e->twin_edge->twin_edge = NULL;
+                edge_allocator.deleteElement(e);
+            }
+        };
+        void clean_triangle(Triangle*);
+
+        inline Point* vertex(const Triangle* t, int i) { return &all_points[t->v[i]]; };
+        inline Point* head(const Edge* e) { return &all_points[e->head]; };
+        inline Point* tail(const Edge* e) { return &all_points[e->tail]; };
+
+        /* Storage */
+        Point*            all_points;
+        vector<Triangle*> all_leaf_triangles;
+        int               max_points;
+
+        /* Memory management */
+        Triangle_pool triangle_allocator;
+        Edge_pool edge_allocator;
+        Triangle** triangle_stack;
+        unsigned   stack_size;
+
+        /* Property */
+        bool   polar_mode;
+        bool   fast_mode;
+        double tolerance;
+
+        /* Grid info */
+        int num_points;
+        int vpolar_local_index;
+        const double* x_ref;
+        const double* y_ref;
+        const int*    global_index;
+
+        /* Triangulating stuff */
+        Point* virtual_point[4];
+        int*   point_idx_to_buf_idx;
+        vector<Point*>    extra_virtual_point;
+        unsigned dirty_triangles_count;
+
+        /* Consistency checking boundary */
+        bool   have_bound;
+        Point  bound_vertexes[4];
+        double checking_threshold;
+        vector<Triangle_inline> bound_triangles[4];
+        vector<pair<pair<Point, Point>, unsigned long> > checksum_storage;
+        Point  avoiding_line_head[2];
+        Point  avoiding_line_tail[2];
+        Point  avoiding_circle_center[2];
+        double avoiding_circle_radius[2];
+
+#ifdef DEBUG
+        const double* x_store;
+        const double* y_store;
+        vector<Triangle*> triangles_containing_vpolar;
 #endif
 };
 
