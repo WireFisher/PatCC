@@ -818,10 +818,12 @@ int Delaunay_Voronoi::circum_circle_contains_reliably(const Edge *edge, Point *p
 {
     int ret1 = edge->triangle->circum_circle_position_to(p, tolerance);
     int ret2 = edge->twin_edge->triangle->circum_circle_position_to(&all_points[edge->prev_edge_in_triangle->head], tolerance);
+    int ret3 = edge->triangle->circum_radius2 > edge->twin_edge->triangle->circum_radius2 ? ret1 : ret2;
+    //int ret3 = ret1;
 
     if(ret1 > 0 && ret2 > 0) {
         return 0;
-    } else if(ret1 == 0 || ret1 == 2) {
+    } else if(ret3 == 0 || ret3 == 2) {
         return 1;
     } else {
         return -1;
@@ -2291,7 +2293,7 @@ void Delaunay_Voronoi::remove_triangles_on_or_out_of_boundary(double min_x, doub
 
 static inline unsigned long hash_triangle_by_id(Triangle_inline triangle)
 {
-    return ((unsigned long)triangle.v[0].id * (unsigned long)triangle.v[1].id) ^ (unsigned long)triangle.v[2].id;
+    return ((unsigned long)triangle.v[0].id * (unsigned long)triangle.v[1].id) * (unsigned long)triangle.v[2].id;
 }
 
 
