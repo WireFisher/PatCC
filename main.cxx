@@ -29,13 +29,12 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    Component* comp;
-    comp = new Component(0);
-    comp->register_grid(new Grid(1));
-    comp->generate_delaunay_trianglulation(1);
+    Patcc* patcc = new Patcc(0);
+    patcc->register_grid(new Grid(1));
+    patcc->generate_delaunay_trianglulation(1);
 
     delete process_thread_mgr;
     delete grid_info_mgr;
-    delete comp;
+    delete patcc;
     MPI_Finalize();
 }
