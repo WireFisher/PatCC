@@ -1131,6 +1131,10 @@ TEST_F(FullProcess, Performance) {
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    MPI_Comm split_world;
+
+    if (mpi_size/3 > 1)
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
 
     for(unsigned i = 0; i < sizeof(autogen_grid_name)/64; i++) {
         printf("processing: %s\n", autogen_grid_name[i]);
@@ -1139,9 +1143,43 @@ TEST_F(FullProcess, Performance) {
         Patcc* comp;
         comp = new Patcc(0);
         comp->register_grid(new Grid(1));
-        int ret = comp->generate_delaunay_trianglulation(1);
+        int ret = comp->generate_delaunay_trianglulation(1, true);
         EXPECT_EQ(ret, 0);
         delete comp;
+
+        if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
+            printf("spliting world: %s\n", autogen_grid_name[i]);
+            comm = split_world;
+            MPI_Barrier(split_world);
+            comp = new Patcc(0);
+            comp->register_grid(new Grid(1));
+            int ret = comp->generate_delaunay_trianglulation(1, true);
+            EXPECT_EQ(ret, 0);
+
+            delete comp;
+
+            if (mpi_rank == 0) {
+                FILE *fp;
+                char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
+
+                char md5[2][64];
+                memset(md5[0], 0, 64);
+                memset(md5[1], 0, 64);
+                fp = popen(cmd, "r");
+                fgets(md5[0], 64, fp);
+                fgets(md5[1], 64, fp);
+                EXPECT_STREQ(md5[0], md5[1]);
+
+                if(strncmp(md5[0], md5[1], 64) == 0) {
+                    char cmd[256];
+                    snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", autogen_grid_name[i]);
+                    system(cmd);
+                    snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", autogen_grid_name[i]);
+                    system(cmd);
+                }
+            }
+            MPI_Barrier(split_world);
+        }
     }
 };
 
