@@ -821,9 +821,9 @@ int Delaunay_Voronoi::circum_circle_contains_reliably(const Edge *edge, Point *p
     int ret3 = edge->triangle->circum_radius2 > edge->twin_edge->triangle->circum_radius2 ? ret1 : ret2;
     //int ret3 = ret1;
 
-    if(ret1 > 0 && ret2 > 0) {
+    if (ret1 > 0 && ret2 > 0) {
         return 0;
-    } else if(ret3 == 0 || ret3 == 2) {
+    } else if (ret3 == 0 || ret3 == 2) {
         return 1;
     } else {
         return -1;

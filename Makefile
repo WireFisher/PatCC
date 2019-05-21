@@ -1,4 +1,4 @@
-CXX := mpicxx
+CXX := mpiicpc
 MPI_PATH := /opt/intel/impi/3.2.0.011
 #PDLN_USE_OPENCV := true
 #PDLN_USE_NETCDF := true
@@ -27,9 +27,9 @@ core_objs = ccpl_utils.o \
 
 test_objs = \
 			FullProcess.o \
-			GridDecomposition.o \
-			ProcessingResourceTest.o
-			#DelaunayVoronoi2D.o
+			ProcessingResourceTest.o \
+			DelaunayVoronoi2D.o
+			#GridDecomposition.o \
 
 COMMON_FLAGS := -Wall -g -fopenmp -pthread
 

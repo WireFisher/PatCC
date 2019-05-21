@@ -5,6 +5,7 @@
 #include <sys/time.h>
 #include "timer.h"
 #include <omp.h>
+#include <cstring>
 
 #define PDLN_DEFAULT_MIN_NUM_POINTS (100)
 

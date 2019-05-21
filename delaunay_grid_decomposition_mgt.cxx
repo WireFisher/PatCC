@@ -1558,6 +1558,12 @@ namespace std
 } 
 
 
+struct Triangles_digest {
+    unsigned int  num;
+    unsigned long checksum;
+};
+
+
 #define PDLN_SET_TAG_ITER(tag)          ( tag  &0x000000FF)
 #define PDLN_SET_TAG_SRC(tag, id)       ((id<<20&0xFFF00000) | tag)
 #define PDLN_SET_TAG_DST(tag, id)       ((id<< 8&0x000FFF00) | tag)
@@ -2849,21 +2855,21 @@ void Delaunay_grid_decomposition::save_unique_triangles_into_file(Triangle_inlin
 #endif
 
     /*
-    char filename[64];
-    FILE *fp;
+    char filename2[64];
+    FILE *fp2;
     char file_fmt1[] = "log/global_triangles_coord_%d";
-    snprintf(filename, 64, file_fmt1, processing_info->get_num_total_processing_units());
-    fp = fopen(filename, "w");
+    snprintf(filename2, 64, file_fmt1, processing_info->get_num_total_processing_units());
+    fp2 = fopen(filename2, "w");
     for(int i = 0; i < num_different_triangles; i++)
-        fprintf(fp, "%d, %d, %d, %lf, %lf, %lf, %lf, %lf, %lf\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id, triangles[i].v[0].x, triangles[i].v[0].y, triangles[i].v[1].x, triangles[i].v[1].y, triangles[i].v[2].x, triangles[i].v[2].y);
-    fclose(fp);
+        fprintf(fp2, "%d, %d, %d, %lf, %lf, %lf, %lf, %lf, %lf\n", triangles[i].v[0].id, triangles[i].v[1].id, triangles[i].v[2].id, triangles[i].v[0].x, triangles[i].v[0].y, triangles[i].v[1].x, triangles[i].v[1].y, triangles[i].v[2].x, triangles[i].v[2].y);
+    fclose(fp2);
     */
 
 #ifdef OPENCV
-    char file_fmt2[] = "log/image_global_triangles_%d";
-    char filename2[64];
-    snprintf(filename2, 64, file_fmt2, processing_info->get_num_total_processing_units());
-    plot_triangles_into_file(filename2, triangles, num_different_triangles, true);
+    char file_fmt3[] = "log/image_global_triangles_%d";
+    char filename3[64];
+    snprintf(filename3, 64, file_fmt3, processing_info->get_num_total_processing_units());
+    plot_triangles_into_file(filename3, triangles, num_different_triangles, true);
 #endif
 }
 
