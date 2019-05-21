@@ -32,9 +32,9 @@ At end of the execution, the program will write results to `log/global_triangles
 
 ### Grid file format
 
-1st line: N, the number of points to read
-2nd line: Boundary of the points (minLon maxLon minLat maxLat)
-3rd~N+2th lines: coordnate values in degree for each point (lon lat)
+1st line: N, the number of points to read  
+2nd line: Boundary of the points (minLon maxLon minLat maxLat)  
+3rd~N+2th lines: coordnate values in degree for each point (lon lat)  
 
 A example file named `test.dat` can be found in this directory.
 
