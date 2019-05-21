@@ -2643,8 +2643,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
 #ifdef TIME_PERF
         if (!global_finish || iter == 0) {
             printf("[ - ] %dth triangulize: %ld us\n", iter, (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-            long tmp = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-            time_local_tri = std::max(time_local_tri, tmp);
+            time_local_tri += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 #endif
 
