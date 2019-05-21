@@ -6,7 +6,12 @@
   *  please contact Dr. Li Liu via liuli-cess@tsinghua.edu.cn
   ***************************************************************/
 
-#include "delaunay_grid_decomposition_mgt.h"
+#include "grid_decomposition.h"
+#include "common_utils.h"
+#include "projection.h"
+#include "netcdf_utils.h"
+#include "opencv_utils.h"
+#include "timer.h"
 #include <cstdio>
 #include <cstddef>
 #include <cstring>
@@ -15,11 +20,6 @@
 #include <vector>
 #include <tr1/unordered_map>
 #include <sys/time.h>
-#include "common_utils.h"
-#include "ccpl_utils.h"
-#include "netcdf_utils.h"
-#include "opencv_utils.h"
-#include "timer.h"
 #include <omp.h>
 
 #define PDLN_DEFAULT_EXPANGDING_RATIO (0.2)

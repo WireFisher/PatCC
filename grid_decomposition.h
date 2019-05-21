@@ -10,7 +10,7 @@
 #define DELAUNAY_GRID_DECOMPOSITION_MGT_H
 
 #include "processing_unit_mgt.h"
-#include "delaunay_voronoi_2D.h"
+#include "triangulation.h"
 
 #define PDLN_LON 0
 #define PDLN_LAT 1

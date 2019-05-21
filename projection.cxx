@@ -1,7 +1,8 @@
-#include "ccpl_utils.h"
-#include <cmath>
+#include "projection.h"
 #include "common_utils.h"
+#include <cmath>
 #include <algorithm>
+
 
 /* reference: https://www.uwgb.edu/dutchs/structge/sphproj.htm */
 /* Original formula:

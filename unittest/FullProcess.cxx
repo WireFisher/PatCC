@@ -2,11 +2,11 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-#include "../component.h"
+#include "../patcc.h"
 #include "../processing_unit_mgt.h"
-#include "../delaunay_grid_decomposition_mgt.h"
+#include "../grid_decomposition.h"
 #include "../netcdf_utils.h"
-#include "../ccpl_utils.h"
+#include "../projection.h"
 
 #include <cmath>
 

@@ -3,7 +3,7 @@
 #include "gmock/gmock.h"
 
 #include "../processing_unit_mgt.h"
-#include "../delaunay_grid_decomposition_mgt.h"
+#include "../grid_decomposition.h"
 
 #include <omp.h>
 #include <sched.h>

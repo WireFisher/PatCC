@@ -1,4 +1,4 @@
-#include "component.h"
+#include "patcc.h"
 #include <cassert>
 #include <cstdio>
 #include <sys/time.h>

@@ -2,7 +2,7 @@
 #define __COMPONENT__
 
 #include "processing_unit_mgt.h"
-#include "delaunay_grid_decomposition_mgt.h"
+#include "grid_decomposition.h"
 
 class Grid
 {

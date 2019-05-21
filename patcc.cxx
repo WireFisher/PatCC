@@ -1,9 +1,9 @@
-#include "component.h"
+#include "patcc.h"
 #include "common_utils.h"
-#include "ccpl_utils.h"
+#include "projection.h"
+#include "timer.h"
 #include <cstdio>
 #include <sys/time.h>
-#include "timer.h"
 #include <omp.h>
 #include <cstring>
 

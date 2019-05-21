@@ -1,16 +1,16 @@
 #include "mpi.h"
-#include "delaunay_voronoi_2D.h"
+#include "triangulation.h"
 #include "opencv_utils.h"
 #include "common_utils.h"
+#include "merge_sort.h"
+#include "coordinate_hash.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <sys/time.h>
 #include <tr1/unordered_map>
 #include <list>
-#include "merge_sort.h"
 #include <utility>
-#include "coordinate_hash.h"
 
 #define PAT_NUM_LOCAL_VPOINTS (4)
 #define PAT_CYCLIC_EDGE_THRESHOLD (180)

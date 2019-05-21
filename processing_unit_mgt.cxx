@@ -7,18 +7,18 @@
   ***************************************************************/
 
 #include "processing_unit_mgt.h"
+#include "common_utils.h"
+#include "timer.h"
 #include <unistd.h>
 #include <cstdio>
 #include <cstring>
 #include <omp.h>
-#include "common_utils.h"
 
 #include <sched.h>
 #include <sys/syscall.h>
 #include <sys/sysinfo.h>
 #include <sys/time.h>
 
-#include "timer.h"
 
 #define MAX_HOSTNAME_LEN 32
 typedef std::map <unsigned int, vector <Processing_unit*> > MAP_UINT_VECTOR_T;

@@ -17,11 +17,11 @@ LIB += -Ldependency/googlemock
 
 LIBS := -lgmock -lgtest
 
-core_objs = ccpl_utils.o \
-            component.o \
+core_objs = projection.o \
+            patcc.o \
 			processing_unit_mgt.o \
-			delaunay_grid_decomposition_mgt.o \
-			delaunay_voronoi_2D.o \
+			grid_decomposition.o \
+			triangulation.o \
 			memory_pool.o \
 			coordinate_hash.o \
 			logger.o
@@ -70,9 +70,12 @@ VPATH = ./ ./unittest
 main : main.o $(core_objs)
 	$(CXX) -o patcc $(CXXFLAGS) main.o $(core_objs) $(COMMON_FLAGS)
 
-component.o: delaunay_grid_decomposition_mgt.o processing_unit_mgt.o
-delaunay_grid_decomposition_mgt.o: processing_unit_mgt.o delaunay_voronoi_2D.o ccpl_utils.o #netcdf_utils.o opencv_utils.o
-delaunay_voronoi_2D.o: merge_sort.h #opencv_utils.o
+patcc.o: patcc.cxx grid_decomposition.h patcc.h common_utils.h projection.h timer.h
+grid_decomposition.o: grid_decomposition.cxx grid_decomposition.h common_utils.h projection.h netcdf_utils.h opencv_utils.h timer.h
+triangulation.o: triangulation.cxx triangulation.h opencv_utils.h common_utils.h merge_sort.h coordinate_hash.h
+projection.o: projection.cxx projection.h common_utils.h
+processing_unit_mgt.o: processing_unit_mgt.cxx processing_unit_mgt.h common_utils.h timer.h
+coordinate_hash.o: coordinate_hash.cxx coordinate_hash.h common_utils.h
 
 %.o: %.cxx %.h
 	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
@@ -88,4 +91,4 @@ all :
 
 .PHONY : clean
 clean :
-	-rm run_all_test pDelaunay *.o 2>/dev/null
+	-rm run_all_test patcc *.o 2>/dev/null
