@@ -45,10 +45,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource, G
     }
 
     gettimeofday(&end, NULL);
-#ifdef TIME_PERF
-    printf("[ - ] Grid Decomposition: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_decomose += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-#endif
     //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
 
     log(LOG_INFO, "generating trianglulation\n");
@@ -58,9 +55,6 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource, G
     gettimeofday(&end, NULL);
     int all_ret = 0;
     MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
-#ifdef TIME_PERF
-    printf("[ - ] All Trianglulation: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-#endif
     if(all_ret == 1)
         return -1;
 
@@ -417,10 +411,7 @@ int Patcc::generate_delaunay_trianglulation(int grid_id, bool sort)
         proc_resource = new Processing_resource();
     gettimeofday(&end, NULL);
     //double time = timer.tick();
-#ifdef TIME_PERF
-    printf("[ - ] Procs Resource MGR: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_proc_mgt += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-#endif
 
     //proc_resource->print_all_nodes_info();
 
@@ -428,29 +419,24 @@ int Patcc::generate_delaunay_trianglulation(int grid_id, bool sort)
     gettimeofday(&start, NULL);
     grid_preprocessing(grid_id);
     gettimeofday(&end, NULL);
-#ifdef TIME_PERF
-    printf("[ - ] Gri Pre-treatment: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-#endif
 
     gettimeofday(&start, NULL);
     if(operating_grid->generate_delaunay_trianglulation(proc_resource, grid_info)) {
-        printf("failed\n");
+        log(LOG_ERROR, "failed\n");
         return -1;
     }
+
 #ifdef OPENCV
     operating_grid->plot_triangles_into_file();
 #endif
+
     log(LOG_INFO, "collecting results\n");
     operating_grid->merge_all_triangles(sort);
     gettimeofday(&end, NULL);
-#ifdef TIME_PERF
-    printf("[ - ] Total Time Elapsed: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
     time_total = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-#endif
 
 #ifdef TIME_PERF
-
     long g_time_proc_mgt, g_time_pretreat, g_time_decomose, g_time_expand, g_time_local_tri, g_time_consisty_check, g_time_total;
     MPI_Comm comm = process_thread_mgr->get_mpi_comm();
     MPI_Reduce(&time_proc_mgt, &g_time_proc_mgt, 1, MPI_LONG, MPI_MAX, 0, comm);
@@ -460,13 +446,13 @@ int Patcc::generate_delaunay_trianglulation(int grid_id, bool sort)
     MPI_Reduce(&time_local_tri, &g_time_local_tri, 1, MPI_LONG, MPI_MAX, 0, comm);
     MPI_Reduce(&time_consisty_check, &g_time_consisty_check, 1, MPI_LONG, MPI_MAX, 0, comm);
     MPI_Reduce(&time_total, &g_time_total, 1, MPI_LONG, MPI_MAX, 0, comm);
-    printf("%ld\n", g_time_proc_mgt);
-    printf("%ld\n", g_time_pretreat);
-    printf("%ld\n", g_time_decomose);
-    printf("%ld\n", g_time_expand);
-    printf("%ld\n", g_time_local_tri);
-    printf("%ld\n", g_time_consisty_check);
-    printf("%ld\n", g_time_total);
+    log(LOG_INFO, "%ld\n", g_time_proc_mgt);
+    log(LOG_INFO, "%ld\n", g_time_pretreat);
+    log(LOG_INFO, "%ld\n", g_time_decomose);
+    log(LOG_INFO, "%ld\n", g_time_expand);
+    log(LOG_INFO, "%ld\n", g_time_local_tri);
+    log(LOG_INFO, "%ld\n", g_time_consisty_check);
+    log(LOG_INFO, "%ld\n", g_time_total);
 #endif
     return 0;
 }
