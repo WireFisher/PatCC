@@ -3,6 +3,7 @@
 
 #include <mpi.h>
 #include <cassert>
+#include "logger.h"
 
 #ifdef DEBUG
     #define PDASSERT(cond) \
@@ -31,10 +32,13 @@
 #define relative_eq(a, b)       relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE)
 #define relative_eq_hi(a, b)    relative_eq_int(a, b, PDLN_RELATIVE_TOLERANCE_HI)
 
+
 typedef long double PAT_REAL;
 typedef __int128_t PAT_INT;
 
+
 #define PI ((PAT_REAL) 3.1415926535897932384626433)
+
 
 class PDLN_Timer
 {

@@ -23,7 +23,8 @@ core_objs = ccpl_utils.o \
 			delaunay_grid_decomposition_mgt.o \
 			delaunay_voronoi_2D.o \
 			memory_pool.o \
-			coordinate_hash.o
+			coordinate_hash.o \
+			logger.o
 
 test_objs = \
 			FullProcess.o \
