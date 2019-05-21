@@ -12,6 +12,7 @@ enum PAT_LOG_LEVEL {
     LOG_DEBUG = 3,
 };
 
+extern PAT_LOG_LEVEL CURRENT_LOG_LEVEL;
 extern void log(PAT_LOG_LEVEL level, char *format, ...);
 
 #endif
