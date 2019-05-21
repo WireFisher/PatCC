@@ -3095,15 +3095,17 @@ void Grid_info_manager::gen_latlon_90_grid()
 
 
 Grid_info_manager::Grid_info_manager()
+    : num_points(0)
+    , min_lon(0.)
+    , max_lon(0.)
+    , min_lat(0.)
+    , max_lat(0.)
+    , is_cyclic(false)
+    , disabling_method(NO_DISABLED_POINTS)
+    , disabling_num(0)
+    , disabling_data(NULL)
 {
-    num_points = 0;
     coord_values[0] = coord_values[1] = NULL;
-    is_cyclic = false;
-}
-
-
-Grid_info_manager::Grid_info_manager(double *coord[2], int num)
-{
 }
 
 
@@ -3125,7 +3127,7 @@ bool Grid_info_manager::read_grid_from_text(const char filename[])
 
     if (num_points < 1) {
         fprintf(stderr, "Invalid points number\n");
-        return false;
+        goto fail;
     }
 
     fscanf(fp, "%lf %lf %lf %lf", &min_lon, &max_lon, &min_lat, &max_lat);
@@ -3133,19 +3135,51 @@ bool Grid_info_manager::read_grid_from_text(const char filename[])
     if (max_lat < -90 || max_lat > 90 || min_lat < -90 || min_lat > 90 ||
        (min_lat >= max_lat || min_lon >= max_lon || max_lon - min_lon > 360)) {
         fprintf(stderr, "Invalid boundary value\n");
-        return false;
+        goto fail;
     }
 
     coord_values[PDLN_LON] = new double [num_points];
     coord_values[PDLN_LAT] = new double [num_points];
 
     for(int i = 0; i < num_points; i ++)
-        fscanf(fp, "%lf %lf", &coord_values[PDLN_LON][i], &coord_values[PDLN_LAT][i]);
+        fscanf(fp, "%lf %lf\n", &coord_values[PDLN_LON][i], &coord_values[PDLN_LAT][i]);
 
-    PDASSERT(!have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points));
+    if (have_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points)) {
+        fprintf(stderr, "Redundent points found\n");
+        goto fail;
+    }
 
     is_cyclic = float_eq(max_lon - min_lon, 360);
+
+    char disable_method[64];
+    if(fread(disable_method, 1, 23, fp)) {
+        if (strncmp(disable_method, "DISABLE_POINTS_BY_INDEX", 23) == 0) {
+            fscanf(fp, "%d", &disabling_num);
+            
+            int* tmp_buf = new int[disabling_num];
+            for (int i = 0; i < disabling_num; i++)
+                fscanf(fp, "%d", &tmp_buf[i]);
+
+            disabling_data = (void*) tmp_buf;
+        } else if (strncmp(disable_method, "DISABLE_POINTS_BY_RANGE", 23) == 0) {
+            fscanf(fp, "%d", &disabling_num);
+
+            double* tmp_buf = new double[disabling_num*3];
+            for (int i = 0; i < disabling_num; i++)
+                fscanf(fp, "(%lf, %lf, %lf)", &tmp_buf[i*3], &tmp_buf[i*3+1], &tmp_buf[i*3+2]);
+
+            disabling_data = (void*) tmp_buf;
+        } else if (strncmp(disable_method, "DISABLE_POINTS_NONE", 19) != 0) {
+            goto fail;
+        }
+    }
+
+    fclose(fp);
     return true;
+
+fail:
+    fclose(fp);
+    return false;
 }
 
 
@@ -3200,7 +3234,9 @@ bool* Grid_info_manager::get_grid_mask(int grid_id)
 
 void Grid_info_manager::get_disabled_points_info(int id, DISABLING_POINTS_METHOD *method, int *num, void **data)
 {
-    *method = NO_DISABLED_POINTS;
+    *method = disabling_method;
+    *num = disabling_num;
+    *data = disabling_data;
 }
 
 

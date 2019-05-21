@@ -287,13 +287,15 @@ private:
     double min_lat;
     double max_lat;
     bool is_cyclic;
+    DISABLING_POINTS_METHOD disabling_method;
+    int disabling_num;
+    void* disabling_data;
 
     void gen_basic_grid();
 
 public:
     /* for unittest */
     Grid_info_manager();
-    Grid_info_manager(double *coord[2], int num);
     virtual ~Grid_info_manager();
     virtual double** get_grid_coord_values(int);
     virtual bool* get_grid_mask(int);
