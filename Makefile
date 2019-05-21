@@ -74,32 +74,25 @@ VPATH = ./ ./unittest
 
 .PHONY : main
 main : $(OBJECTS) $(OBJDIR)/main.o
-	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -o patcc $(OBJECTS) $(OBJDIR)/main.o
-
-patcc.o: patcc.cxx grid_decomposition.h patcc.h common_utils.h projection.h timer.h
-grid_decomposition.o: grid_decomposition.cxx grid_decomposition.h common_utils.h projection.h netcdf_utils.h opencv_utils.h timer.h
-triangulation.o: triangulation.cxx triangulation.h opencv_utils.h common_utils.h merge_sort.h coordinate_hash.h
-projection.o: projection.cxx projection.h common_utils.h
-processing_unit_mgt.o: processing_unit_mgt.cxx processing_unit_mgt.h common_utils.h timer.h
-coordinate_hash.o: coordinate_hash.cxx coordinate_hash.h common_utils.h
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) $(OBJECTS) $(OBJDIR)/main.o -o patcc
 
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cxx
-	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
 
 $(OBJDIR)/main.o: $(SRCDIR)/main.cxx
-	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
 
 
 .PHONY : test
 test : $(test_objs) $(OBJECTS) $(OBJDIR)/testmain.o
-	$(CXX) -o run_all_test -DUNITTEST $(OBJECTS) $(test_objs) $(COMMON_FLAGS)
+	$(CXX) -DUNITTEST $(OBJECTS) $(test_objs) $(COMMON_FLAGS) -o run_all_test
 
 $(test_objs): $(OBJDIR)/%.o : $(TESTDIR)/%.cxx
-	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
 
 
 .PHONY : all
-all :
+all : main test
 
 
 .PHONY : clean
