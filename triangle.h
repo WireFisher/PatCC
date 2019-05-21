@@ -15,13 +15,16 @@ class Point
     public:
         double x;
         double y;
-        int    id;
+        int    id:31;
+        int    mask:1;
         int    next;
         int    prev;
 
         Point();
         Point(double, double);
         Point(double, double, int, int = -1, int = -1);
+        Point(double, double, int, bool, int = -1, int = -1);
+        Point(PAT_REAL, PAT_REAL, int, bool, int = -1, int = -1);
         ~Point();
         double calculate_distance(const Point*) const;
         double calculate_distance(double, double) const;
@@ -50,7 +53,7 @@ class Edge
 
         inline void ref_inc() {ref_count++;};
 #ifdef OPENCV
-        friend void draw_line(cv::Mat, Edge*, double, double, double, double, cv::Scalar);
+        friend void draw_line(cv::Mat, Point*, Edge*, double, double, double, double, cv::Scalar);
 #endif
         friend class Triangle;
         friend class Delaunay_Voronoi;
@@ -67,18 +70,17 @@ class Triangle
         unsigned is_virtual:1;
         int      remained_points_head;
         int      remained_points_tail;
-        double   circum_center[2];
-        double   circum_radius;
+        PAT_REAL circum_center[2];
+        PAT_REAL circum_radius2;
         int      stack_ref_count;
 
-        int  circum_circle_contains(Point*, Point*, double tolerance=PDLN_FLOAT_EQ_ERROR);
-        bool really_on_circum_circle(Point*, Point*, double);
+        int  circum_circle_position_to(Point*, double=PDLN_ABS_TOLERANCE);
 
     public:
         Triangle();
         ~Triangle();
         void get_center_coordinates();
-        int find_best_candidate_point(Point*) const;
+        int find_best_candidate_point(Point*);
         bool contain_vertex(int);
         void calulate_circum_circle(const Point*, const Point*, const Point*);
 

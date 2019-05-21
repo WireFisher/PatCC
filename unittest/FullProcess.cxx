@@ -26,13 +26,16 @@ class Mock_Grid_info_manager2 : public Grid_info_manager
 {
 public:
     MOCK_METHOD1(get_grid_coord_values, double**(int));
+    MOCK_METHOD1(get_grid_mask, bool*(int));
     MOCK_METHOD1(get_grid_num_points, int(int));
     MOCK_METHOD5(get_grid_boundry, void(int, double*, double*, double*, double*));
     MOCK_METHOD5(set_grid_boundry, void(int, double, double, double, double));
     MOCK_METHOD1(is_grid_cyclic, bool(int));
+    MOCK_METHOD4(get_disabled_points_info, void(int, DISABLING_POINTS_METHOD*, int*, void**));
 };
 
 using ::testing::Return;
+using ::testing::ReturnPointee;
 using ::testing::NiceMock;
 using ::testing::_;
 using ::testing::Invoke;
@@ -41,9 +44,18 @@ using ::testing::ExitedWithCode;
 static int mpi_rank = -1;
 static int mpi_size = 0;
 static double *coord_values[2] = {NULL, NULL};
+static bool *grid_mask = NULL;
 static int num_points = 0;
 static double min_lat, max_lat, min_lon, max_lon;
 static bool is_cyclic = false;
+static MPI_Comm comm = MPI_COMM_WORLD;
+static DISABLING_POINTS_METHOD disabling_method = NO_DISABLED_POINTS;
+static int disabling_num = 0;
+static void* disabling_data = NULL;
+
+static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat);
+static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat);
+static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num, void** data);
 
 
 class FullProcess : public ::testing::Test
@@ -55,7 +67,29 @@ public:
 
         process_thread_mgr = mock_process_thread_manager;
         grid_info_mgr = mock_grid_info_manager;
+
+        ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
+            .WillByDefault(Return(coord_values));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
+            .WillByDefault(Invoke(get_boundry));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
+            .WillByDefault(ReturnPointee(&num_points));
+
+        ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
+            .WillByDefault(ReturnPointee(&is_cyclic));
+
+        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
+            .WillByDefault(ReturnPointee(&comm));
+
+        ON_CALL(*mock_grid_info_manager, set_grid_boundry(1, _, _, _, _))
+            .WillByDefault(Invoke(set_boundry));
+
+        ON_CALL(*mock_grid_info_manager, get_disabled_points_info(1, _, _, _))
+            .WillByDefault(Invoke(get_disabled));
     }
+
     virtual void TearDown() {
         delete mock_process_thread_manager;
         delete mock_grid_info_manager;
@@ -66,24 +100,6 @@ public:
     NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager;
     NiceMock<Mock_Grid_info_manager2> *mock_grid_info_manager;
 };
-
-
-static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
-{
-    *mi_lon = min_lon;
-    *ma_lon = max_lon;
-    *mi_lat = min_lat;
-    *ma_lat = max_lat;
-}
-
-
-static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat)
-{
-    min_lon = mi_lon;
-    max_lon = ma_lon;
-    min_lat = mi_lat;
-    max_lat = ma_lat;
-}
 
 
 static void prepare_grid()
@@ -107,6 +123,8 @@ static void prepare_grid()
     max_lon = 360.0;
     min_lat = -90.0;
     max_lat =  90.0;
+
+    is_cyclic = true;
 }
 
 
@@ -134,7 +152,7 @@ void prepare_three_polar_grid()
             coord_values[PDLN_LON][i] += 360.0;
 
     for(int i = 0; i < num_points; i++)
-        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_FLOAT_EQ_ERROR) {
+        if(std::abs(coord_values[PDLN_LON][i] - 360.0) < PDLN_ABS_TOLERANCE) {
             coord_values[PDLN_LON][i] = 0.0;
         }
 
@@ -153,7 +171,78 @@ void prepare_three_polar_grid()
     max_lon = 360.0;
     min_lat = -80.0;
     max_lat =  90.0;
+
+    is_cyclic = true;
 }
+
+
+void prepare_big_three_polar_grid()
+{
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size;
+    int field_size2;
+    void *coord_buf0, *coord_buf1;
+    bool squeeze = false;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    if (mpi_rank == 0) {
+        read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "x_T", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+        delete dim_size_ptr;
+        read_file_field_as_double("gridfile/many_types_of_grid/big_three_poles.nc", "y_T", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+        delete dim_size_ptr;
+        assert(field_size == field_size2);
+        num_points = field_size;
+        coord_values[PDLN_LON] = (double*)coord_buf0;
+        coord_values[PDLN_LAT] = (double*)coord_buf1;
+
+        for(int i = 0; i < num_points; i++) {
+            while(coord_values[PDLN_LON][i] < 0.0)
+                coord_values[PDLN_LON][i] += 360.0;
+            while(coord_values[PDLN_LON][i] >= 360.0)
+                coord_values[PDLN_LON][i] -= 360.0;
+        }
+
+        delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+
+        if(squeeze) {
+            for(int i = 0; i < num_points/100; i++) {
+                coord_values[PDLN_LON][i] = coord_values[PDLN_LON][i*100];
+                coord_values[PDLN_LAT][i] = coord_values[PDLN_LAT][i*100];
+            }
+            num_points /= 100;
+        }
+    }
+
+    MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (mpi_rank != 0) {
+        coord_values[PDLN_LON] = new double[num_points];
+        coord_values[PDLN_LAT] = new double[num_points];
+    }
+
+    MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    min_lon =   0.0;
+    max_lon = 360.0;
+    min_lat = -83.0;
+    max_lat =  90.0;
+
+    is_cyclic = true;
+
+    double* circle = new double[6];
+    disabling_method = DISABLE_POINTS_BY_RANGE;
+    disabling_num = 2;
+    circle[0] = 80;
+    circle[1] = 65.6;
+    circle[2] = 0.75;
+    circle[3] = 260;
+    circle[4] = 65.6;
+    circle[5] = 0.75;
+    disabling_data = circle;
+}
+
 
 void prepare_latlon_grid()
 {
@@ -186,6 +275,8 @@ void prepare_latlon_grid()
     max_lon = 360.0;
     min_lat = -90.0;
     max_lat =  90.0;
+
+    is_cyclic = true;
 }
 
 
@@ -220,6 +311,8 @@ void prepare_latlon_mutipolars()
     max_lon = 360.0;
     min_lat = -90.0;
     max_lat =  90.0;
+
+    is_cyclic = true;
 }
 
 
@@ -260,329 +353,282 @@ void prepare_latlon_singlepolar()
     max_lon = 360.0;
     min_lat = -90.0;
     max_lat =  90.0;
+
+    is_cyclic = true;
 }
 #endif
 
 
 TEST_F(FullProcess, Basic) {
-    MPI_Comm comm = MPI_COMM_WORLD;
-
-
+    comm = MPI_COMM_WORLD;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-        .WillByDefault(Return(comm));
-
     prepare_grid();
 
-    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
-        .WillByDefault(Return(coord_values));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
-        .WillByDefault(Return(num_points));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
-        .WillByDefault(Invoke(get_boundry));
-
-    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
-        .WillByDefault(Return(true));
-
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
-    MPI_Comm split_world;
     if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comm = split_world;
-        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-            .WillByDefault(Return(comm));
-
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
         int new_mpi_size;
-        MPI_Comm_size(split_world, &new_mpi_size);
+        MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
 
 #ifdef NETCDF
 TEST_F(FullProcess, LatLonGrid) {
-    MPI_Comm comm = MPI_COMM_WORLD;
+    comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-        .WillByDefault(Return(comm));
 
     prepare_latlon_grid();
 
-    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
-        .WillByDefault(Return(coord_values));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
-        .WillByDefault(Return(num_points));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
-        .WillByDefault(Invoke(get_boundry));
-
-    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
-        .WillByDefault(Return(true));
-
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
-    MPI_Comm split_world;
     if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comm = split_world;
-        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-            .WillByDefault(Return(comm));
-
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
         int new_mpi_size;
-        MPI_Comm_size(split_world, &new_mpi_size);
+        MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
 
 TEST_F(FullProcess, LatLonSinglePolar) {
-    MPI_Comm comm = MPI_COMM_WORLD;
+    comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-        .WillByDefault(Return(comm));
-
     prepare_latlon_singlepolar();
 
-    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
-        .WillByDefault(Return(coord_values));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
-        .WillByDefault(Return(num_points));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
-        .WillByDefault(Invoke(get_boundry));
-
-    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
-        .WillByDefault(Return(true));
-
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
-    MPI_Comm split_world;
     if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comm = split_world;
-        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-            .WillByDefault(Return(comm));
-
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
         int new_mpi_size;
-        MPI_Comm_size(split_world, &new_mpi_size);
+        MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
 
 
 TEST_F(FullProcess, LatLonMutiPolars) {
-    MPI_Comm comm = MPI_COMM_WORLD;
+    comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-        .WillByDefault(Return(comm));
-
     prepare_latlon_mutipolars();
 
-    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
-        .WillByDefault(Return(coord_values));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
-        .WillByDefault(Return(num_points));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
-        .WillByDefault(Invoke(get_boundry));
-
-    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
-        .WillByDefault(Return(true));
-
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
-    MPI_Comm split_world;
     if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comm = split_world;
-        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-            .WillByDefault(Return(comm));
-
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
         int new_mpi_size;
-        MPI_Comm_size(split_world, &new_mpi_size);
+        MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
     }
 };
 
 
 TEST_F(FullProcess, ThreePolar) {
-    MPI_Comm comm = MPI_COMM_WORLD;
+    comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-        .WillByDefault(Return(comm));
-
     prepare_three_polar_grid();
 
-    ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
-        .WillByDefault(Return(coord_values));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
-        .WillByDefault(Return(num_points));
-
-    ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
-        .WillByDefault(Invoke(get_boundry));
-
-    ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
-        .WillByDefault(Return(true));
-
-    Component* comp;
-    comp = new Component(0);
+    Patcc* comp;
+    comp = new Patcc(0);
     comp->register_grid(new Grid(1));
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
 
-    MPI_Comm split_world;
     if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
     if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comm = split_world;
-        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-            .WillByDefault(Return(comm));
-
-        comp = new Component(1);
+        comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
 
         delete comp;
 
         int new_mpi_size;
-        MPI_Comm_size(split_world, &new_mpi_size);
+        MPI_Comm_size(comm, &new_mpi_size);
 
-        FILE *fp;
-        char fmt[] = "md5sum log/global_triangles_%d log/global_triangles_%d|awk -F\" \" '{print $1}'";
-        char cmd[256];
-        snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        ASSERT_STREQ(md5[0], md5[1]);
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+        }
+    }
+};
+
+
+TEST_F(FullProcess, ThreePolarBig) {
+    comm = MPI_COMM_WORLD;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    prepare_big_three_polar_grid();
+
+    printf("processing...\n");
+    Patcc* comp;
+    comp = new Patcc(0);
+    comp->register_grid(new Grid(1));
+    comp->generate_delaunay_trianglulation(1, true);
+
+    delete comp;
+
+    if (mpi_size/3 > 1)
+        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
+
+    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+        printf("part of processes...\n");
+        comp = new Patcc(1);
+        comp->register_grid(new Grid(1));
+        comp->generate_delaunay_trianglulation(1, true);
+
+        delete comp;
+
+        if (mpi_rank == 0) {
+            FILE *fp;
+            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
+
+            char md5[2][64];
+            memset(md5[0], 0, 64);
+            memset(md5[1], 0, 64);
+            fp = popen(cmd, "r");
+            fgets(md5[0], 64, fp);
+            fgets(md5[1], 64, fp);
+            EXPECT_STREQ(md5[0], md5[1]);
+
+            if(strncmp(md5[0], md5[1], 64) == 0) {
+                char cmd[256];
+                snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_big_three_poles.png");
+                system(cmd);
+                snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_big_three_poles.png");
+                system(cmd);
+            }
+        }
+        MPI_Barrier(comm);
     }
 };
 
@@ -617,9 +663,11 @@ const char dim1_grid_name[][64] = {
     "CUBE_grid_0.3.nc",
     "CUBE_grid_0.1.nc",
     /*
+    "mom_h2d_T_grid@mom.nc",
     */
 };
 const char dim1_global_grid_name[][64] = {
+    "ne30np4-t2.nc",
     "Gamil_128x60_Grid.nc",
     "fv1.9x2.5_050503.nc",
     "Gamil_360x180_Grid.nc",
@@ -651,6 +699,7 @@ void prepare_dim1_grid(const char grid_name[])
     char lat_unit[32];
     int squeeze_ratio = 0;
 
+    grid_mask = NULL;
     if (mpi_rank == 0) {
         if(strncmp(grid_name, "ar9v4_100920.nc", 15) == 0)
             squeeze_ratio = 100;
@@ -662,6 +711,15 @@ void prepare_dim1_grid(const char grid_name[])
         delete dim_size_ptr;
         read_file_field_as_double(fullname, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
         delete dim_size_ptr;
+        if (strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0) {
+            void* raw_mask;
+            int* int_mask;
+            read_file_field_as_int(fullname, "grid_imask", &raw_mask, &num_dims, &dim_size_ptr, &field_size2, NULL);
+            int_mask = (int*)raw_mask;
+            grid_mask = new bool[field_size2];
+            for (int i = 0; i < field_size2; i ++)
+                grid_mask[i] = int_mask[i];
+        }
 
         ASSERT_EQ(field_size, field_size2);
         num_points = field_size;
@@ -744,6 +802,12 @@ void prepare_dim1_grid(const char grid_name[])
             max_lon = 180;
             max_lat = 90;
         }
+        if(strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0) {
+            min_lon = 0;
+            max_lon = 360;
+            min_lat = -83;
+            max_lat = 90;
+        }
 
         if(fabs((max_lon - min_lon) - 360) < 0.5)
             is_cyclic = true;
@@ -764,10 +828,14 @@ void prepare_dim1_grid(const char grid_name[])
     }
 
     MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
     if (mpi_rank != 0) {
         coord_values[PDLN_LON] = new double[num_points];
         coord_values[PDLN_LAT] = new double[num_points];
+        if (strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0)
+            grid_mask = new bool[num_points];
     }
+
     MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -775,6 +843,18 @@ void prepare_dim1_grid(const char grid_name[])
     MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+    if (strncmp(grid_name, "mom_h2d_T_grid@mom.nc", 64) == 0)
+        MPI_Bcast(grid_mask, num_points, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+    //double* circle = new double[3];
+    //circle[0] = 270;
+    //circle[1] = 45;
+    //circle[2] = 10;
+    //disabling_num = 1;
+    //disabling_data = circle;
+    disabling_method = NO_DISABLED_POINTS;
+
     assert(sizeof(bool) == 1);
 #ifdef TIME_PERF
     printf("[ - ] Total points: %d\n", num_points);
@@ -804,40 +884,26 @@ void save_dim1_grid(const char grid_name[])
 #include <unistd.h>
 TEST_F(FullProcess, ManyTypesOfGrids) {
     MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Comm comm = MPI_COMM_WORLD;
 
     printf("pid: %d\n", getpid());
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm split_world;
+
+    ON_CALL(*mock_grid_info_manager, get_grid_mask(1))
+        .WillByDefault(ReturnPointee(&grid_mask));
+
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
 
     for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
         printf("processing: %s\n", dim1_grid_name[i]);
+        comm = MPI_COMM_WORLD;
         prepare_dim1_grid(dim1_grid_name[i]);
 
-        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-            .WillByDefault(Return(comm));
-
-        ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
-            .WillByDefault(Return(coord_values));
-
-        ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
-            .WillByDefault(Return(num_points));
-
-        ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
-            .WillByDefault(Invoke(get_boundry));
-
-        ON_CALL(*mock_grid_info_manager, set_grid_boundry(1, _, _, _, _))
-            .WillByDefault(Invoke(set_boundry));
-
-        ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
-            .WillByDefault(Return(is_cyclic));
-
-        Component* comp;
-        comp = new Component(0);
+        Patcc* comp;
+        comp = new Patcc(0);
         comp->register_grid(new Grid(1));
         int ret = comp->generate_delaunay_trianglulation(1, true);
         EXPECT_EQ(ret, 0);
@@ -845,11 +911,9 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
 
         if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
             printf("spliting world: %s\n", dim1_grid_name[i]);
+            comm = split_world;
             MPI_Barrier(split_world);
-            ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-                .WillByDefault(Return(split_world));
-
-            comp = new Component(1);
+            comp = new Patcc(1);
             comp->register_grid(new Grid(1));
             int ret = comp->generate_delaunay_trianglulation(1, true);
             EXPECT_EQ(ret, 0);
@@ -857,13 +921,8 @@ TEST_F(FullProcess, ManyTypesOfGrids) {
             delete comp;
 
             if (mpi_rank == 0) {
-                int new_mpi_size;
-                MPI_Comm_size(split_world, &new_mpi_size);
-
                 FILE *fp;
-                char fmt[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-                char cmd[256];
-                snprintf(cmd, 256, fmt, mpi_size, new_mpi_size);
+                char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
                 char md5[2][64];
                 memset(md5[0], 0, 64);
@@ -1068,11 +1127,12 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
 
 TEST_F(FullProcess, Performance) {
     MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Comm comm = MPI_COMM_WORLD;
+    comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm split_world;
+
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
 
@@ -1080,29 +1140,70 @@ TEST_F(FullProcess, Performance) {
         printf("processing: %s\n", autogen_grid_name[i]);
         prepare_autogen_grid(autogen_grid_name[i], autogen_grid_size[i]);
 
-        ON_CALL(*mock_process_thread_manager, get_mpi_comm())
-            .WillByDefault(Return(comm));
-
-        ON_CALL(*mock_grid_info_manager, get_grid_coord_values(1))
-            .WillByDefault(Return(coord_values));
-
-        ON_CALL(*mock_grid_info_manager, get_grid_num_points(1))
-            .WillByDefault(Return(num_points));
-
-        ON_CALL(*mock_grid_info_manager, get_grid_boundry(1, _, _, _, _))
-            .WillByDefault(Invoke(get_boundry));
-
-        ON_CALL(*mock_grid_info_manager, set_grid_boundry(1, _, _, _, _))
-            .WillByDefault(Invoke(set_boundry));
-
-        ON_CALL(*mock_grid_info_manager, is_grid_cyclic(1))
-            .WillByDefault(Return(is_cyclic));
-
-        Component* comp;
-        comp = new Component(0);
+        Patcc* comp;
+        comp = new Patcc(0);
         comp->register_grid(new Grid(1));
-        int ret = comp->generate_delaunay_trianglulation(1);
+        int ret = comp->generate_delaunay_trianglulation(1, true);
         EXPECT_EQ(ret, 0);
         delete comp;
+
+        if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
+            printf("spliting world: %s\n", autogen_grid_name[i]);
+            comm = split_world;
+            MPI_Barrier(split_world);
+            comp = new Patcc(0);
+            comp->register_grid(new Grid(1));
+            int ret = comp->generate_delaunay_trianglulation(1, true);
+            EXPECT_EQ(ret, 0);
+
+            delete comp;
+
+            if (mpi_rank == 0) {
+                FILE *fp;
+                char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
+
+                char md5[2][64];
+                memset(md5[0], 0, 64);
+                memset(md5[1], 0, 64);
+                fp = popen(cmd, "r");
+                fgets(md5[0], 64, fp);
+                fgets(md5[1], 64, fp);
+                EXPECT_STREQ(md5[0], md5[1]);
+
+                if(strncmp(md5[0], md5[1], 64) == 0) {
+                    char cmd[256];
+                    snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", autogen_grid_name[i]);
+                    system(cmd);
+                    snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", autogen_grid_name[i]);
+                    system(cmd);
+                }
+            }
+            MPI_Barrier(split_world);
+        }
     }
 };
+
+
+static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
+{
+    *mi_lon = min_lon;
+    *ma_lon = max_lon;
+    *mi_lat = min_lat;
+    *ma_lat = max_lat;
+}
+
+
+static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat)
+{
+    min_lon = mi_lon;
+    max_lon = ma_lon;
+    min_lat = mi_lat;
+    max_lat = ma_lat;
+}
+
+static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num, void** data)
+{
+    *method = disabling_method;
+    *num = disabling_num;
+    *data = disabling_data;
+}

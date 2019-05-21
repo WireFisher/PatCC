@@ -5,6 +5,7 @@ rm log/GlobalMiddle_log*
 rm log/GlobalManyDifferent_log*
 rm log/chunk_*
 rm log/projected_triangles_*
+rm log/image_boundary_triangles_*
 rm log/boundary_triangles_*
 rm log/local_points_*
 rm log/log.*

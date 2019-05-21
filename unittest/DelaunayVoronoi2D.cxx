@@ -21,7 +21,7 @@ void draw_point(cv::Mat img, double x, double y, cv::Scalar scalar)
     cv::circle(img, cv::Point(x * 10, y * 10), 6, scalar, -1, 8);
 }
 
-void draw_line(cv::Mat img, Edge *e, double min_x, double max_x, double min_y, double max_y, cv::Scalar scalar)
+void draw_line(cv::Mat img, Point* all_points, Edge *e, double min_x, double max_x, double min_y, double max_y, cv::Scalar scalar)
 {
     int thickness = 2;
     //int line_type = cv::LINE_8;
@@ -34,7 +34,7 @@ void draw_line(cv::Mat img, Edge *e, double min_x, double max_x, double min_y, d
         cv::line(img, cv::Point(e->head->x * 100, e->head->y * 100), cv::Point(e->tail->x * 100, e->tail->y * 100), scalar, thickness, line_type);
         */
 
-    cv::line(img, cv::Point(e->head->x * 10, e->head->y * 10), cv::Point(e->tail->x * 10, e->tail->y * 10), scalar, thickness, 8);
+    cv::line(img, cv::Point(all_points[e->head].x * 10, all_points[e->head].y * 10), cv::Point(all_points[e->tail].x * 10, all_points[e->tail].y * 10), scalar, thickness, 8);
 }
 
 
@@ -66,11 +66,12 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
         index[i] = i;
 
     delau = new Delaunay_Voronoi();
-    delau->add_points(lon_values, lat_values, index, num_points);
+    delau->add_points(lon_values, lat_values, NULL, num_points);
     delau->triangulate();
 
     delete index;
     edges = delau->get_all_delaunay_edge();
+    Point* all_points = delau->get_all_points_buf();
 
 #ifdef OPENCV
     cv::Mat mat = cv::Mat(max_lat*10, max_lon*10, CV_8UC3, cv::Scalar(255, 255, 255));
@@ -82,14 +83,7 @@ static inline void do_triangulation_plot(int num_points, double *lat_values, dou
     write_to_file(mat, "log/input_pp.png");
 
     for(unsigned int i = 0; i < edges.size(); i++)
-        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(0, 0, 0));
-
-    /*
-    edges = delau->get_all_legal_delaunay_edge();
-    for(unsigned int i = 0; i < edges.size(); i++) {
-        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(255, 0, 0));
-    }
-    */
+        draw_line(mat, all_points, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(0, 0, 0));
 
     write_to_file(mat, img_path);
 #endif
@@ -108,17 +102,18 @@ static inline void do_triangulation_plot_small_part(int num_points, double *lat_
     for(int i = 0; i < num_points; i++)
         index[i] = i;
     delau = new Delaunay_Voronoi();
-    delau->add_points(lon_values, lat_values, index, num_points);
+    delau->add_points(lon_values, lat_values, NULL, num_points);
     delau->triangulate();
 
     delete index;
     edges = delau->get_all_delaunay_edge();
+    Point* all_points = delau->get_all_points_buf();
 
 #ifdef OPENCV
     cv::Mat mat = cv::Mat::zeros(max_lat*10, max_lon*10, CV_8UC3);
 
     for(unsigned int i = 0; i < edges.size(); i++)
-        draw_line(mat, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(255, 255, 255));
+        draw_line(mat, all_points, edges[i], min_lon, max_lon, min_lat, max_lat, cv::Scalar(255, 255, 255));
 
     //for(int i = 0; i < num_points; i++)
     //    draw_point(mat, lon_values[i], lat_values[i], cv::Scalar(0x44, 0xBB, 0xBB));
