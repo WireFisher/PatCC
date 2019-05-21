@@ -7,9 +7,14 @@ NETCDF_PATH := /opt/netCDF-gcc4.4.7
 OPENCV_PATH := /home/yanghy/opt/opencv
 CXXFLAGS :=
 
+SRCDIR := src
+OBJDIR := obj
+TESTDIR := unittest
+
 INC := -isystem $(MPI_PATH)/include64
 INC += -isystem dependency/googletest/include
 INC += -isystem dependency/googlemock/include
+INC += -I $(SRCDIR)
 
 LIB :=
 LIB += -Ldependency/googletest
@@ -17,20 +22,16 @@ LIB += -Ldependency/googlemock
 
 LIBS := -lgmock -lgtest
 
-core_objs = projection.o \
-            patcc.o \
-			processing_unit_mgt.o \
-			grid_decomposition.o \
-			triangulation.o \
-			memory_pool.o \
-			coordinate_hash.o \
-			logger.o
 
-test_objs = \
-			FullProcess.o \
-			ProcessingResourceTest.o \
-			DelaunayVoronoi2D.o
-			#GridDecomposition.o \
+SOURCES  := $(wildcard $(SRCDIR)/*.cxx)
+SOURCES  := $(filter-out $(SRCDIR)/opencv_utils.cxx, $(SOURCES))
+SOURCES  := $(filter-out $(SRCDIR)/netcdf_utils.cxx, $(SOURCES))
+
+test_objs = obj/testmain.o \
+			obj/FullProcess.o \
+			obj/ProcessingResourceTest.o \
+			obj/DelaunayVoronoi2D.o
+			#obj/GridDecomposition.o \
 
 COMMON_FLAGS := -Wall -g -fopenmp -pthread
 
@@ -49,7 +50,7 @@ ifeq ($(PDLN_USE_NETCDF),true)
 	INC += -isystem $(NETCDF_PATH)/include
 	LIB += -L$(NETCDF_PATH)/lib 
 	LIBS += -lnetcdf
-	core_objs += netcdf_utils.o
+	SOURCES += $(SRCDIR)/netcdf_utils.cxx
 endif
 
 ifeq ($(PDLN_USE_OPENCV),true)
@@ -57,8 +58,12 @@ ifeq ($(PDLN_USE_OPENCV),true)
 	INC += -isystem $(OPENCV_PATH)/include
 	LIB += -L$(OPENCV_PATH)/lib64
 	LIBS += -lopencv_core -lopencv_imgproc -lopencv_highgui
-	core_objs += opencv_utils.o
+	SOURCES += $(SRCDIR)/opencv_utils.cxx
 endif
+
+INCLUDES := $(wildcard $(SRCDIR)/*.h)
+OBJECTS  := $(SOURCES:$(SRCDIR)/%.cxx=$(OBJDIR)/%.o)
+OBJECTS  := $(filter-out $(OBJDIR)/main.o, $(OBJECTS))
 
 COMMON_FLAGS += $(INC)
 COMMON_FLAGS += $(LIB)
@@ -66,9 +71,10 @@ COMMON_FLAGS += $(LIBS)
 
 VPATH = ./ ./unittest
 
+
 .PHONY : main
-main : main.o $(core_objs)
-	$(CXX) -o patcc $(CXXFLAGS) main.o $(core_objs) $(COMMON_FLAGS)
+main : $(OBJECTS) $(OBJDIR)/main.o
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -o patcc $(OBJECTS) $(OBJDIR)/main.o
 
 patcc.o: patcc.cxx grid_decomposition.h patcc.h common_utils.h projection.h timer.h
 grid_decomposition.o: grid_decomposition.cxx grid_decomposition.h common_utils.h projection.h netcdf_utils.h opencv_utils.h timer.h
@@ -77,18 +83,25 @@ projection.o: projection.cxx projection.h common_utils.h
 processing_unit_mgt.o: processing_unit_mgt.cxx processing_unit_mgt.h common_utils.h timer.h
 coordinate_hash.o: coordinate_hash.cxx coordinate_hash.h common_utils.h
 
-%.o: %.cxx %.h
-	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
-%.o: %.cxx
-	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
+$(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cxx
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c -o $@ $<
+
+$(OBJDIR)/main.o: $(SRCDIR)/main.cxx
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c -o $@ $<
+
 
 .PHONY : test
-test : testmain.o $(test_objs) $(core_objs)
-	$(CXX) -o run_all_test -DUNITTEST testmain.o $(core_objs) $(test_objs) $(COMMON_FLAGS)
+test : $(test_objs) $(OBJECTS) $(OBJDIR)/testmain.o
+	$(CXX) -o run_all_test -DUNITTEST $(OBJECTS) $(test_objs) $(COMMON_FLAGS)
+
+$(test_objs): $(OBJDIR)/%.o : $(TESTDIR)/%.cxx
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c -o $@ $<
+
 
 .PHONY : all
 all :
 
+
 .PHONY : clean
 clean :
-	-rm run_all_test patcc *.o 2>/dev/null
+	-rm run_all_test patcc obj/* 2>/dev/null

@@ -2,8 +2,8 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-#include "../processing_unit_mgt.h"
-#include "../grid_decomposition.h"
+#include "processing_unit_mgt.h"
+#include "grid_decomposition.h"
 
 #include <omp.h>
 #include <sched.h>

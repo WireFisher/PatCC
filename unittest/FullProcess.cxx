@@ -2,13 +2,14 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-#include "../patcc.h"
-#include "../processing_unit_mgt.h"
-#include "../grid_decomposition.h"
-#include "../netcdf_utils.h"
-#include "../projection.h"
+#include "patcc.h"
+#include "processing_unit_mgt.h"
+#include "grid_decomposition.h"
+#include "netcdf_utils.h"
+#include "projection.h"
 
 #include <cmath>
+#define CHECK_PARALLEL_CONSISTENCY (true)
 
 #define ROUND_VALUE (10000000.0)
 
@@ -633,7 +634,6 @@ TEST_F(FullProcess, ThreePolarBig) {
 };
 
 
-#define CHECK_PARALLEL_CONSISTENCY (true)
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
     /*

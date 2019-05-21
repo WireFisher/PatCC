@@ -2,8 +2,8 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-#include "../processing_unit_mgt.h"
-#include "../grid_decomposition.h"
+#include "processing_unit_mgt.h"
+#include "grid_decomposition.h"
 
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
