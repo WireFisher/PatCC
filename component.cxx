@@ -37,7 +37,9 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource, G
 
     timeval start, end;
     MPI_Barrier(proc_resource->get_mpi_comm());
+    log(LOG_INFO, "decomposing grid\n");
     gettimeofday(&start, NULL);
+
     if(delaunay_triangulation->generate_grid_decomposition()) {
         return -1;
     }
@@ -49,6 +51,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource, G
 #endif
     //delaunay_triangulation->plot_grid_decomposition("log/grid_decomp_info.png");
 
+    log(LOG_INFO, "generating trianglulation\n");
     gettimeofday(&start, NULL);
     int ret = delaunay_triangulation->generate_trianglulation_for_local_decomp();
 
@@ -407,6 +410,7 @@ int Patcc::generate_delaunay_trianglulation(int grid_id, bool sort)
 
     //PDLN_Timer timer;
     //timer.tick();
+    log(LOG_INFO, "initializing processing resource manager\n");
     MPI_Barrier(process_thread_mgr->get_mpi_comm());
     gettimeofday(&start, NULL);
     if(proc_resource == NULL)
@@ -420,6 +424,7 @@ int Patcc::generate_delaunay_trianglulation(int grid_id, bool sort)
 
     //proc_resource->print_all_nodes_info();
 
+    log(LOG_INFO, "preprocessing grid\n");
     gettimeofday(&start, NULL);
     grid_preprocessing(grid_id);
     gettimeofday(&end, NULL);
@@ -436,6 +441,7 @@ int Patcc::generate_delaunay_trianglulation(int grid_id, bool sort)
 #ifdef OPENCV
     operating_grid->plot_triangles_into_file();
 #endif
+    log(LOG_INFO, "collecting results\n");
     operating_grid->merge_all_triangles(sort);
     gettimeofday(&end, NULL);
 #ifdef TIME_PERF

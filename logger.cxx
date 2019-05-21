@@ -3,10 +3,10 @@
 #include <cstdio>
 
 char log_prefix[4][10] = {
-    "[ERROR-] ",
-    "[-WARN-] ",
-    "[REPORT] ",
-    "[DEBUG-] ",
+    "[ERROR] ",
+    "[WARN-] ",
+    "[INFO-] ",
+    "[DEBUG] ",
 };
 
 
