@@ -1,8 +1,9 @@
 CXX := mpiicpc
 MPI_PATH := /opt/intel/impi/3.2.0.011
-#PDLN_USE_OPENCV := true
-#PDLN_USE_NETCDF := true
-#PDLN_TIMING := true
+#PAT_OPENCV := true
+#PAT_NETCDF := true
+#PAT_TIMING := true
+#PAT_MUTE := true
 NETCDF_PATH := /opt/netCDF-gcc4.4.7
 OPENCV_PATH := /home/yanghy/opt/opencv
 CXXFLAGS :=
@@ -35,17 +36,20 @@ test_objs = obj/testmain.o \
 
 COMMON_FLAGS := -Wall -g -fopenmp -pthread
 
-ifeq ($(PDLN_TIMING),true)
+ifeq ($(PAT_TIMING),true)
 	COMMON_FLAGS += -DTIME_PERF
 endif
 
-ifeq ($(PDLN_DEBUG),true)
+ifeq ($(PAT_DEBUG),true)
 	COMMON_FLAGS += -DDEBUG -g
 else
 	COMMON_FLAGS += -O3
 endif
 
-ifeq ($(PDLN_USE_NETCDF),true)
+ifeq ($(PAT_MUTE),true)
+	COMMON_FLAGS += -DDEFAULT_LOGLEVEL=LOG_ERROR
+endif
+ifeq ($(PAT_NETCDF),true)
 	COMMON_FLAGS += -DNETCDF
 	INC += -isystem $(NETCDF_PATH)/include
 	LIB += -L$(NETCDF_PATH)/lib 
@@ -53,7 +57,7 @@ ifeq ($(PDLN_USE_NETCDF),true)
 	SOURCES += $(SRCDIR)/netcdf_utils.cxx
 endif
 
-ifeq ($(PDLN_USE_OPENCV),true)
+ifeq ($(PAT_OPENCV),true)
 	COMMON_FLAGS += -DOPENCV
 	INC += -isystem $(OPENCV_PATH)/include
 	LIB += -L$(OPENCV_PATH)/lib64

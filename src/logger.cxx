@@ -2,7 +2,7 @@
 #include <cstdarg>
 #include <cstdio>
 
-PAT_LOG_LEVEL CURRENT_LOG_LEVEL = LOG_ERROR;
+PAT_log_level PAT_LOG_LEVEL = DEFAULT_LOGLEVEL;
 
 char log_prefix[4][10] = {
     "[ERROR] ",
@@ -12,9 +12,9 @@ char log_prefix[4][10] = {
 };
 
 
-void log(PAT_LOG_LEVEL level, char *format, ...)
+void log(PAT_log_level level, char *format, ...)
 {
-    if (level > CURRENT_LOG_LEVEL)
+    if (level > PAT_LOG_LEVEL)
         return;
 
     printf("%s", log_prefix[level]);
