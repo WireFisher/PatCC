@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
     setvbuf(stdout, 0, 2, 0);
 #endif
 
+    printf("pid: %d\n", getpid());
     result = RUN_ALL_TESTS();
     MPI_Finalize();
 
