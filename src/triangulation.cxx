@@ -1697,7 +1697,12 @@ void Delaunay_Voronoi::enlarge_super_rectangle(const double* x, const double* y,
         if (y[i] > max_y) max_y = y[i];
     }
 
-    const double ratio  = 0.5;
+    min_x = std::min(min_x, all_points[0].x);
+    max_x = std::max(max_x, all_points[2].x);
+    min_y = std::min(min_y, all_points[1].y);
+    max_y = std::max(max_y, all_points[3].y);
+
+    const double ratio  = 0.1;
     double dx = max_x - min_x;
     double dy = max_y - min_y;
     double delta = std::max(dx, dy) * ratio;
@@ -1718,6 +1723,12 @@ void Delaunay_Voronoi::enlarge_super_rectangle(const double* x, const double* y,
 }
 
 
+/*
+ *      0 ---- 3
+ *      |      |
+ *      |      |
+ *      1 ---- 2
+ */
 void Delaunay_Voronoi::initialize(int num)
 {
     int triangles_count_estimate = 2*(num+PAT_NUM_LOCAL_VPOINTS);
