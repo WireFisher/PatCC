@@ -17,7 +17,7 @@ An Efficient **Pa**rallel **T**riangulation Algorithm for Spherical and Planar G
 Just execute `make` in this directory.
 
 **For advance usages:**  
-Some environment variables can be useful, including `PDLN_USE_OPENCV`, `PDLN_USE_NETCDF`, `PDLN_TIMING` and `PDLN_DEBUG`.
+Some environment variables can be useful, e.g. `PAT_OPENCV`, `PAT_NETCDF`, `PAT_TIMING` and `PAT_DEBUG`.
 
 ## Execute
 
