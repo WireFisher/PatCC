@@ -2562,11 +2562,11 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         local_leaf_nodes[i]->init_num_neighbors_on_boundry(1);
 
     while(iter < 50) {
-        log(LOG_INFO, "local triangulation loop %d\n", iter);
+        log(LOG_DEBUG, "local triangulation loop %d\n", iter);
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
 
-        log(LOG_INFO, "expanding\n");
+        log(LOG_DEBUG, "expanding\n");
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             if(!is_local_leaf_node_finished[i]) {
                 Search_tree_node* tree_node = local_leaf_nodes[i];
@@ -2610,7 +2610,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             break;
         }
 
-        log(LOG_INFO, "updating projection\n");
+        log(LOG_DEBUG, "updating projection\n");
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
 
@@ -2634,7 +2634,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             time_expand += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 
-        log(LOG_INFO, "updating triangulation\n");
+        log(LOG_DEBUG, "updating triangulation\n");
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         #pragma omp parallel for
@@ -2655,7 +2655,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
             time_local_tri += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 
-        log(LOG_INFO, "verifying consistency\n");
+        log(LOG_DEBUG, "verifying consistency\n");
         MPI_Barrier(processing_info->get_mpi_comm());
         gettimeofday(&start, NULL);
         #pragma omp parallel for
