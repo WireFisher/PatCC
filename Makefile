@@ -1,12 +1,20 @@
+############
+# Required #
+############
 CXX := mpiicpc
 MPI_PATH := /opt/intel/impi/3.2.0.011
+
+############
+# Optional #
+############
+NETCDF_PATH := /opt/netCDF-gcc4.4.7
+OPENCV_PATH := /home/yanghy/opt/opencv
+CXXFLAGS :=
+
 #PAT_OPENCV := true
 #PAT_NETCDF := true
 #PAT_TIMING := true
 #PAT_MUTE := true
-NETCDF_PATH := /opt/netCDF-gcc4.4.7
-OPENCV_PATH := /home/yanghy/opt/opencv
-CXXFLAGS :=
 
 SRCDIR := src
 OBJDIR := obj
@@ -36,6 +44,7 @@ test_objs = obj/testmain.o \
 
 COMMON_FLAGS := -Wall -g -fopenmp -pthread
 
+
 ifeq ($(PAT_TIMING),true)
 	COMMON_FLAGS += -DTIME_PERF
 endif
@@ -49,6 +58,7 @@ endif
 ifeq ($(PAT_MUTE),true)
 	COMMON_FLAGS += -DDEFAULT_LOGLEVEL=LOG_ERROR
 endif
+
 ifeq ($(PAT_NETCDF),true)
 	COMMON_FLAGS += -DNETCDF
 	INC += -isystem $(NETCDF_PATH)/include
