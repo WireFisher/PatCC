@@ -322,7 +322,7 @@ extern double global_p_lat[4];
 #define PDLN_REMOVE_UNNECESSARY_TRIANGLES (true)
 void Search_tree_node::generate_local_triangulation(bool is_cyclic, int vpoint_begin, int vpoint_num, bool is_fine_grid)
 {
-    log(LOG_INFO, "%d region - %d kernel points, %d expanded points\n", region_id, num_kernel_points, num_expand_points);
+    log(LOG_DEBUG, "%d region - %d kernel points, %d expanded points\n", region_id, num_kernel_points, num_expand_points);
     timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -712,7 +712,7 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
 void Search_tree_node::reorganize_kernel_points(double left_expt, double rite_expt, double left_bound, double rite_bound, 
                                                 int offset, int num_points, Midline* midline, int c_num_points[2],
                                                 int min_points) {
-    log(LOG_INFO, "divide points: ========== start a new reOrganization ========== \n");
+    log(LOG_DEBUG, "divide points: ========== start a new reOrganization ========== \n");
     int ret = divide_points(kernel_coord, kernel_index, kernel_mask, left_expt, rite_expt,
                             left_bound, rite_bound, offset, num_points, 0, midline,
                             c_num_points, 0, 0, PDLN_DOUBLE_INVALID_VALUE, min_points);
@@ -739,7 +739,7 @@ int Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, do
                                     double left_solid, double rite_solid, double best_value, int min_points) {
     PDASSERT(num_points >= 0);
 
-    log(LOG_INFO, "divide points: l %lf, r %lf\n", left_expt, rite_expt);
+    log(LOG_DEBUG, "divide points: l %lf, r %lf\n", left_expt, rite_expt);
     if (float_eq(rite_expt, 0)) {
         assert(false);
         midline->value = rite_bound;
@@ -754,11 +754,11 @@ int Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, do
 
     int tmp_num[2];
     sort_by_line_internal(coord, index, mask, midline, offset, num_points, &tmp_num[0], &tmp_num[1]);
-    log(LOG_INFO, "divide points: midline %lf. %d vs %d\n", midline->value, tmp_num[0], tmp_num[1]);
+    log(LOG_DEBUG, "divide points: midline %lf. %d vs %d\n", midline->value, tmp_num[0], tmp_num[1]);
     if (tmp_num[0] > 0 && tmp_num[1] > 0 && left_solid + tmp_num[0] >= min_points && rite_solid + tmp_num[1] >= min_points)
         best_value = midline->value;
 
-    log(LOG_INFO, "divide points: best_value %lf\n", best_value);
+    log(LOG_DEBUG, "divide points: best_value %lf\n", best_value);
 
     PDASSERT(tmp_num[0] >= 0);
     PDASSERT(tmp_num[0] <= num_points);
@@ -2060,16 +2060,16 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
         go_on[0] = go_on[1] = go_on[2] = go_on[3] = false;
 
-        log(LOG_INFO, "last boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
-        log(LOG_INFO, "expd boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
+        log(LOG_DEBUG, "last boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
+        log(LOG_DEBUG, "expd boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         leaf_nodes_found = adjust_expanding_boundry(old_boundry, &new_boundry, quota, tmp_coord, tmp_index, tmp_mask, go_on, &num_found);
         if(*old_boundry == new_boundry || num_found == 0)
             fail_count ++;
         else
             fail_count = 0;
 
-        log(LOG_INFO, "adjt boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
-        log(LOG_INFO, "glbl boundary: %lf, %lf, %lf, %lf\n", search_tree_root->kernel_boundry->min_lon, search_tree_root->kernel_boundry->max_lon, search_tree_root->kernel_boundry->min_lat, search_tree_root->kernel_boundry->max_lat);
+        log(LOG_DEBUG, "adjt boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
+        log(LOG_DEBUG, "glbl boundary: %lf, %lf, %lf, %lf\n", search_tree_root->kernel_boundry->min_lon, search_tree_root->kernel_boundry->max_lon, search_tree_root->kernel_boundry->min_lat, search_tree_root->kernel_boundry->max_lat);
 
         //if(fail_count > 20) {
         //    log(LOG_ERROR, "region %d expanding failed too many times\n", tree_node->region_id);
@@ -2092,7 +2092,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         tree_node->add_neighbors(leaf_nodes_found);
     }while(!tree_node->expanding_success(go_on));
 
-    //log(LOG_INFO, "final expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
+    //log(LOG_DEBUG, "final expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
 
     return 0;
 }
@@ -2249,7 +2249,7 @@ vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(
         }
         //printf("side %d picked: %d\n", i, num_points_picked[i]);
         sorted += num;
-        log(LOG_INFO, "%d Edge found %d new points\n", i, num_points_picked[i]);
+        log(LOG_DEBUG, "%d Edge found %d new points\n", i, num_points_picked[i]);
     }
 
 
