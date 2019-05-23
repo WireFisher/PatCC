@@ -755,8 +755,7 @@ int Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, do
     int tmp_num[2];
     sort_by_line_internal(coord, index, mask, midline, offset, num_points, &tmp_num[0], &tmp_num[1]);
     log(LOG_INFO, "divide points: midline %lf. %d vs %d\n", midline->value, tmp_num[0], tmp_num[1]);
-    if (tmp_num[0] > 0 && tmp_num[1] > 0 && (best_value == PDLN_DOUBLE_INVALID_VALUE &&
-        left_solid + tmp_num[0] >= min_points && rite_solid + tmp_num[1] >= min_points) )
+    if (tmp_num[0] > 0 && tmp_num[1] > 0 && left_solid + tmp_num[0] >= min_points && rite_solid + tmp_num[1] >= min_points)
         best_value = midline->value;
 
     log(LOG_INFO, "divide points: best_value %lf\n", best_value);
@@ -773,10 +772,7 @@ int Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, do
         c_num_points[0] += tmp_num[0];
         c_num_points[1] += tmp_num[1];
 
-        if (best_value == PDLN_DOUBLE_INVALID_VALUE)
-            best_value = midline->value;
-
-        if (best_value == midline->value) {
+        if (best_value == midline->value || best_value == PDLN_DOUBLE_INVALID_VALUE) {
             return 0;
         } else {
             midline->value = best_value;
@@ -2683,8 +2679,8 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         #pragma omp parallel for
         for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
             is_local_leaf_node_finished[i] = are_checksums_identical(local_leaf_nodes[i], local_leaf_checksums[i], remote_leaf_checksums[i]);
-            if(iter>=1)
-                is_local_leaf_node_finished[i] = true;
+            //if(iter>=1)
+            //    is_local_leaf_node_finished[i] = true;
         }
         gettimeofday(&end, NULL);
         if (!global_finish || iter == 0) {
@@ -2903,7 +2899,6 @@ void Delaunay_grid_decomposition::merge_all_triangles(bool sort)
                                                                     local_triangles + num_local_triangles, &num_triangles, local_buf_len - num_local_triangles); // This function call is un-class-elegant
         num_local_triangles += num_triangles;
     }
-
 
     MPI_Barrier(processing_info->get_mpi_comm());
 
