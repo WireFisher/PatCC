@@ -7,8 +7,8 @@ MPI_PATH := /opt/intel/impi/3.2.0.011
 ############
 # Optional #
 ############
-NETCDF_PATH := /opt/netCDF-gcc4.4.7
-OPENCV_PATH := /home/yanghy/opt/opencv
+NETCDF_PATH :=
+OPENCV_PATH :=
 CXXFLAGS :=
 
 #PAT_OPENCV := true
