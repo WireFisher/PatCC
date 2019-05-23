@@ -26,11 +26,12 @@ INC += -isystem dependency/googlemock/include
 INC += -I $(SRCDIR)
 
 LIB :=
-LIB += -Ldependency/googletest
-LIB += -Ldependency/googlemock
+LIBS:=
 
-LIBS := -lgmock -lgtest
-
+TestLib :=
+TestLib += -Ldependency/googletest
+TestLib += -Ldependency/googlemock
+TestLibs := -lgmock -lgtest
 
 SOURCES  := $(wildcard $(SRCDIR)/*.cxx)
 SOURCES  := $(filter-out $(SRCDIR)/opencv_utils.cxx, $(SOURCES))
@@ -87,7 +88,7 @@ VPATH = ./ ./unittest
 
 
 .PHONY : main
-main : $(OBJECTS) $(OBJDIR)/main.o
+main : $(OBJDIR) $(OBJECTS) $(OBJDIR)/main.o
 	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) $(OBJECTS) $(OBJDIR)/main.o -o patcc
 
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cxx
@@ -96,13 +97,16 @@ $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cxx
 $(OBJDIR)/main.o: $(SRCDIR)/main.cxx
 	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
 
+$(OBJDIR):
+	@mkdir $(OBJDIR)
+
 
 .PHONY : test
-test : $(test_objs) $(OBJECTS) $(OBJDIR)/testmain.o
-	$(CXX) -DUNITTEST $(OBJECTS) $(test_objs) $(COMMON_FLAGS) -o run_all_test
+test : $(OBJDIR) $(test_objs) $(OBJECTS) $(OBJDIR)/testmain.o
+	$(CXX) -DUNITTEST $(OBJECTS) $(test_objs) $(COMMON_FLAGS) $(TestLib) $(TestLibs) -o run_all_test
 
 $(test_objs): $(OBJDIR)/%.o : $(TESTDIR)/%.cxx
-	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) $(TestLib) $(TestLibs) -c $< -o $@
 
 
 .PHONY : all
