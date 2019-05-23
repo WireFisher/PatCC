@@ -13,3 +13,4 @@ gridfile/*
 *.nc
 *.out
 *.err
+all_grid_checksum
