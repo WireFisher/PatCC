@@ -1601,6 +1601,7 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
         }
 
         /* distributing points into triangles in the same mesh */
+        int distributed = 0;
         for (unsigned m = 0; m < block_size*block_size; m++) {
             if (including_points[m] == NULL)
                 continue;
@@ -1625,11 +1626,21 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
                             all_leaf_triangles[t_idx]->remained_points_head = all_leaf_triangles[t_idx]->remained_points_tail = p_idx;
                         else
                             all_leaf_triangles[t_idx]->remained_points_tail = nexts[all_leaf_triangles[t_idx]->remained_points_tail] = p_idx;
+                        distributed++;
                         break;
                     }
                 }
             }
         }
+
+#ifdef DEBUG
+        unsigned total = 0;
+        for (unsigned m = 0; m < block_size*block_size; m++) {
+            total += num_including_points[m];
+        }
+        PDASSERT(num == total);
+#endif
+        PDASSERT(num == distributed);
 
         /* freeing memory */
         for (unsigned i = 0; i < block_size*block_size; i++) {
@@ -1643,20 +1654,29 @@ void Delaunay_Voronoi::distribute_initial_points(const double* x, const double* 
         delete[] num_including_triangles;
         delete[] bound;
     } else {
+        int distributed = 0;
         for (int i = 0; i < num; i++) {
             for (unsigned j = 0; j < num_triangles; j++) {
-               if (!all_leaf_triangles[j]->is_leaf)
-                   continue;
+                if (!all_leaf_triangles[j]->is_leaf)
+                    continue;
 
-               if (point_in_triangle(x[i], y[i], all_leaf_triangles[j])) {
-                   if (all_leaf_triangles[j]->remained_points_head == -1)
-                       all_leaf_triangles[j]->remained_points_head = all_leaf_triangles[j]->remained_points_tail = i;
-                   else
-                       all_leaf_triangles[j]->remained_points_tail = nexts[all_leaf_triangles[j]->remained_points_tail] = i;
-                   break;
-               }
+                if (point_in_triangle(x[i], y[i], all_leaf_triangles[j])) {
+                    if (num == 2)
+                        printf("point %d in triangle %d\n", i, j);
+                    if (all_leaf_triangles[j]->remained_points_head == -1)
+                        all_leaf_triangles[j]->remained_points_head = all_leaf_triangles[j]->remained_points_tail = i;
+                    else
+                        all_leaf_triangles[j]->remained_points_tail = nexts[all_leaf_triangles[j]->remained_points_tail] = i;
+                    distributed++;
+                    break;
+                } else
+                    if (num == 2)
+                        printf("point %d not triangle %d\n", i, j);
             }
         }
+        if (num != distributed)
+            log(LOG_ERROR, "in \"Delaunay_Voronoi::distribute_initial_points\" distributed %d, expected %d\n", distributed, num);
+        PDASSERT(num == distributed);
     }
 
     *output_nexts = nexts;
@@ -1676,6 +1696,11 @@ void Delaunay_Voronoi::enlarge_super_rectangle(const double* x, const double* y,
         if (y[i] < min_y) min_y = y[i];
         if (y[i] > max_y) max_y = y[i];
     }
+
+    min_x = std::min(min_x, all_points[0].x);
+    max_x = std::max(max_x, all_points[2].x);
+    min_y = std::min(min_y, all_points[1].y);
+    max_y = std::max(max_y, all_points[3].y);
 
     const double ratio  = 0.1;
     double dx = max_x - min_x;
@@ -1698,6 +1723,12 @@ void Delaunay_Voronoi::enlarge_super_rectangle(const double* x, const double* y,
 }
 
 
+/*
+ *      0 ---- 3
+ *      |      |
+ *      |      |
+ *      1 ---- 2
+ */
 void Delaunay_Voronoi::initialize(int num)
 {
     int triangles_count_estimate = 2*(num+PAT_NUM_LOCAL_VPOINTS);
@@ -1706,7 +1737,7 @@ void Delaunay_Voronoi::initialize(int num)
     stack_size = triangles_count_estimate * 2;
     triangle_stack = new Triangle*[stack_size];
 
-    max_points = num*3/2;
+    max_points = num*3/2 + PAT_NUM_LOCAL_VPOINTS;
     all_points = (Point *)::operator new(max_points * sizeof(Point));
 
     new(&all_points[0]) Point(-0.1,  0.1, -1, -1, -1);
@@ -1777,6 +1808,7 @@ void Delaunay_Voronoi::add_points(const double* x, const double* y, const bool* 
         }
     }
     num_points += num;
+    PDASSERT(buf_idx_cur == num_points);
 
 #ifdef DEBUG
     x_store = x;
