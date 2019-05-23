@@ -1,18 +1,24 @@
-CXX := mpicxx
-MPI_PATH := /opt/intel/impi/3.2.0.011/
+CXX := mpiicpc
+MPI_PATH := /opt/intel/impi/3.2.0.011
 #MPI_PATH := /opt/mpich-3.2-gcc4.4.7/
-PDLN_USE_OPENCV := true
-PDLN_USE_NETCDF := true
-PDLN_DEBUG := true
-#PDLN_TIMING := true
-#NETCDF_PATH := /opt/netCDF-gcc4.4.7/
+PAT_OPENCV := true
+PAT_NETCDF := true
+PAT_TIMING := false
+PAT_DEBUG := true
+PAT_MUTE := true
+#NETCDF_PATH := /opt/netCDF-gcc4.4.7
 NETCDF_PATH := /opt/netCDF-intel13-without-hdf5
 OPENCV_PATH := /home/yanghy/opt/opencv
 CXXFLAGS :=
 
+SRCDIR := src
+OBJDIR := obj
+TESTDIR := unittest
+
 INC := -isystem $(MPI_PATH)/include64
 INC += -isystem dependency/googletest/include
 INC += -isystem dependency/googlemock/include
+INC += -I./$(SRCDIR)
 
 LIB :=
 LIB += -Ldependency/googletest
@@ -20,76 +26,88 @@ LIB += -Ldependency/googlemock
 
 LIBS := -lgmock -lgtest
 
-core_objs = ccpl_utils.o \
-            component.o \
-			processing_unit_mgt.o \
-			delaunay_grid_decomposition_mgt.o \
-			delaunay_voronoi_2D.o \
-			memory_pool.o \
-			coordinate_hash.o
 
-test_objs = \
-			FullProcess.o \
-			GridDecomposition.o \
-			ProcessingResourceTest.o
-			#DelaunayVoronoi2D.o
+SOURCES  := $(wildcard $(SRCDIR)/*.cxx)
+SOURCES  := $(filter-out $(SRCDIR)/opencv_utils.cxx, $(SOURCES))
+SOURCES  := $(filter-out $(SRCDIR)/netcdf_utils.cxx, $(SOURCES))
+
+test_objs = obj/testmain.o \
+			obj/FullProcess.o \
+			obj/ProcessingResourceTest.o \
+			obj/DelaunayVoronoi2D.o
+			#obj/GridDecomposition.o \
 
 ADDED_FLAGS := -O3
 COMMON_FLAGS := -Wall -fopenmp -pthread 
 
-ifeq ($(PDLN_TIMING),true)
+ifeq ($(PAT_TIMING),true)
 	COMMON_FLAGS += -DTIME_PERF
 endif
 
-ifeq ($(PDLN_DEBUG),true)
+ifeq ($(PAT_DEBUG),true)
 	COMMON_FLAGS += -DDEBUG -g
 else
 	COMMON_FLAGS += -O3
 endif
 
-ifeq ($(PDLN_USE_NETCDF),true)
+ifeq ($(PAT_MUTE),true)
+	COMMON_FLAGS += -DDEFAULT_LOGLEVEL=LOG_ERROR
+endif
+ifeq ($(PAT_NETCDF),true)
 	COMMON_FLAGS += -DNETCDF
-	INC += -isystem $(NETCDF_PATH)/include
+	INC += -I$(NETCDF_PATH)/include
 	LIB += -L$(NETCDF_PATH)/lib 
 	LIBS += -lnetcdf
-	core_objs += netcdf_utils.o
+	SOURCES += $(SRCDIR)/netcdf_utils.cxx
 endif
 
-ifeq ($(PDLN_USE_OPENCV),true)
+ifeq ($(PAT_OPENCV),true)
 	COMMON_FLAGS += -DOPENCV
 	INC += -isystem $(OPENCV_PATH)/include
 	LIB += -L$(OPENCV_PATH)/lib64
 	LIBS += -lopencv_core -lopencv_imgproc -lopencv_highgui
-	core_objs += opencv_utils.o
+	SOURCES += $(SRCDIR)/opencv_utils.cxx
 endif
 
 COMMON_FLAGS += $(ADDED_FLAGS)
+INCLUDES := $(wildcard $(SRCDIR)/*.h)
+OBJECTS  := $(SOURCES:$(SRCDIR)/%.cxx=$(OBJDIR)/%.o)
+OBJECTS  := $(filter-out $(OBJDIR)/main.o, $(OBJECTS))
+
 COMMON_FLAGS += $(INC)
 COMMON_FLAGS += $(LIB)
 COMMON_FLAGS += $(LIBS)
 
 VPATH = ./ ./unittest
 
-component.o: delaunay_grid_decomposition_mgt.o processing_unit_mgt.o
-delaunay_grid_decomposition_mgt.o: processing_unit_mgt.o delaunay_voronoi_2D.o ccpl_utils.o #netcdf_utils.o opencv_utils.o
-delaunay_voronoi_2D.o: merge_sort.h #opencv_utils.o
-
-%.o: %.cxx %.h
-	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
-%.o: %.cxx
-	$(CXX) -c -o $@ $(CXXFLAGS) $< $(COMMON_FLAGS)
 
 .PHONY : main
-main : main.o $(core_objs)
-	$(CXX) -o pDelaunay $(CXXFLAGS) main.o $(core_objs) $(COMMON_FLAGS)
+main : $(OBJECTS) $(OBJDIR)/main.o
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) $(OBJECTS) $(OBJDIR)/main.o -o patcc
+
+$(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cxx
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
+
+$(OBJDIR)/main.o: $(SRCDIR)/main.cxx
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
+
 
 .PHONY : test
-test : testmain.o $(test_objs) $(core_objs)
-	$(CXX) -o run_all_test -DUNITTEST testmain.o $(core_objs) $(test_objs) $(COMMON_FLAGS)
+test : $(test_objs) $(OBJECTS) $(OBJDIR)/testmain.o
+	$(CXX) -DUNITTEST $(OBJECTS) $(test_objs) $(COMMON_FLAGS) -o run_all_test
+
+$(test_objs): $(OBJDIR)/%.o : $(TESTDIR)/%.cxx
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
+
 
 .PHONY : all
-all :
+all : main test
+
 
 .PHONY : clean
 clean :
-	-rm run_all_test *.o 2>/dev/null
+#<<<<<<< HEAD
+#	-rm run_all_test *.o 2>/dev/null
+#=======
+	-rm run_all_test patcc obj/* 2>/dev/null
+#>>>>>>> mask

@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-#include "../delaunay_voronoi_2D.h"
+#include "triangulation.h"
 
 using ::testing::Return;
 using ::testing::_;
