@@ -395,7 +395,7 @@ TEST_F(FullProcess, Basic) {
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
-    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
         comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
@@ -485,7 +485,7 @@ TEST_F(FullProcess, LatLonSinglePolar) {
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
-    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
         comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
@@ -530,7 +530,7 @@ TEST_F(FullProcess, LatLonMutiPolars) {
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
-    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
         comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         comp->generate_delaunay_trianglulation(1, true);
@@ -574,7 +574,7 @@ TEST_F(FullProcess, ThreePolar) {
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
-    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
         comp = new Patcc(1);
         comp->register_grid(new Grid(1));
         ret = comp->generate_delaunay_trianglulation(1, true);
@@ -619,7 +619,7 @@ TEST_F(FullProcess, ThreePolarBig) {
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
 
-    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
+    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
         printf("part of processes...\n");
         comp = new Patcc(1);
         comp->register_grid(new Grid(1));
