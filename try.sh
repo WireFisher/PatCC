@@ -13,7 +13,7 @@ do
 	for((j=0;j<${#process_num[@]};j++));
 	do
 		total=$(expr ${thread_num[$j]} \* ${process_num[$j]})
-		OMP_STACKSIZE="128M" OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test lonlat_random_global_100000.dat --gtest_filter=FullProcess.P*
+		OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test Version_3_of_Greenland_pole_x1_T-grid.nc --gtest_filter=FullProcess.M*
 	    echo $file $total `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> all_grid_checksum
 	    echo $file `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
 	done
