@@ -42,7 +42,7 @@ do
 	        fi
 			echo ${old_test_list[$k]} >>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
             echo ${old_test_list[$k]} >>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
-	        OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test --gtest_filter=FullProcess.${old_test_list[$k]} 1>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out 2>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
+	        OMP_STACKSIZE="128M" OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test --gtest_filter=FullProcess.${old_test_list[$k]} 1>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out 2>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
 	        echo ${old_test_list[$k]} `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> all_grid_checksum
 	        echo ${old_test_list[$k]} `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
 	        mv log/global_triangles_$total log/check/global_triangles_${old_test_list[$k]}
@@ -55,7 +55,7 @@ do
 	        fi
 			echo $file >>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
 			echo $file >>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
-			OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test ${file} --gtest_filter=FullProcess.M* 1>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out 2>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
+			OMP_STACKSIZE="128M" OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test ${file} --gtest_filter=FullProcess.M* 1>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out 2>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
 		    echo $file `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> all_grid_checksum
 		    echo $file `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
 		    mv log/global_triangles_$total log/check/global_triangles_$file
@@ -68,7 +68,7 @@ do
 	        fi
 			echo $file >>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
 			echo $file >>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
-			OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test ${file} --gtest_filter=FullProcess.P* 1>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out 2>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
+			OMP_STACKSIZE="128M" OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test ${file} --gtest_filter=FullProcess.P* 1>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out 2>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
     		echo $file `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> all_grid_checksum
 		    echo $file `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
 		    mv log/global_triangles_$total log/check/global_triangles_$file
@@ -81,7 +81,7 @@ do
 	        fi
 			echo $file >>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
 			echo $file >>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
-			OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test ${file} --gtest_filter=FullProcess.R* 1>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out 2>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
+			OMP_STACKSIZE="128M" OMP_NUM_THREADS=${thread_num[$j]} mpiexec -n ${process_num[$j]} ./run_all_test ${file} --gtest_filter=FullProcess.R* 1>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out 2>>test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.err
 		    echo $file `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> all_grid_checksum
 		    echo $file `md5sum log/global_triangles_$total | awk -F" " '{print $1}'` >> test_log/runlog$i.${process_num[$j]}.${thread_num[$j]}.out
 		    mv log/global_triangles_$total log/check/global_triangles_$file

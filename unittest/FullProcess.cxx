@@ -1078,160 +1078,164 @@ void prepare_real_grid(const char grid_name[]){
 	nc_type xtype;
 	char file_name[64]="coupler_grid/";
 	sprintf(file_name,"%s%s",file_name,grid_name);
-	if(strcmp(grid_name,"atm_grid_at_atm_comp@cesm@ATM.nc")==0 || 
-	   strcmp(grid_name,"ice_grid_at_ice_comp@cesm@ICE.nc")==0 ||
-	   strcmp(grid_name,"lnd_grid_at_lnd_comp@cesm@LND.nc")==0 ||
-	   strcmp(grid_name,"ocn_grid_at_ocn_comp@cesm@OCN.nc")==0 ||
-	   strcmp(grid_name,"rof_grid_at_rof_comp@cesm@ROF.nc")==0){
-		field_lat_name="lat";
-		field_lon_name="lon";
-	}
-	else{
-		field_lat_name="grid_center_lat";
-		field_lon_name="grid_center_lon";
-	}
-	
-	report_nc_error(nc_open(file_name, NC_NOWRITE, &ncfile_id));
-	report_nc_error(nc_inq_varid(ncfile_id, field_lon_name, &variable_lon_id));
-	report_nc_error(nc_inq_varid(ncfile_id, field_lat_name, &variable_lat_id));
-	report_nc_error(nc_inq_var(ncfile_id, variable_lon_id, NULL, &xtype, NULL, NULL, NULL));
-	
-	report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"min_lon",&min_lon));
-	report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"min_lat",&min_lat));
-	report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"max_lon",&max_lon));
-	report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"max_lat",&max_lat));
-	report_nc_error(nc_get_att_text(ncfile_id,NC_GLOBAL,"cyclic_or_acyclic",cyclic));
 
-	if(strcmp(cyclic,"acyclic")==0)
-		is_cyclic = false;
-	else
-		is_cyclic = true;
-
-	if(xtype == NC_DOUBLE){
-		read_file_field_as_double(file_name, field_lon_name, &coord_buf0, &num_dims, &dim_size_ptr, &field_size, lon_unit);
-		delete dim_size_ptr;
-		read_file_field_as_double(file_name, field_lat_name, &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
-		delete dim_size_ptr;
-		ASSERT_EQ(field_size, field_size2);
-		num_points = field_size;
-		coord_values[PDLN_LON] = (double*)coord_buf0;
-		coord_values[PDLN_LAT] = (double*)coord_buf1;
-		for (int i = 0; i < num_points; i++) {
-		    coord_values[PDLN_LON][i] = round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
-		    coord_values[PDLN_LAT][i] = round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
-		    while(coord_values[PDLN_LON][i] >= 360)
-		        coord_values[PDLN_LON][i] -= 360;
-		    while(coord_values[PDLN_LON][i] < 0)
-		        coord_values[PDLN_LON][i] += 360;
-        if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
-        if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
-        if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
-        if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
-		
+	MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
+	MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
+	if(mpi_rank == 0){
+		if(strcmp(grid_name,"atm_grid_at_atm_comp@cesm@ATM.nc")==0 || 
+		   strcmp(grid_name,"ice_grid_at_ice_comp@cesm@ICE.nc")==0 ||
+		   strcmp(grid_name,"lnd_grid_at_lnd_comp@cesm@LND.nc")==0 ||
+	       strcmp(grid_name,"ocn_grid_at_ocn_comp@cesm@OCN.nc")==0 ||
+	   	   strcmp(grid_name,"rof_grid_at_rof_comp@cesm@ROF.nc")==0){
+		   		field_lat_name="lat";
+				field_lon_name="lon";
 		}
-		delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
-	}
-	else if(xtype == NC_FLOAT){
-		read_file_field_as_float(file_name, "grid_center_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
-		delete dim_size_ptr;
-		read_file_field_as_float(file_name, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
-		delete dim_size_ptr;
-		ASSERT_EQ(field_size, field_size2);
-		num_points = field_size;
-		coord_values[PDLN_LON] = (double*)coord_buf0;
-		coord_values[PDLN_LAT] = (double*)coord_buf1;
-
-		for (int i = 0; i < num_points; i++) {
-		    coord_values[PDLN_LON][i] = (double)round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
-		    coord_values[PDLN_LAT][i] = (double)round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
-		    while(coord_values[PDLN_LON][i] >= 360)
-		        coord_values[PDLN_LON][i] -= 360;
-		    while(coord_values[PDLN_LON][i] < 0)
-		        coord_values[PDLN_LON][i] += 360;
-		
-		if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
-        if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
-        if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
-		if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
-		
+		else{
+			field_lat_name="grid_center_lat";
+			field_lon_name="grid_center_lon";
 		}
-		delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
-	}
 	
-	for(unsigned int i = 0; i < sizeof(real_global_grid_name)/64; i ++){
-		if(strcmp(grid_name,real_grid_name[i])==0){
-			min_lon = 0;
-			max_lon = 360;
+		report_nc_error(nc_open(file_name, NC_NOWRITE, &ncfile_id));
+		report_nc_error(nc_inq_varid(ncfile_id, field_lon_name, &variable_lon_id));
+		report_nc_error(nc_inq_varid(ncfile_id, field_lat_name, &variable_lat_id));
+		report_nc_error(nc_inq_var(ncfile_id, variable_lon_id, NULL, &xtype, NULL, NULL, NULL));
+		
+		report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"min_lon",&min_lon));
+		report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"min_lat",&min_lat));
+		report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"max_lon",&max_lon));
+		report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"max_lat",&max_lat));
+		report_nc_error(nc_get_att_text(ncfile_id,NC_GLOBAL,"cyclic_or_acyclic",cyclic));
+	
+		if(strcmp(cyclic,"acyclic")==0)
+			is_cyclic = false;
+		else
+			is_cyclic = true;
+	
+		if(xtype == NC_DOUBLE){
+			read_file_field_as_double(file_name, field_lon_name, &coord_buf0, &num_dims, &dim_size_ptr, &field_size, lon_unit);
+			delete dim_size_ptr;
+			read_file_field_as_double(file_name, field_lat_name, &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
+			delete dim_size_ptr;
+			ASSERT_EQ(field_size, field_size2);
+			num_points = field_size;
+			coord_values[PDLN_LON] = (double*)coord_buf0;
+			coord_values[PDLN_LAT] = (double*)coord_buf1;
+			for (int i = 0; i < num_points; i++) {
+			    coord_values[PDLN_LON][i] = round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
+			    coord_values[PDLN_LAT][i] = round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
+			    while(coord_values[PDLN_LON][i] >= 360)
+			        coord_values[PDLN_LON][i] -= 360;
+			    while(coord_values[PDLN_LON][i] < 0)
+			        coord_values[PDLN_LON][i] += 360;
+		    if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
+   		    if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
+    	    if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
+    	    if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
+			
+			}
+			delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+		}
+		else if(xtype == NC_FLOAT){
+			read_file_field_as_float(file_name, "grid_center_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+			delete dim_size_ptr;
+			read_file_field_as_float(file_name, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+			delete dim_size_ptr;
+			ASSERT_EQ(field_size, field_size2);
+			num_points = field_size;
+			coord_values[PDLN_LON] = (double*)coord_buf0;
+			coord_values[PDLN_LAT] = (double*)coord_buf1;
+	
+			for (int i = 0; i < num_points; i++) {
+			    coord_values[PDLN_LON][i] = (double)round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
+			    coord_values[PDLN_LAT][i] = (double)round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
+			    while(coord_values[PDLN_LON][i] >= 360)
+			        coord_values[PDLN_LON][i] -= 360;
+			    while(coord_values[PDLN_LON][i] < 0)
+			        coord_values[PDLN_LON][i] += 360;
+			
+			if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
+	        if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
+	        if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
+			if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
+			
+			}
+			delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+		}
+		
+		for(unsigned int i = 0; i < sizeof(real_global_grid_name)/64; i ++){
+			if(strcmp(grid_name,real_grid_name[i])==0){
+				min_lon = 0;
+				max_lon = 360;
+				min_lat = -90;
+				max_lat = 90;
+				is_cyclic = true;
+				break;
+			}
+		}	
+		if(strcmp(grid_name,"gigc_H2D_grid_temp@GIGC.nc")==0 || 
+		   strcmp(grid_name,"datamodel_GIGC_H2D_grid@gamil.nc")==0 ||		
+		   strcmp(grid_name,"gigc_H2D_grid@GIGC.nc")==0){
+			min_lon = 0.0;
+			max_lon = 360.0;
 			min_lat = -90;
 			max_lat = 90;
+		}else if(strcmp(grid_name,"atm_grid_at_gamil_comp@gamil.nc")==0){
+			min_lon = 0.0;
+			max_lon = 358.0;
+			min_lat = -90;
+			max_lat = 90;
+		}else if(strcmp(grid_name,"wwatch3_H2D_grid_temp@wwatch3.nc")==0 ||
+		   		 strcmp(grid_name,"wwatch3_H2D_grid@wwatch3.nc")==0){
+		    min_lon = 0.0;
+		    max_lon = 360.0;
+		    min_lat = -79;
+		    max_lat = 79;
 			is_cyclic = true;
-			break;
+		}else if(strcmp(grid_name,"wrf_H2D_grid_ocn_mask@wrf.nc")==0 ||
+		   		 strcmp(grid_name,"wrf_H2D_grid_ocn_no_mask@wrf.nc")==0 || 
+				 strcmp(grid_name,"wrf_H2D_grid_no_mask@wrf.nc")==0){
+			min_lon = 0.0;
+			max_lon = 360.0;
+			min_lat = 0.0;
+			max_lat = 90.0;
+			is_cyclic = true;
+		}else if(strcmp(grid_name,"ocn_grid_at_ocn_comp@cesm@OCN.nc")==0 ||
+				 strcmp(grid_name,"ice_grid_at_ice_comp@cesm@ICE.nc")==0){
+		    min_lon = 0.0;
+		    max_lon = 360.0;
+		    min_lat = -90.0;
+		    max_lat = 90.0;
+			is_cyclic = true;
+		}else if(strcmp(grid_name,"MITgcm_H2D_grid@mitgcm.nc")==0){
+			min_lon = 0.0;
+    	    max_lon = 360.0;
+		    min_lat = 30.0;
+			max_lat = 90.0;
+		}else if(strcmp(grid_name,"pom_grid_via_local@pom@POM_TOP_d01.nc")==0 || 
+				 strcmp(grid_name,"wrf_grid_via_local@wrf@WRF_TOP_d01.nc")==0){
+			min_lon = 30.0;
+			max_lon = 100.0;
+			min_lat = -15.0;
+			max_lat = 30.0;
+			is_cyclic = false;
+		}else if(strcmp(grid_name,"cpl_ocn_grid@cpl.nc")==0 ||
+				 strcmp(grid_name,"sis_ice_grid@sis.nc")==0 || 
+				 strcmp(grid_name,"mom_ocn_grid@mom.nc")==0 || 
+				 strcmp(grid_name,"mom_ocn_grid_temp@mom.nc")==0 || 
+				 strcmp(grid_name,"sis_ice_grid_temp@sis.nc")==0 || 
+				 strcmp(grid_name,"cpl_ice_grid@cpl.nc")==0){
+   	     min_lon = 0.0;
+   	     max_lon = 360.0;
+   	     min_lat = -90.0;
+   	     max_lat = 90.0;
+   	     is_cyclic = true;
+		}else if(strcmp(grid_name,"cfs_ocn_H2D_grid@cfs_ocn.nc")==0){
+			min_lon = 0.0;
+			max_lon = 360.0;
+			min_lat = -90.0;
+			max_lat = 90.0;
+			is_cyclic = true;
 		}
-	}	
-	if(strcmp(grid_name,"gigc_H2D_grid_temp@GIGC.nc")==0 || 
-	   strcmp(grid_name,"datamodel_GIGC_H2D_grid@gamil.nc")==0 ||		
-	   strcmp(grid_name,"gigc_H2D_grid@GIGC.nc")==0){
-		min_lon = 0.0;
-		max_lon = 360.0;
-		min_lat = -90;
-		max_lat = 90;
-	}else if(strcmp(grid_name,"atm_grid_at_gamil_comp@gamil.nc")==0){
-		min_lon = 0.0;
-		max_lon = 358.0;
-		min_lat = -90;
-		max_lat = 90;
-	}else if(strcmp(grid_name,"wwatch3_H2D_grid_temp@wwatch3.nc")==0 ||
-	   		 strcmp(grid_name,"wwatch3_H2D_grid@wwatch3.nc")==0){
-	    min_lon = 0.0;
-	    max_lon = 360.0;
-	    min_lat = -79;
-	    max_lat = 79;
-		is_cyclic = true;
-	}else if(strcmp(grid_name,"wrf_H2D_grid_ocn_mask@wrf.nc")==0 ||
-	   		 strcmp(grid_name,"wrf_H2D_grid_ocn_no_mask@wrf.nc")==0 || 
-			 strcmp(grid_name,"wrf_H2D_grid_no_mask@wrf.nc")==0){
-		min_lon = 0.0;
-		max_lon = 360.0;
-		min_lat = 0.0;
-		max_lat = 90.0;
-		is_cyclic = true;
-	}else if(strcmp(grid_name,"ocn_grid_at_ocn_comp@cesm@OCN.nc")==0 ||
-			 strcmp(grid_name,"ice_grid_at_ice_comp@cesm@ICE.nc")==0){
-	    min_lon = 0.0;
-	    max_lon = 360.0;
-	    min_lat = -90.0;
-	    max_lat = 90.0;
-		is_cyclic = true;
-	}else if(strcmp(grid_name,"MITgcm_H2D_grid@mitgcm.nc")==0){
-		min_lon = 0.0;
-        max_lon = 360.0;
-	    min_lat = 30.0;
-		max_lat = 90.0;
-	}else if(strcmp(grid_name,"pom_grid_via_local@pom@POM_TOP_d01.nc")==0 || 
-			 strcmp(grid_name,"wrf_grid_via_local@wrf@WRF_TOP_d01.nc")==0){
-		min_lon = 30.0;
-		max_lon = 100.0;
-		min_lat = -15.0;
-		max_lat = 30.0;
-		is_cyclic = false;
-	}else if(strcmp(grid_name,"cpl_ocn_grid@cpl.nc")==0 ||
-			 strcmp(grid_name,"sis_ice_grid@sis.nc")==0 || 
-			 strcmp(grid_name,"mom_ocn_grid@mom.nc")==0 || 
-			 strcmp(grid_name,"mom_ocn_grid_temp@mom.nc")==0 || 
-			 strcmp(grid_name,"sis_ice_grid_temp@sis.nc")==0 || 
-			 strcmp(grid_name,"cpl_ice_grid@cpl.nc")==0){
-        min_lon = 0.0;
-        max_lon = 360.0;
-        min_lat = -90.0;
-        max_lat = 90.0;
-        is_cyclic = true;
-	}else if(strcmp(grid_name,"cfs_ocn_H2D_grid@cfs_ocn.nc")==0){
-		min_lon = 0.0;
-		max_lon = 360.0;
-		min_lat = -90.0;
-		max_lat = 90.0;
-		is_cyclic = true;
-	
 	}
 
 	MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -1248,6 +1252,65 @@ void prepare_real_grid(const char grid_name[]){
 	MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 }
 
+void prepare_datamodel_grid(const char grid_name[])
+{
+    int ncfile_id, variable_lon_id,variable_lat_id;
+    const char* field_lat_name="grid_center_lat";
+    const char* field_lon_name="grid_center_lon";
+    void *coord_buf0, *coord_buf1;
+    char lon_unit[32];
+    char lat_unit[32];
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size, field_size2;
+    nc_type xtype;
+    int num_points=0;
+    char file_name[64]="coupler_grid/";
+    sprintf(file_name,"%s%s",file_name,grid_name);
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    if(mpi_rank == 0){
+	    report_nc_error(nc_open(file_name, NC_NOWRITE, &ncfile_id));
+	    report_nc_error(nc_inq_varid(ncfile_id, field_lon_name, &variable_lon_id));
+	    report_nc_error(nc_inq_varid(ncfile_id, field_lat_name, &variable_lat_id));
+	    report_nc_error(nc_inq_var(ncfile_id, variable_lon_id, NULL, &xtype, NULL, NULL, NULL));
+	
+	    read_file_field_as_float(file_name, field_lon_name, &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+	    delete dim_size_ptr;
+	    read_file_field_as_float(file_name, field_lat_name, &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+
+	    coord_values[PDLN_LON] = (double*)malloc(sizeof(field_size*field_size2));
+	    coord_values[PDLN_LAT] = (double*)malloc(sizeof(field_size*field_size2));
+	    for(int i=0; i < field_size; i ++)
+	        for(int j=0; j < field_size2; j++){
+	            coord_values[PDLN_LON][num_points]=((double*)coord_buf0)[i];
+	            coord_values[PDLN_LAT][num_points++]=((double*)coord_buf1)[j];
+	        }
+	    printf("%d %d %d\n",num_points,field_size,field_size2);
+	}
+
+	MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	if (mpi_rank != 0) {
+	    coord_values[PDLN_LON] = new double[num_points];
+		coord_values[PDLN_LAT] = new double[num_points];
+	}
+
+	min_lon = 0.0;
+	max_lon = 360.0;
+	min_lat = -90.0;
+	max_lat = 90.0;
+	is_cyclic = true;
+    MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+}
+
 TEST_F(FullProcess, RealGridTest) {
     MPI_Barrier(MPI_COMM_WORLD);
     comm = MPI_COMM_WORLD;
@@ -1256,7 +1319,10 @@ TEST_F(FullProcess, RealGridTest) {
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 	
 	printf("processing real grid: %s\n", my_argv[1]);
-    prepare_real_grid(my_argv[1]);
+    if(strcmp(my_argv[1],"datamodel_GIGC_H2D_grid@gamil.nc")==0)
+		prepare_datamodel_grid(my_argv[1]);
+	else
+		prepare_real_grid(my_argv[1]);
     
     Patcc* comp;
     comp = new Patcc(0);
