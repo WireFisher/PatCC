@@ -1,3 +1,6 @@
+############
+# Required #
+############
 CXX := mpiicpc
 MPI_PATH := /opt/intel/impi/3.2.0.011
 #MPI_PATH := /opt/mpich-3.2-gcc4.4.7/
@@ -11,6 +14,10 @@ NETCDF_PATH := /opt/netCDF-intel13-without-hdf5
 OPENCV_PATH := /home/yanghy/opt/opencv
 CXXFLAGS :=
 
+############
+# Optional #
+############
+
 SRCDIR := src
 OBJDIR := obj
 TESTDIR := unittest
@@ -21,11 +28,12 @@ INC += -isystem dependency/googlemock/include
 INC += -I./$(SRCDIR)
 
 LIB :=
-LIB += -Ldependency/googletest
-LIB += -Ldependency/googlemock
+LIBS:=
 
-LIBS := -lgmock -lgtest
-
+TestLib :=
+TestLib += -Ldependency/googletest
+TestLib += -Ldependency/googlemock
+TestLibs := -lgmock -lgtest
 
 SOURCES  := $(wildcard $(SRCDIR)/*.cxx)
 SOURCES  := $(filter-out $(SRCDIR)/opencv_utils.cxx, $(SOURCES))
@@ -40,6 +48,7 @@ test_objs = obj/testmain.o \
 ADDED_FLAGS := -O3
 COMMON_FLAGS := -Wall -fopenmp -pthread 
 
+
 ifeq ($(PAT_TIMING),true)
 	COMMON_FLAGS += -DTIME_PERF
 endif
@@ -53,6 +62,7 @@ endif
 ifeq ($(PAT_MUTE),true)
 	COMMON_FLAGS += -DDEFAULT_LOGLEVEL=LOG_ERROR
 endif
+
 ifeq ($(PAT_NETCDF),true)
 	COMMON_FLAGS += -DNETCDF
 	INC += -I$(NETCDF_PATH)/include
@@ -82,7 +92,7 @@ VPATH = ./ ./unittest
 
 
 .PHONY : main
-main : $(OBJECTS) $(OBJDIR)/main.o
+main : $(OBJDIR) $(OBJECTS) $(OBJDIR)/main.o
 	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) $(OBJECTS) $(OBJDIR)/main.o -o patcc
 
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cxx
@@ -91,13 +101,16 @@ $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cxx
 $(OBJDIR)/main.o: $(SRCDIR)/main.cxx
 	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
 
+$(OBJDIR):
+	@mkdir $(OBJDIR)
+
 
 .PHONY : test
-test : $(test_objs) $(OBJECTS) $(OBJDIR)/testmain.o
-	$(CXX) -DUNITTEST $(OBJECTS) $(test_objs) $(COMMON_FLAGS) -o run_all_test
+test : $(OBJDIR) $(test_objs) $(OBJECTS) $(OBJDIR)/testmain.o
+	$(CXX) -DUNITTEST $(OBJECTS) $(test_objs) $(COMMON_FLAGS) $(TestLib) $(TestLibs) -o run_all_test
 
 $(test_objs): $(OBJDIR)/%.o : $(TESTDIR)/%.cxx
-	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(COMMON_FLAGS) $(TestLib) $(TestLibs) -c $< -o $@
 
 
 .PHONY : all
@@ -106,8 +119,4 @@ all : main test
 
 .PHONY : clean
 clean :
-#<<<<<<< HEAD
-#	-rm run_all_test *.o 2>/dev/null
-#=======
 	-rm run_all_test patcc obj/* 2>/dev/null
-#>>>>>>> mask

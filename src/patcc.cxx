@@ -1,3 +1,12 @@
+/***************************************************************
+  *  Copyright (c) 2019, Tsinghua University.
+  *  This is a source file of PatCC.
+  *  This file was initially finished by Dr. Li Liu and
+  *  Haoyu Yang. If you have any problem,
+  *  please contact Dr. Li Liu via liuli-cess@tsinghua.edu.cn
+  ***************************************************************/
+
+
 #include "patcc.h"
 #include "common_utils.h"
 #include "projection.h"
@@ -436,6 +445,7 @@ int Patcc::generate_delaunay_trianglulation(int grid_id, bool sort)
     gettimeofday(&end, NULL);
     time_total = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
 
+    log(LOG_INFO, "triangulation finished\n");
 #ifdef TIME_PERF
     long g_time_proc_mgt, g_time_pretreat, g_time_decomose, g_time_expand, g_time_local_tri, g_time_consisty_check, g_time_total;
     MPI_Comm comm = process_thread_mgr->get_mpi_comm();

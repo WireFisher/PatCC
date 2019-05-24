@@ -1,3 +1,12 @@
+/***************************************************************
+  *  Copyright (c) 2019, Tsinghua University.
+  *  This is a source file of PatCC.
+  *  This file was initially finished by Dr. Li Liu and
+  *  Haoyu Yang. If you have any problem,
+  *  please contact Dr. Li Liu via liuli-cess@tsinghua.edu.cn
+  ***************************************************************/
+
+
 #include "mpi.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -394,23 +403,6 @@ TEST_F(FullProcess, OLD_Basic) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
-/*
-    if (mpi_rank == 0) {
-        FILE *fp;
-        char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        EXPECT_STREQ(md5[0], md5[1]);
-        fprintf(test_log, "Basic %s\n",md5[0]);        
-		fflush(test_log);
-		char mv[] = "mv log/global_triangles_* log/check/global_triangles_Basic";
-		fp = popen(mv, "r");
-    }
-*/
 };
 
 #ifdef NETCDF
@@ -463,24 +455,6 @@ TEST_F(FullProcess, OLD_LatLonSinglePolar) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
-/*
-    if (mpi_rank == 0) {
-        FILE *fp;
-        char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        EXPECT_STREQ(md5[0], md5[1]);
-		fprintf(test_log,"LatLonSinglePolar %s\n",md5[0]);           
-		fflush(test_log);
-		char mv[] = "mv log/global_triangles_* log/check/global_triangles_LatLonSinglePolar";
-        fp = popen(mv, "r");
-	}
-*/
 };
 
 
@@ -498,24 +472,6 @@ TEST_F(FullProcess, OLD_LatLonMutiPolars) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
-/*
-    if (mpi_rank == 0) {
-        FILE *fp;
-        char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        EXPECT_STREQ(md5[0], md5[1]);
-		fprintf(test_log,"LatLonMutiPolars %s\n",md5[0]);           
-		fflush(test_log);
-		char mv[] = "mv log/global_triangles_* log/check/global_triangles_LatLonMutiPolar";
-        fp = popen(mv, "r");
-	}
-*/
 };
 
 
@@ -551,25 +507,6 @@ TEST_F(FullProcess, OLD_ThreePolarBig) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
-/*
-    if (mpi_rank == 0) {
-        FILE *fp;
-        char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-        char md5[2][64];
-        memset(md5[0], 0, 64);
-        memset(md5[1], 0, 64);
-        fp = popen(cmd, "r");
-        fgets(md5[0], 64, fp);
-        fgets(md5[1], 64, fp);
-        EXPECT_STREQ(md5[0], md5[1]);	
-        fprintf(test_log,"ThreePolarBig %s\n",md5[0]);
-		fflush(test_log);
-		char mv[] = "mv log/global_triangles_* log/check/global_triangles_ThreePolarBig";
-		fp = popen(mv, "r");
-	}
-    MPI_Barrier(MPI_COMM_WORLD);
-*/
 };
 
 

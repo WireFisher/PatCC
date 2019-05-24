@@ -1,3 +1,12 @@
+/***************************************************************
+  *  Copyright (c) 2019, Tsinghua University.
+  *  This is a source file of PatCC.
+  *  This file was initially finished by Dr. Li Liu and
+  *  Haoyu Yang. If you have any problem,
+  *  please contact Dr. Li Liu via liuli-cess@tsinghua.edu.cn
+  ***************************************************************/
+
+
 #include "mpi.h"
 #include "triangulation.h"
 #include "opencv_utils.h"
@@ -2410,6 +2419,7 @@ unsigned long Delaunay_Voronoi::cal_checksum(Point head, Point tail, double thre
     char filename[64];
     int rank;
     MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+    rank++;
     snprintf(filename, 64, "log/image_boundary_triangles_%03d_%016lx", rank, checksum);
     plot_triangles_into_file(filename, plot_triangles, size_plot);
 
