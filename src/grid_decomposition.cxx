@@ -1137,12 +1137,14 @@ Delaunay_grid_decomposition::Delaunay_grid_decomposition(Grid_info grid_info, Pr
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    char filename[128];
-    snprintf(filename, 128, "log/original_input_points.txt_%d", rank);
-    FILE *fp = fopen(filename, "w");
-    for (int i = 0; i < num_points; i ++)
-        fprintf(fp, "%lf, %lf, %d\n", coord_values[PDLN_LON][i], coord_values[PDLN_LAT][i], global_index[i]);
-    fclose(fp);
+    if(processing_info->get_local_process_id() == 0) {
+        char filename[128];
+        snprintf(filename, 128, "log/original_input_points.txt_%d", rank);
+        FILE *fp = fopen(filename, "w");
+        for (int i = 0; i < num_points; i ++)
+            fprintf(fp, "%lf, %lf, %d\n", coord_values[PDLN_LON][i], coord_values[PDLN_LAT][i], global_index[i]);
+        fclose(fp);
+    }
     */
 
     initialze_buffer();
@@ -2185,8 +2187,10 @@ void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double
     //printf("midline.value: %lf, (%d, %d)\n", midline.value, c_num_points[0], c_num_points[1]);
 
     c_num_points[0] = c_num_points[1] = 0;
-    Search_tree_node::divide_points(coord, idx, mask, l, r, boundry_values[linetype], boundry_values[linetype+2], offset, num, 0, &midline, c_num_points, 0, 0, PDLN_DOUBLE_INVALID_VALUE, 0);
+    int ret = Search_tree_node::divide_points(coord, idx, mask, l, r, boundry_values[linetype], boundry_values[linetype+2], offset, num, 0, &midline, c_num_points, 0, 0, PDLN_DOUBLE_INVALID_VALUE, 0);
 
+    if (ret)
+        Search_tree_node::sort_by_line_internal(coord, idx, mask, &midline, offset, num, &c_num_points[0], &c_num_points[1]);
 
     PDASSERT(c_num_points[0] >= 0);
     PDASSERT(c_num_points[1] >= 0);
