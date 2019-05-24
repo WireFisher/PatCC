@@ -2410,6 +2410,7 @@ unsigned long Delaunay_Voronoi::cal_checksum(Point head, Point tail, double thre
     char filename[64];
     int rank;
     MPI_Comm_rank(process_thread_mgr->get_mpi_comm(), &rank);
+    rank++;
     snprintf(filename, 64, "log/image_boundary_triangles_%03d_%016lx", rank, checksum);
     plot_triangles_into_file(filename, plot_triangles, size_plot);
 
