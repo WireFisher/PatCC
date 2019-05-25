@@ -40,7 +40,7 @@ void sort_triangles(Triangle_inline*, int);
 
 bool have_redundent_points(const double*, const double*, int);
 void report_redundent_points(const double *, const double *, const int *, int);
-void delete_redundent_points(double *&x, double *&y, int &num);
+int  delete_redundent_points(double *&x, double *&y, int &num);
 
 struct Bound;
 
