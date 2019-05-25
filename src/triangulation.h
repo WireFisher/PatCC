@@ -63,7 +63,6 @@ class Delaunay_Voronoi
         bool is_all_leaf_triangle_legal();
         void get_triangles_in_region(double, double, double, double, Triangle_inline *, int *, int);
         void update_all_points_coord(double *, double *, int);
-        void relegalize_all_triangles();
         void remove_triangles_on_or_out_of_boundary(double, double, double, double);
 
         unsigned calculate_checksum(Point, Point, double = 0);
@@ -122,19 +121,17 @@ class Delaunay_Voronoi
 
         void mark_special_triangles();
         bool check_uniqueness(int, const Edge *edge);
-        bool is_angle_ambiguous(int, const Edge *edge);
-        int  get_lowest_point_of_four(int, int, int, int);
+        int  get_lowest_point_of_four(const Edge*);
         Edge* make_twins_edge(Edge*);
 
         bool is_edge_legal(int, const Edge *edge);
         bool is_triangle_legal(const Triangle *);
-        bool is_triangle_ambiguous(int, Edge *edge);
-        void relegalize_triangles(int, Edge*);
         void remove_leaf_triangle(Triangle*);
         bool is_delaunay_legal(const Point *pt, const Edge *edge);
         bool is_delaunay_legal(const Triangle *);
         void validate_result();
         int  circum_circle_contains_reliably(const Edge*, Point*, double);
+        int  get_index_in_array(const Point*);
 
         Triangle_inline pack_triangle(Triangle*);
         void add_to_bound_triangles(Triangle_inline&, unsigned);
