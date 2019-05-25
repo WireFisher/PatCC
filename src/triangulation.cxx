@@ -2016,16 +2016,17 @@ void report_redundent_points(const double *x, const double *y, const int *index,
 }
 
 
-void delete_redundent_points(double *&x, double *&y, int &num)
+int delete_redundent_points(double *&x, double *&y, int &num)
 {
     std::tr1::unordered_map<double, std::list<int> > hash_table;
     std::tr1::unordered_map<double, std::list<int> >::iterator it_hash;
 
     double *tmp_x, *tmp_y;
     int count = 0;
+    int old_num = num;
 
     if(num == 0)
-        return;
+        return 0;
 
     tmp_x = new double[num];
     tmp_y = new double[num];
@@ -2058,10 +2059,12 @@ void delete_redundent_points(double *&x, double *&y, int &num)
     delete y;
     x = tmp_x;
     y = tmp_y;
+
     num = count;
 
-    return;
+    return old_num - num;
 }
+
 
 Edge* Delaunay_Voronoi::allocate_edge(int head, int tail)
 {

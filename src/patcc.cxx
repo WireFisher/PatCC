@@ -381,6 +381,9 @@ void Patcc::grid_preprocessing(int grid_id)
         PDASSERT(num_current - num_points <= num_new_points && num_current - num_points >= num_new_points - 2);
     }
 
+    if (delete_redundent_points(extended_coord[PDLN_LON], extended_coord[PDLN_LAT], num_current))
+        log(LOG_WARNING, "redundent points found, deleting...\n");
+
     grid_info.coord_values[PDLN_LON] = extended_coord[PDLN_LON];
     grid_info.coord_values[PDLN_LAT] = extended_coord[PDLN_LAT];
     grid_info.mask = extended_mask;
