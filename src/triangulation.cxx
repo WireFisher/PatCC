@@ -336,37 +336,44 @@ Edge* Delaunay_Voronoi::make_twins_edge(Edge *e)
 }
 
 
-int Delaunay_Voronoi::get_lowest_point_of_four(int idx1, int idx2, int idx3, int idx4)
+int Delaunay_Voronoi::get_lowest_point_of_four(const Edge* shared_edge)
 {
-    int idx = idx1;
+    Point* points[4];
 
-    Point* p  = &all_points[idx1];
-    Point* p2 = &all_points[idx2];
-    Point* p3 = &all_points[idx3];
-    Point* p4 = &all_points[idx4];
+    points[0] = &all_points[shared_edge->prev_edge_in_triangle->head];
+    points[1] = &all_points[shared_edge->head];
+    points[2] = &all_points[shared_edge->tail];
+    points[3] = &all_points[shared_edge->twin_edge->prev_edge_in_triangle->head];
 
-    if(!x_ref) {
-        if(p2->x < p->x || (p2->x == p->x && p2->y < p->y)) { p = p2; idx = idx2;}
-        if(p3->x < p->x || (p3->x == p->x && p3->y < p->y)) { p = p3; idx = idx3;}
-        if(p4->x < p->x || (p4->x == p->x && p4->y < p->y)) { p = p4; idx = idx4;}
-    } else {
-        if(x_ref[p2->id] < x_ref[p->id] || (x_ref[p2->id] == x_ref[p->id] && y_ref[p2->id] < y_ref[p->id])) { p = p2; idx = idx2;}
-        if(x_ref[p3->id] < x_ref[p->id] || (x_ref[p3->id] == x_ref[p->id] && y_ref[p3->id] < y_ref[p->id])) { p = p3; idx = idx3;}
-        if(x_ref[p4->id] < x_ref[p->id] || (x_ref[p4->id] == x_ref[p->id] && y_ref[p4->id] < y_ref[p->id])) { p = p4; idx = idx4;}
-        //if ((x_ref[p1->id] > 345 || x_ref[p1->id] < 0.5) && y_ref[p1->id] > 77.6 && y_ref[p1->id] < 78.2 &&
-        //    (x_ref[p2->id] > 345 || x_ref[p2->id] < 0.5) && y_ref[p2->id] > 77.6 && y_ref[p2->id] < 78.2 &&
-        //    (x_ref[p3->id] > 345 || x_ref[p3->id] < 0.5) && y_ref[p3->id] > 77.6 && y_ref[p3->id] < 78.2 &&
-        //    (x_ref[p4->id] > 345 || x_ref[p4->id] < 0.5) && y_ref[p4->id] > 77.6 && y_ref[p4->id] < 78.2)
-        //    printf("lowest: %p, [%lf, %lf] in [%.15lf, %.15lf] [%.15lf, %.15lf] [%.15lf, %.15lf] [%.15lf, %.15lf]\n", p, x_ref[p->id], y_ref[p->id],
-        //                                                                                         x_ref[p1->id], y_ref[p1->id],
-        //                                                                                         x_ref[p2->id], y_ref[p2->id],
-        //                                                                                         x_ref[p3->id], y_ref[p3->id],
-        //                                                                                         x_ref[p4->id], y_ref[p4->id]);
+    double x_fixed[4], y_fixed[4];
+
+    for (int i = 0; i < 4; i++) {
+        x_fixed[i] = x_ref ? x_ref[points[i]->id] : points[i]->x;
+        y_fixed[i] = y_ref ? y_ref[points[i]->id] : points[i]->y;
     }
-    return idx;
+
+    if (polar_mode && (shared_edge->triangle->is_cyclic ||
+            shared_edge->twin_edge->triangle->is_cyclic )) {
+        for (int i = 0; i < 4; i++)
+            if (x_fixed[i] > 180) x_fixed[i] -= 360;
+    }
+
+    int lowest = 0;
+
+    for (int i = 1; i < 4; i++)
+        if (x_fixed[i] <  x_fixed[lowest] ||
+           (x_fixed[i] == x_fixed[lowest] && y_fixed[i] < y_fixed[lowest]) ) {
+            lowest = i;
+        }
+
+    return get_index_in_array(points[lowest]);
 }
 
 
+int Delaunay_Voronoi::get_index_in_array(const Point* p)
+{
+    return p - all_points;
+}
 
 
 /* Debug staff */
@@ -444,11 +451,9 @@ bool Delaunay_Voronoi::is_edge_legal(int p_idx, const Edge *edge)
 
 bool Delaunay_Voronoi::check_uniqueness(int p_idx, const Edge *edge)
 {
-    int lowest = get_lowest_point_of_four(p_idx, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head);
+    assert(p_idx == edge->prev_edge_in_triangle->head);
+    int lowest = get_lowest_point_of_four(edge);
     bool is_lowest = (p_idx == lowest || edge->twin_edge->prev_edge_in_triangle->head == lowest);
-
-    //if(edge->triangle->is_cyclic && edge->twin_edge->triangle->is_cyclic)
-    //    is_lowest = !is_lowest;
 
 #ifdef DEBUG
     if(!is_lowest)
@@ -456,72 +461,6 @@ bool Delaunay_Voronoi::check_uniqueness(int p_idx, const Edge *edge)
 #endif
 
     return is_lowest;
-}
-
-
-bool Delaunay_Voronoi::is_angle_ambiguous(int p_idx, const Edge *edge)
-{
-    int lowest = get_lowest_point_of_four(p_idx, edge->head, edge->tail, edge->twin_edge->prev_edge_in_triangle->head);
-    if(p_idx == lowest || edge->twin_edge->prev_edge_in_triangle->head == lowest) {
-        if(edge->triangle->is_cyclic)
-            return true;
-        else
-            return false;
-    } else {
-        if(edge->triangle->is_cyclic)
-            return false;
-        else
-            return true;
-    }
-}
-
-bool Delaunay_Voronoi::is_triangle_ambiguous(int p_idx, Edge *edge)
-{
-    if (!edge->twin_edge) {
-        return false;
-    }
-
-    if(!edge->twin_edge->triangle) {
-        return false;
-    }
-
-    if(!edge->twin_edge->triangle->is_leaf) {
-        return false;
-    }
-
-    if(edge->twin_edge->triangle->is_virtual) {
-        return false;
-    }
-
-    Point* p[4];
-    bool modified[4] = {0};
-    p[0] = &all_points[p_idx];
-    p[1] = head(edge);
-    p[2] = tail(edge);
-    p[3] = head(edge->twin_edge->prev_edge_in_triangle);
-
-    PDASSERT(!modified[0] && !modified[1] && !modified[2] && !modified[3]);
-
-    int ret;
-    if (edge->triangle->is_cyclic && edge->twin_edge->triangle->is_cyclic) {
-        for (int i = 0; i < 4; i++)
-            if (p[i]->x > 180) {
-                p[i]->x -= 360;
-                modified[i] = true;
-            }
-        ret = circum_circle_contains_reliably(edge, head(edge->twin_edge->prev_edge_in_triangle), tolerance);
-        for (int i = 0; i < 4; i++)
-            if (modified[i])
-                p[i]->x += 360;
-    } else {
-        ret = circum_circle_contains_reliably(edge, head(edge->twin_edge->prev_edge_in_triangle), tolerance);
-    }
-
-    if (ret == 0) {
-        return is_angle_ambiguous(p_idx, edge);
-    }
-
-    return false;
 }
 
 
@@ -632,39 +571,6 @@ void Delaunay_Voronoi::legalize_triangles(int vr_idx, Edge *edge, unsigned stack
 
     legalize_triangles(vr_idx, eik, stack_base, stack_top);
     legalize_triangles(vr_idx, ekj, stack_base, stack_top);
-}
-
-
-void Delaunay_Voronoi::relegalize_triangles(int vr_idx, Edge *edge)
-{
-    if (!is_triangle_ambiguous(vr_idx, edge))
-        return;
-
-    if (edge->triangle->is_cyclic != edge->twin_edge->triangle->is_cyclic)
-        return;
-    PDASSERT(edge->triangle->is_leaf);
-    PDASSERT(edge->twin_edge->triangle->is_leaf);
-
-    Triangle *triangle_origin, *triangle_twin;
-    triangle_origin = edge->triangle;
-    triangle_twin = edge->twin_edge->triangle;
-
-    int vk_idx = edge->twin_edge->prev_edge_in_triangle->head;
-    Edge *eij = edge;
-    Edge *ejr = eij->next_edge_in_triangle;
-    Edge *eri = ejr->next_edge_in_triangle;
-    Edge *eji = eij->twin_edge;
-    Edge *eik = eji->next_edge_in_triangle;
-    Edge *ekj = eik->next_edge_in_triangle;
-    Edge *erk = allocate_edge(vr_idx, vk_idx);
-    Edge *ekr = make_twins_edge(erk);
-
-    bool force = edge->triangle->is_cyclic ? true : false;
-    initialize_triangle_with_edges(triangle_origin, eik, ekr, eri, force);
-    initialize_triangle_with_edges(triangle_twin, ejr, erk, ekj, force);
-    if(force)
-        triangle_origin->is_cyclic = triangle_twin->is_cyclic = true;
-
 }
 
 
@@ -802,6 +708,19 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
     t->edge[2]->ref_inc();
     t->calulate_circum_circle(pt1, pt2, pt3);
 
+    if (polar_mode) {
+        int id[3];
+        for (int j = 0; j < 3; j++)
+            id[j] = vertex(t, j)->id;
+
+        if (id[0] != -1 && id[1] != -1 && id[2] != -1)
+            for (int j = 0; j < 3; j++) {
+                if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > PAT_CYCLIC_EDGE_THRESHOLD) {
+                    t->is_cyclic = true;
+                    break;
+                }
+            }
+    }
 }
 
 
@@ -1146,25 +1065,6 @@ unsigned Delaunay_Voronoi::triangulating_process(Triangle *triangle, unsigned st
     int candidate_id = triangle->find_best_candidate_point(&all_points[0]);
 
     if (candidate_id == -1) {
-        if (polar_mode) {
-            int id[3];
-            for (int j = 0; j < 3; j++)
-                id[j] = vertex(triangle, j)->id;
-
-            if (id[0] != -1 && id[1] != -1 && id[2] != -1)
-                for (int j = 0; j < 3; j++) {
-                    if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > PAT_CYCLIC_EDGE_THRESHOLD) {
-                        triangle->is_cyclic = true;
-                        break;
-                    }
-                }
-
-            if (triangle->is_cyclic) {
-                for(int j = 0; j < 3; j++)
-                    relegalize_triangles(triangle->v[j], triangle->edge[(j+1)%3]);
-            }
-        }
-
         return stack_top;
     }
 
@@ -2303,18 +2203,6 @@ void Delaunay_Voronoi::mark_cyclic_triangles()
 inline void Delaunay_Voronoi::remove_leaf_triangle(Triangle* t)
 {
     t->is_virtual = true;
-}
-
-void Delaunay_Voronoi::relegalize_all_triangles()
-{
-    for(unsigned i = 0; i < all_leaf_triangles.size(); i++) {
-        if (!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
-            continue;
-
-        for(unsigned j = 0; j < 3; j++) {
-            relegalize_triangles(all_leaf_triangles[i]->v[j], all_leaf_triangles[i]->edge[(j+1)%3]);
-        }
-    }
 }
 
 
