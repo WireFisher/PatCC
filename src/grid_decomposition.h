@@ -15,6 +15,8 @@
 
 #define PDLN_LON 0
 #define PDLN_LAT 1
+#define PDLN_HIGH_BOUNDRY_SHIFTING (1e-6)
+
 
 using std::pair;
 
