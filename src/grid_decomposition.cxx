@@ -43,8 +43,6 @@
 
 #define PDLN_DOUBLE_INVALID_VALUE ((double)0xDEADBEEFDEADBEEF)
 
-#define PDLN_HIGH_BOUNDRY_SHIFTING (1e-6)
-
 #define PDLN_MAX_NUM_PROCESSING_UNITS 512
 
 #define PDLN_POLAR_WORKLOAD_RATE (0.09)
@@ -799,6 +797,9 @@ int Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, do
 
 void Search_tree_node::add_expand_points(double *lon_value, double *lat_value, int *global_idx, bool *mask, int num_points)
 {
+    if (num_points)
+        return;
+
     double *coord_value[2];
     coord_value[PDLN_LON] = lon_value;
     coord_value[PDLN_LAT] = lat_value;
@@ -2062,7 +2063,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     if (mask)
         tmp_mask  = buf_bool[thread_id];
 
-    int fail_count = 0;
+    int fail_count[4] = {0, 0, 0, 0};
     bool go_on[4];
     do {
         Boundry* old_boundry = tree_node->expand_boundry;
@@ -2074,33 +2075,36 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         log(LOG_DEBUG, "last boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
         log(LOG_DEBUG, "expd boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         leaf_nodes_found = adjust_expanding_boundry(old_boundry, &new_boundry, quota, tmp_coord, tmp_index, tmp_mask, go_on, &num_found);
-        if(*old_boundry == new_boundry || num_found == 0)
-            fail_count ++;
-        else
-            fail_count = 0;
+
+        for (int i = 0; i < 4; i++)
+            if(go_on[i])
+                fail_count[i] ++;
+            else
+                fail_count[i] = 0;
 
         log(LOG_DEBUG, "adjt boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         log(LOG_DEBUG, "glbl boundary: %lf, %lf, %lf, %lf\n", search_tree_root->kernel_boundry->min_lon, search_tree_root->kernel_boundry->max_lon, search_tree_root->kernel_boundry->min_lat, search_tree_root->kernel_boundry->max_lat);
 
-        //if(fail_count > 20) {
-        //    log(LOG_ERROR, "region %d expanding failed too many times\n", tree_node->region_id);
-        //    return -1;
-        //}
+        *tree_node->expand_boundry = new_boundry;
+        tree_node->add_expand_points(tmp_coord, tmp_index, tmp_mask, num_found);
+        tree_node->add_neighbors(leaf_nodes_found);
+
+        for (int i = 0; i < 4; i++)
+            if(fail_count[i] > 5) {
+                log(LOG_WARNING, "region %d expanding failed too many times\n", tree_node->region_id);
+                return -1;
+            }
 
         if(new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
            new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
             log(LOG_ERROR, "region %d too large\n", tree_node->region_id);
-            return -1;
+            return 1;
         }
 
         if(new_boundry == *search_tree_root->kernel_boundry || new_boundry.max_lon - new_boundry.min_lon > 360.0) {
             log(LOG_ERROR, "region %d expanded to the max\n", tree_node->region_id);
-            return -1;
+            return 1;
         }
-
-        *tree_node->expand_boundry = new_boundry;
-        tree_node->add_expand_points(tmp_coord, tmp_index, tmp_mask, num_found);
-        tree_node->add_neighbors(leaf_nodes_found);
     }while(!tree_node->expanding_success(go_on));
 
     //log(LOG_DEBUG, "final expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
@@ -2580,45 +2584,59 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         gettimeofday(&start, NULL);
 
         log(LOG_DEBUG, "expanding\n");
-        for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
-            if(!is_local_leaf_node_finished[i]) {
-                Search_tree_node* tree_node = local_leaf_nodes[i];
+        int expanding_fail = 0;
+        volatile int goon;
+        do {
 
-                outer_bound[i] = tree_node->expand();
-            } else {
-                outer_bound[i].min_lon = 0;
-                outer_bound[i].max_lon = 0;
-            }
-        }
+            log(LOG_DEBUG, "extending search tree\n");
+            /* expand all local tree nodes' boundary */
+            for(unsigned i = 0; i < local_leaf_nodes.size(); i++) {
+                if(!is_local_leaf_node_finished[i]) {
+                    Search_tree_node* tree_node = local_leaf_nodes[i];
 
-        if (local_leaf_nodes.size() > 0) {
-            #pragma omp parallel
-            {
-                #pragma omp single
-                {
-                    extend_search_tree(this, search_tree_root, outer_bound, local_leaf_nodes.size(), min_points_per_chunk);
+                    outer_bound[i] = tree_node->expand();
+                } else {
+                    outer_bound[i].min_lon = 0;
+                    outer_bound[i].max_lon = 0;
                 }
             }
-        }
 
-        volatile int all_threads_ret = 0;
-        #pragma omp parallel for
-        for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
-            if(!is_local_leaf_node_finished[i]) {
-                int local_ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
-                #pragma omp critical
-                all_threads_ret |= local_ret;
+            /* extend search tree depending on boundarys */
+            if (local_leaf_nodes.size() > 0) {
+                #pragma omp parallel
+                {
+                    #pragma omp single
+                    {
+                        extend_search_tree(this, search_tree_root, outer_bound, local_leaf_nodes.size(), min_points_per_chunk);
+                    }
+                }
             }
 
-        int all_ret = 0;
-        MPI_Allreduce((int*)(&all_threads_ret), &all_ret, 1, MPI_UNSIGNED, MPI_BOR, processing_info->get_mpi_comm());
+            /* search points in boundarys */
+            goon = 0;
+            #pragma omp parallel for
+            for(unsigned i = 0; i < local_leaf_nodes.size(); i++)
+                if(!is_local_leaf_node_finished[i]) {
+                    int local_ret = expand_tree_node_boundry(local_leaf_nodes[i], expanding_ratio);
+                    #pragma omp critical
+                    {
+                        if (local_ret == 1)
+                            expanding_fail = 1;
+                        else if (local_ret == -1)
+                            goon = 1;
+                    }
+                }
+        } while (!expanding_fail && goon);
+
+        int global_expanding_fail = 0;
+        MPI_Allreduce((int*)(&expanding_fail), &global_expanding_fail, 1, MPI_UNSIGNED, MPI_BOR, processing_info->get_mpi_comm());
 
         gettimeofday(&end, NULL);
         if (!global_finish) {
             time_expand += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
         }
 
-        if(all_ret) {
+        if(global_expanding_fail) {
             global_finish = false;
             break;
         }
