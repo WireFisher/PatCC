@@ -335,6 +335,14 @@ void Patcc::grid_preprocessing(int grid_id)
         double widthY = maxY_public - minY_public;
         double widthMax = std::max(widthX, widthY);
 
+        double hard_fence_point_minx = minX_public-widthMax*PAT_INSERT_EXPAND_RATIO*2;
+        double hard_fence_point_maxx = maxX_public+widthMax*PAT_INSERT_EXPAND_RATIO*2;
+        double hard_fence_point_miny = minY_public-widthMax*PAT_INSERT_EXPAND_RATIO*2;
+        double hard_fence_point_maxy = maxY_public+widthMax*PAT_INSERT_EXPAND_RATIO*2;
+
+        hard_fence_point_miny = std::max(hard_fence_point_miny, -89.9999);
+        hard_fence_point_maxy = std::min(hard_fence_point_maxy,  89.9999);
+
         /* x * y = num_points, x : y = widthX : widthY */
         unsigned num_x = (unsigned)sqrt(num_points * widthX / widthY);
         unsigned num_y = num_x * widthY / widthX;
@@ -402,11 +410,11 @@ void Patcc::grid_preprocessing(int grid_id)
         /* counting number of new points */
         unsigned num_new_points = 0;
         if (!float_eq(min_lat, -90))
-            num_new_points += num_x;
+            num_new_points += num_x * 2;
         if (!float_eq(max_lat, 90))
-            num_new_points += num_x;
+            num_new_points += num_x * 2;
         if (!is_cyclic)
-            num_new_points += num_y*2;
+            num_new_points += num_y*4;
         if (do_virtual_pole_inserting)
             num_new_points += 2;
 
@@ -463,21 +471,36 @@ void Patcc::grid_preprocessing(int grid_id)
                 }
 
                 if (do_n_inserting) {
+                    /* soft fence point */
                     extended_coord[PDLN_LON][num_current] = x_cur;
-                    extended_coord[PDLN_LAT][num_current] = std::min(y_max_tmp + widthMax*PAT_INSERT_EXPAND_RATIO, 89.9999);
+                    extended_coord[PDLN_LAT][num_current] = std::min(y_max_tmp + widthMax*PAT_INSERT_EXPAND_RATIO, 89.8888);
                     if(max_lat < extended_coord[PDLN_LAT][num_current]) max_lat = extended_coord[PDLN_LAT][num_current];
+                    num_current++;
+
+                    /* hard fence point */
+                    extended_coord[PDLN_LON][num_current] = x_cur;
+                    extended_coord[PDLN_LAT][num_current] = hard_fence_point_maxy;
                     num_current++;
                 }
 
                 if (do_s_inserting) {
+                    /* soft fence point */
                     extended_coord[PDLN_LON][num_current] = x_cur;
-                    extended_coord[PDLN_LAT][num_current] = std::max(y_min_tmp - widthMax*PAT_INSERT_EXPAND_RATIO, -89.9999);
+                    extended_coord[PDLN_LAT][num_current] = std::max(y_min_tmp - widthMax*PAT_INSERT_EXPAND_RATIO, -89.8888);
                     if(min_lat > extended_coord[PDLN_LAT][num_current]) min_lat = extended_coord[PDLN_LAT][num_current];
+                    num_current++;
+
+                    /* hard fence point */
+                    extended_coord[PDLN_LON][num_current] = x_cur;
+                    extended_coord[PDLN_LAT][num_current] = hard_fence_point_miny;
                     num_current++;
                 }
 
                 x_cur += bucket_width;
             }
+
+            if (do_n_inserting && max_lat < hard_fence_point_maxy) max_lat = hard_fence_point_maxy;
+            if (do_s_inserting && min_lat > hard_fence_point_miny) min_lat = hard_fence_point_miny;
         }
 
         if(do_we_inserting) {
@@ -494,18 +517,32 @@ void Patcc::grid_preprocessing(int grid_id)
                     combine_buckets(y_buckets, i, num_y, y_buckets_min_points, &x_min_tmp, &x_max_tmp);
                 }
 
+                /* soft fence point */
                 extended_coord[PDLN_LON][num_current] = x_max_tmp + widthMax*PAT_INSERT_EXPAND_RATIO;
                 extended_coord[PDLN_LAT][num_current] = y_cur;
                 if(max_lon < extended_coord[PDLN_LON][num_current]) max_lon = extended_coord[PDLN_LON][num_current];
                 num_current++;
 
+                /* hard fence point */
+                extended_coord[PDLN_LON][num_current] = hard_fence_point_maxx;
+                extended_coord[PDLN_LAT][num_current] = y_cur;
+                num_current++;
+
+                /* soft fence point */
                 extended_coord[PDLN_LON][num_current] = x_min_tmp - widthMax*PAT_INSERT_EXPAND_RATIO;
                 extended_coord[PDLN_LAT][num_current] = y_cur;
                 if(min_lon > extended_coord[PDLN_LON][num_current]) min_lon = extended_coord[PDLN_LON][num_current];
                 num_current++;
 
+                /* hard fence point */
+                extended_coord[PDLN_LON][num_current] = hard_fence_point_minx;
+                extended_coord[PDLN_LAT][num_current] = y_cur;
+                num_current++;
+
                 y_cur += bucket_width;
             }
+            if(max_lon < hard_fence_point_maxx) max_lon = hard_fence_point_maxx;
+            if(min_lon > hard_fence_point_minx) min_lon = hard_fence_point_minx;
         }
 
         if (mask)
