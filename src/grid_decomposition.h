@@ -69,6 +69,7 @@ private:
     Search_tree_node *children[3];
     int  node_type;
     int  region_id;
+    bool is_leaf;
     bool fast_triangulate;
 
     Boundry* kernel_boundry;
@@ -203,7 +204,7 @@ private:
 
     /* Grid Expanding */
     int expand_tree_node_boundry(Search_tree_node*, double);
-    vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double*, double**, int*, bool*, bool*, int*);
+    vector<Search_tree_node*> adjust_expanding_boundry(const Boundry*, Boundry*, double*, double**, int*, bool*, bool*, int*, bool*);
     bool do_two_regions_overlap(Boundry, Boundry);
     static void adjust_subrectangle(double, double, double**, int*, bool*, int, int, Boundry*, int, int, int*, int*);
     static int move_together(double**, int*, bool*, int*, int*, Boundry);
@@ -212,7 +213,7 @@ private:
     static int classify_points(double**, int*, bool*, int, Boundry, int);
 
     /* Points searching */
-    void search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>*, double **, int*, bool*, int*);
+    bool search_down_for_points_in_halo(Search_tree_node*, const Boundry*, const Boundry*, vector<Search_tree_node*>*, double **, int*, bool*, int*);
 
     /* Consistency checking */
     bool check_leaf_node_triangulation_consistency(Search_tree_node*, int);
