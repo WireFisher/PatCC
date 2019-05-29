@@ -2268,22 +2268,26 @@ unsigned long Delaunay_Voronoi::cal_checksum(Point head, Point tail, double thre
     PDASSERT(dir > -1);
 
     unsigned long checksum = 0;
+    unsigned count = 0;
 
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
         if (bound_triangles[dir][i].is_cyclic) {
             if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
                is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold)) {
-                checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
+                checksum += hash_triangle_by_id(bound_triangles[dir][i]);
+                count++;
             }
             i += 3;
         } else {
             if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold)) {
-                checksum ^= hash_triangle_by_id(bound_triangles[dir][i]);
+                checksum += hash_triangle_by_id(bound_triangles[dir][i]);
+                count++;
             }
             i++;
         }
     }
 
+    checksum *= count;
     /* highest 4 bits are reserved */
     checksum &= 0x0FFFFFFFFFFFFFFF;
 
