@@ -130,6 +130,7 @@ Search_tree_node::Search_tree_node(Search_tree_node *p, double *coord_value[2], 
     : parent(p)
     , node_type(type)
     , region_id(-1)
+    , is_leaf(false)
     , fast_triangulate(false)
     , kernel_boundry(NULL)
     , expand_boundry(NULL)
@@ -1385,8 +1386,11 @@ Search_tree_node* Delaunay_grid_decomposition::alloc_search_tree_node(Search_tre
     update_workloads(num_points, ids_start, ids_end, kill_tiny_region);
 
     new_node->update_region_ids(ids_start, ids_end);
-    if(ids_end - ids_start == 1)
+    if(ids_end - ids_start == 1) {
         new_node->region_id = ids_start;
+        new_node->is_leaf = true;
+    }
+
     return new_node;
 }
 
@@ -1993,6 +1997,7 @@ Boundry Search_tree_node::expand()
 
 bool Search_tree_node::expanding_success(bool go_on[4])
 {
+    log(LOG_DEBUG, "todo boundary: %d, %d, %d, %d\n", go_on[0], go_on[1], go_on[2], go_on[3]);
     return !(go_on[0] || go_on[1] || go_on[2] || go_on[3]);
 }
 
@@ -2055,8 +2060,8 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
     if (mask)
         tmp_mask  = buf_bool[thread_id];
 
-    int fail_count[4] = {0, 0, 0, 0};
     bool go_on[4];
+    bool tree_need_extension = false;
     do {
         Boundry* old_boundry = tree_node->expand_boundry;
         Boundry  new_boundry = tree_node->expand();
@@ -2064,28 +2069,23 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
 
         go_on[0] = go_on[1] = go_on[2] = go_on[3] = false;
 
+        log(LOG_DEBUG, "kern boundary: %lf, %lf, %lf, %lf\n", tree_node->kernel_boundry->min_lon, tree_node->kernel_boundry->max_lon, tree_node->kernel_boundry->min_lat, tree_node->kernel_boundry->max_lat);
         log(LOG_DEBUG, "last boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
         log(LOG_DEBUG, "expd boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
-        leaf_nodes_found = adjust_expanding_boundry(old_boundry, &new_boundry, quota, tmp_coord, tmp_index, tmp_mask, go_on, &num_found);
-
-        for (int i = 0; i < 4; i++)
-            if(go_on[i])
-                fail_count[i] ++;
-            else
-                fail_count[i] = 0;
-
+        leaf_nodes_found = adjust_expanding_boundry(old_boundry, &new_boundry, quota, tmp_coord, tmp_index, tmp_mask, go_on, &num_found, &tree_need_extension);
         log(LOG_DEBUG, "adjt boundary: %lf, %lf, %lf, %lf\n", new_boundry.min_lon, new_boundry.max_lon, new_boundry.min_lat, new_boundry.max_lat);
         log(LOG_DEBUG, "glbl boundary: %lf, %lf, %lf, %lf\n", search_tree_root->kernel_boundry->min_lon, search_tree_root->kernel_boundry->max_lon, search_tree_root->kernel_boundry->min_lat, search_tree_root->kernel_boundry->max_lat);
 
-        *tree_node->expand_boundry = new_boundry;
-        tree_node->add_expand_points(tmp_coord, tmp_index, tmp_mask, num_found);
         tree_node->add_neighbors(leaf_nodes_found);
 
-        for (int i = 0; i < 4; i++)
-            if(fail_count[i] > 5) {
-                log(LOG_WARNING, "region %d expanding failed too many times\n", tree_node->region_id);
-                return -1;
-            }
+        if(tree_need_extension) {
+            log(LOG_WARNING, "region %d now re-extending search tree\n", tree_node->region_id);
+            return -1;
+        }
+
+        *tree_node->expand_boundry = new_boundry;
+        tree_node->add_expand_points(tmp_coord, tmp_index, tmp_mask, num_found);
+
 
         if(new_boundry.max_lon - new_boundry.min_lon > (search_tree_root->kernel_boundry->max_lon - search_tree_root->kernel_boundry->min_lon) * 0.75 &&
            new_boundry.max_lat - new_boundry.min_lat > (search_tree_root->kernel_boundry->max_lat - search_tree_root->kernel_boundry->min_lat) * 0.75) {
@@ -2099,7 +2099,7 @@ int Delaunay_grid_decomposition::expand_tree_node_boundry(Search_tree_node* tree
         }
     }while(!tree_node->expanding_success(go_on));
 
-    //log(LOG_DEBUG, "final expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
+    log(LOG_DEBUG, "final expanded boundary: %lf, %lf, %lf, %lf\n", tree_node->expand_boundry->min_lon, tree_node->expand_boundry->max_lon, tree_node->expand_boundry->min_lat, tree_node->expand_boundry->max_lat);
 
     return 0;
 }
@@ -2224,13 +2224,17 @@ void Delaunay_grid_decomposition::adjust_subrectangle(double l, double r, double
 
 vector<Search_tree_node*> Delaunay_grid_decomposition::adjust_expanding_boundry(const Boundry* inner, Boundry* outer, double quota[4],
                                                                                 double *output_coord[2], int *output_index, bool* output_mask,
-                                                                                bool go_on[4], int *total_num)
+                                                                                bool go_on[4], int *total_num, bool *tree_need_extension)
 {
     vector<Search_tree_node*> leaf_nodes_found;
     *total_num = 0;
+    *tree_need_extension = false;
 
-    if(*inner != *outer)
-        search_down_for_points_in_halo(search_tree_root, inner, outer, &leaf_nodes_found, output_coord, output_index, output_mask, total_num);
+    if (*inner != *outer)
+        *tree_need_extension = search_down_for_points_in_halo(search_tree_root, inner, outer, &leaf_nodes_found, output_coord, output_index, output_mask, total_num);
+
+    if (*tree_need_extension)
+        return leaf_nodes_found;
 
     PDASSERT(!have_redundent_points(output_coord[PDLN_LON], output_coord[PDLN_LAT], *total_num));
     Boundry sub_rectangles[4];
@@ -2363,7 +2367,7 @@ void extend_search_tree(Delaunay_grid_decomposition *decomp, Search_tree_node *n
 }
 
 
-void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_node *node, const Boundry *inner_boundary,
+bool Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_node *node, const Boundry *inner_boundary,
                                                                  const Boundry *outer_boundary, vector<Search_tree_node*> *leaf_nodes_found,
                                                                  double *output_coord[2], int *output_index, bool *output_mask, int *num_found)
 {
@@ -2372,7 +2376,7 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
     Boundry region = *outer_boundary;
     if(node->ids_size() == 1) {
         if (node->num_kernel_points == 0)
-            return;
+            return false;
 
         if(do_two_regions_overlap(region, *node->kernel_boundry) ||
            do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->kernel_boundry) ||
@@ -2381,22 +2385,26 @@ void Delaunay_grid_decomposition::search_down_for_points_in_halo(Search_tree_nod
             #pragma omp critical
             (*leaf_nodes_found).push_back(node);
         }
-        return;
+        return false;
     }
 
     if(node->children[0] == NULL && node->children[2] == NULL) {
-        //assert(false);
-        return;
+        return true;
     }
 
+    bool tree_need_extension = false;
     for(int i = 0; i < 3; i ++)
         if(node->children[i] != NULL) {
             if(do_two_regions_overlap(region, *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon + 360.0, region.max_lon + 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry) ||
                do_two_regions_overlap(Boundry(region.min_lon - 360.0, region.max_lon - 360.0, region.min_lat, region.max_lat), *node->children[i]->kernel_boundry)) {
-                search_down_for_points_in_halo(node->children[i], inner_boundary, outer_boundary, leaf_nodes_found, output_coord, output_index, output_mask, num_found);
+                tree_need_extension = tree_need_extension || search_down_for_points_in_halo(node->children[i], inner_boundary, outer_boundary,
+                                                                                            leaf_nodes_found, output_coord, output_index,
+                                                                                            output_mask, num_found);
             }
         }
+
+    return tree_need_extension;
 }
 
 
