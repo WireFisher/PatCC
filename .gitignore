@@ -15,3 +15,4 @@ gridfile/*
 *.err
 all_grid_checksum
 test_log*
+*.py
