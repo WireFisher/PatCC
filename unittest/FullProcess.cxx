@@ -1252,6 +1252,9 @@ void prepare_real_grid(const char grid_name[]){
 	MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 }
 
+#include <fstream>
+#include <iomanip>
+#include <algorithm>
 void prepare_datamodel_grid(const char grid_name[])
 {
     int ncfile_id, variable_lon_id,variable_lat_id;
@@ -1281,16 +1284,21 @@ void prepare_datamodel_grid(const char grid_name[])
 	    delete dim_size_ptr;
 	    read_file_field_as_float(file_name, field_lat_name, &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
 
-	    coord_values[PDLN_LON] = (double*)malloc(sizeof(field_size*field_size2));
-	    coord_values[PDLN_LAT] = (double*)malloc(sizeof(field_size*field_size2));
+	    coord_values[PDLN_LON] = (double*)malloc(sizeof(double)*field_size*field_size);
+	    coord_values[PDLN_LAT] = (double*)malloc(sizeof(double)*field_size*field_size2);
+		std::sort((double*)coord_buf0,(double*)coord_buf0+field_size);	
+		std::sort((double*)coord_buf1,(double*)coord_buf1+field_size2);	
+		std::ofstream ofile;               
+        ofile.open("myfile");
 	    for(int i=0; i < field_size; i ++)
 	        for(int j=0; j < field_size2; j++){
 	            coord_values[PDLN_LON][num_points]=((double*)coord_buf0)[i];
-	            coord_values[PDLN_LAT][num_points++]=((double*)coord_buf1)[j];
+	            coord_values[PDLN_LAT][num_points]=((double*)coord_buf1)[j];
+				ofile<<std::setw(6)<<coord_values[PDLN_LON][num_points]<<std::setw(10)<<coord_values[PDLN_LAT][num_points]<<std::endl;
+				num_points++;
 	        }
-	    printf("%d %d %d\n",num_points,field_size,field_size2);
 	}
-
+	printf("%d %d %d %d\n",num_points,field_size,field_size2,field_size*field_size2);
 	MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	if (mpi_rank != 0) {
 	    coord_values[PDLN_LON] = new double[num_points];
