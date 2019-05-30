@@ -50,6 +50,7 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource, G
     gettimeofday(&start, NULL);
 
     if(delaunay_triangulation->generate_grid_decomposition()) {
+        log(LOG_ERROR, "Failed in grid decomposition\n");
         return -1;
     }
 
@@ -64,8 +65,10 @@ int Grid::generate_delaunay_trianglulation(Processing_resource *proc_resource, G
     gettimeofday(&end, NULL);
     int all_ret = 0;
     MPI_Allreduce(&ret, &all_ret, 1, MPI_UNSIGNED, MPI_LOR, proc_resource->get_mpi_comm());
-    if(all_ret == 1)
+    if(all_ret == 1) {
+        log(LOG_ERROR, "Failed in triangulation\n");
         return -1;
+    }
 
     return 0;
 }

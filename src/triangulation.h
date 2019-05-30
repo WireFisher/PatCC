@@ -59,6 +59,7 @@ class Delaunay_Voronoi
         void set_checksum_bound(double, double, double, double, double);
         void set_polar_mode(bool);
         void set_tolerance(double t) {tolerance = t; };
+        void set_original_center_lon(double);
 
         bool is_all_leaf_triangle_legal();
         void get_triangles_in_region(double, double, double, double, Triangle_inline *, int *, int);
@@ -184,6 +185,7 @@ class Delaunay_Voronoi
         const double* x_ref;
         const double* y_ref;
         const int*    global_index;
+        double original_lon_center;
 
         /* Triangulating stuff */
         Point* virtual_point[4];
