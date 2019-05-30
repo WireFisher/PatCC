@@ -976,7 +976,7 @@ static inline bool is_segment_in_triangle(Triangle_inline* triangle, Point p1, P
 }
 
 static inline bool is_segment_intersected_with_edge(Point p_e1, Point p_e2, Point p1, Point p2) {
-    return (p1.position_to_edge(&p_e1, &p_e2) * p2.position_to_edge(&p_e1, &p_e2) < 0) &&
+    return (p1.position_to_edge(&p_e1, &p_e2) * p2.position_to_edge(&p_e1, &p_e2) <= 0) &&
            (p_e1.position_to_edge(&p1, &p2) * p_e2.position_to_edge(&p1, &p2) <= 0);
 }
 
