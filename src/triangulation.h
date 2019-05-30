@@ -134,8 +134,8 @@ class Delaunay_Voronoi
         int  circum_circle_contains_reliably(const Edge*, Point*, double);
         int  get_index_in_array(const Point*);
 
-        Triangle_inline pack_triangle(Triangle*);
-        void add_to_bound_triangles(Triangle_inline&, unsigned);
+        void pack_triangle(Triangle*, Triangle_inline*);
+        void add_to_bound_triangles(Triangle_inline*, unsigned);
 
         bool is_triangle_valid(Triangle* tri);
         bool is_triangle_on_line(Triangle* tri, Point* head, Point* tail);

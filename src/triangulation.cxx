@@ -922,27 +922,43 @@ void Delaunay_Voronoi::push(unsigned *stack_top, Triangle* t)
 }
 
 
-inline Triangle_inline Delaunay_Voronoi::pack_triangle(Triangle* t)
+inline void Delaunay_Voronoi::pack_triangle(Triangle* t, Triangle_inline tp[3])
 {
     if (fast_mode) {
-        Triangle_inline a = Triangle_inline(Point(vertex(t, 0)->x, vertex(t, 0)->y, global_index[vertex(t, 0)->id]),
-                                            Point(vertex(t, 1)->x, vertex(t, 1)->y, global_index[vertex(t, 1)->id]),
-                                            Point(vertex(t, 2)->x, vertex(t, 2)->y, global_index[vertex(t, 2)->id]),
-                                            false);
-        a.check_cyclic();
-        return a;
+        tp[0] = Triangle_inline(Point(vertex(t, 0)->x, vertex(t, 0)->y, global_index[vertex(t, 0)->id]),
+                                Point(vertex(t, 1)->x, vertex(t, 1)->y, global_index[vertex(t, 1)->id]),
+                                Point(vertex(t, 2)->x, vertex(t, 2)->y, global_index[vertex(t, 2)->id]),
+                                false);
+        tp[0].check_cyclic();
     } else if (x_ref) {
-        Triangle_inline a = Triangle_inline(Point(x_ref[vertex(t, 0)->id], y_ref[vertex(t, 0)->id], global_index[vertex(t, 0)->id]),
-                                            Point(x_ref[vertex(t, 1)->id], y_ref[vertex(t, 1)->id], global_index[vertex(t, 1)->id]),
-                                            Point(x_ref[vertex(t, 2)->id], y_ref[vertex(t, 2)->id], global_index[vertex(t, 2)->id]),
-                                            false);
-        a.check_cyclic();
-        return a;
+        tp[0] = Triangle_inline(Point(x_ref[vertex(t, 0)->id], y_ref[vertex(t, 0)->id], global_index[vertex(t, 0)->id]),
+                                Point(x_ref[vertex(t, 1)->id], y_ref[vertex(t, 1)->id], global_index[vertex(t, 1)->id]),
+                                Point(x_ref[vertex(t, 2)->id], y_ref[vertex(t, 2)->id], global_index[vertex(t, 2)->id]),
+                                false);
+        tp[0].check_cyclic();
     } else {
-        return Triangle_inline(Point(vertex(t, 0)->x, vertex(t, 0)->y, global_index[vertex(t, 0)->id]),
-                               Point(vertex(t, 1)->x, vertex(t, 1)->y, global_index[vertex(t, 1)->id]),
-                               Point(vertex(t, 2)->x, vertex(t, 2)->y, global_index[vertex(t, 2)->id]),
-                               false);
+        tp[0] = Triangle_inline(Point(vertex(t, 0)->x, vertex(t, 0)->y, global_index[vertex(t, 0)->id]),
+                                Point(vertex(t, 1)->x, vertex(t, 1)->y, global_index[vertex(t, 1)->id]),
+                                Point(vertex(t, 2)->x, vertex(t, 2)->y, global_index[vertex(t, 2)->id]),
+                                false);
+        return;
+    }
+
+    if (tp[0].is_cyclic) {
+        double tmp_x[3];
+
+        for(int j = 0; j < 3; j++)
+            tmp_x[j] = tp[0].v[j].x >= original_lon_center ? tp[0].v[j].x - 360 : tp[0].v[j].x;
+        tp[1] = Triangle_inline(Point(tmp_x[0], tp[0].v[0].y, tp[0].v[0].id),
+                                Point(tmp_x[1], tp[0].v[1].y, tp[0].v[1].id),
+                                Point(tmp_x[2], tp[0].v[2].y, tp[0].v[2].id), true);
+
+        for(int j = 0; j < 3; j++)
+            tmp_x[j] = tp[0].v[j].x < original_lon_center ? tp[0].v[j].x + 360 : tp[0].v[j].x;
+        tp[2] = Triangle_inline(Point(tmp_x[0], tp[0].v[0].y, tp[0].v[0].id),
+                                Point(tmp_x[1], tp[0].v[1].y, tp[0].v[1].id),
+                                Point(tmp_x[2], tp[0].v[2].y, tp[0].v[2].id), true);
+
     }
 }
 
@@ -2257,16 +2273,28 @@ unsigned long Delaunay_Voronoi::cal_checksum(Point head, Point tail, double thre
     unsigned long checksum = 0;
     unsigned count = 0;
 
+    bool match_sibling = polar_mode && (head.x == 0.0 || tail.x == 360.0);
+    Point sibling_head, sibling_tail;
+
+    if (match_sibling) {
+        sibling_head.x = head.x == 0.0 ? head.x + 360 : head.x - 360;
+        sibling_tail.x = head.x == 0.0 ? tail.x + 360 : tail.x - 360;
+        sibling_head.y = head.y;
+        sibling_tail.y = tail.y;
+    }
+
     for(unsigned i = 0; i < bound_triangles[dir].size();) {
+
         if (bound_triangles[dir][i].is_cyclic) {
-            if(is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
-               is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold)) {
+            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i+1], head, tail, threshold) ||
+                is_triangle_intersecting_with_segment(&bound_triangles[dir][i+2], head, tail, threshold) ){
                 checksum += hash_triangle_by_id(bound_triangles[dir][i]);
                 count++;
             }
             i += 3;
         } else {
-            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold)) {
+            if (is_triangle_intersecting_with_segment(&bound_triangles[dir][i], head, tail, threshold) ||
+               (match_sibling && is_triangle_intersecting_with_segment(&bound_triangles[dir][i], sibling_head, sibling_tail, threshold))) {
                 checksum += hash_triangle_by_id(bound_triangles[dir][i]);
                 count++;
             }
@@ -2402,13 +2430,25 @@ void Delaunay_Voronoi::make_bounding_triangle_pack()
         if (!all_leaf_triangles[i]->is_leaf || all_leaf_triangles[i]->is_virtual)
             continue;
 
+        Triangle_inline tp[3];
+        pack_triangle(all_leaf_triangles[i], tp);
+        sort_points_in_triangle(tp[0]);
+        if (!tp[0].is_cyclic) {
+            d = is_triangle_intersecting_with_segment(&tp[0], bound_vertexes[0], bound_vertexes[1], checking_threshold);
+            r = is_triangle_intersecting_with_segment(&tp[0], bound_vertexes[1], bound_vertexes[2], checking_threshold);
+            u = is_triangle_intersecting_with_segment(&tp[0], bound_vertexes[2], bound_vertexes[3], checking_threshold);
+            l = is_triangle_intersecting_with_segment(&tp[0], bound_vertexes[3], bound_vertexes[0], checking_threshold);
+        } else {
+            d = is_triangle_intersecting_with_segment(&tp[1], bound_vertexes[0], bound_vertexes[1], checking_threshold) ||
+                is_triangle_intersecting_with_segment(&tp[2], bound_vertexes[0], bound_vertexes[1], checking_threshold);
+            r = is_triangle_intersecting_with_segment(&tp[1], bound_vertexes[1], bound_vertexes[2], checking_threshold) ||
+                is_triangle_intersecting_with_segment(&tp[2], bound_vertexes[1], bound_vertexes[2], checking_threshold);
+            u = is_triangle_intersecting_with_segment(&tp[1], bound_vertexes[2], bound_vertexes[3], checking_threshold) ||
+                is_triangle_intersecting_with_segment(&tp[2], bound_vertexes[2], bound_vertexes[3], checking_threshold);
+            l = is_triangle_intersecting_with_segment(&tp[1], bound_vertexes[3], bound_vertexes[0], checking_threshold) ||
+                is_triangle_intersecting_with_segment(&tp[2], bound_vertexes[3], bound_vertexes[0], checking_threshold);
+        }
 
-        Triangle_inline tp = pack_triangle(all_leaf_triangles[i]);
-        sort_points_in_triangle(tp);
-        d = is_triangle_intersecting_with_segment(&tp, bound_vertexes[0], bound_vertexes[1], checking_threshold);
-        r = is_triangle_intersecting_with_segment(&tp, bound_vertexes[1], bound_vertexes[2], checking_threshold);
-        u = is_triangle_intersecting_with_segment(&tp, bound_vertexes[2], bound_vertexes[3], checking_threshold);
-        l = is_triangle_intersecting_with_segment(&tp, bound_vertexes[3], bound_vertexes[0], checking_threshold);
         if ((d || r || u || l ) && is_triangle_valid(all_leaf_triangles[i])) {
             if (d) add_to_bound_triangles(tp, PDLN_DOWN);
             if (r) add_to_bound_triangles(tp, PDLN_RIGHT);
@@ -2477,23 +2517,14 @@ void Delaunay_Voronoi::set_avoiding_circle(unsigned id, Point center, double rad
 }
 
 
-inline void Delaunay_Voronoi::add_to_bound_triangles(Triangle_inline& t, unsigned type)
+inline void Delaunay_Voronoi::add_to_bound_triangles(Triangle_inline tp[3], unsigned type)
 {
-    if (t.is_cyclic) {
-        bound_triangles[type].push_back(t);
-
-        double tmp_x[3];
-        for(int j = 0; j < 3; j++)
-            tmp_x[j] = t.v[j].x >= original_lon_center ? t.v[j].x - 360 : t.v[j].x;
-        bound_triangles[type].push_back(Triangle_inline(Point(tmp_x[0], t.v[0].y, t.v[0].id), Point(tmp_x[1], t.v[1].y, t.v[1].id),
-                                                      Point(tmp_x[2], t.v[2].y, t.v[2].id), true));
-
-        for(int j = 0; j < 3; j++)
-            tmp_x[j] = t.v[j].x < original_lon_center ? t.v[j].x + 360 : t.v[j].x;
-        bound_triangles[type].push_back(Triangle_inline(Point(tmp_x[0], t.v[0].y, t.v[0].id), Point(tmp_x[1], t.v[1].y, t.v[1].id),
-                                                      Point(tmp_x[2], t.v[2].y, t.v[2].id), true));
+    if (tp[0].is_cyclic) {
+        bound_triangles[type].push_back(tp[0]);
+        bound_triangles[type].push_back(tp[1]);
+        bound_triangles[type].push_back(tp[2]);
     } else
-        bound_triangles[type].push_back(t);
+        bound_triangles[type].push_back(tp[0]);
 }
 
 
@@ -2834,6 +2865,7 @@ void Triangle_inline::check_cyclic()
         v[2].calculate_distance(&v[0]) > PAT_CYCLIC_EDGE_THRESHOLD )
         is_cyclic = true;
 }
+
 
 bool operator == (Triangle_inline t1, Triangle_inline t2)
 {
