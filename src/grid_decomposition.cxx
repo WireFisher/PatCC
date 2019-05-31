@@ -1586,10 +1586,10 @@ struct Triangles_digest {
 };
 
 
-#define PDLN_SET_TAG_ITER(tag)          ( tag  &0x000000FF)
-#define PDLN_SET_TAG_SRC(tag, id)       ((id<<20&0xFFF00000) | tag)
-#define PDLN_SET_TAG_DST(tag, id)       ((id<< 8&0x000FFF00) | tag)
-#define PDLN_SET_TAG(src, dst, iter)    (PDLN_SET_TAG_DST(PDLN_SET_TAG_SRC(PDLN_SET_TAG_ITER(iter), src), dst))
+#define PDLN_SET_TAG_ITER(it)           (it<<24 &0x0F000000)
+#define PDLN_SET_TAG_SRC(tag, id)      ((id<<12 &0x00FFF000) | tag)
+#define PDLN_SET_TAG_DST(tag, id)      ((id     &0x00000FFF) | tag)
+#define PDLN_SET_TAG(src, dst, iter)   (PDLN_SET_TAG_DST(PDLN_SET_TAG_SRC(PDLN_SET_TAG_ITER(iter), src), dst))
 void Delaunay_grid_decomposition::send_recv_checksums_with_neighbors(Search_tree_node *leaf_node, unsigned long *local_checksums,
                                                                      unsigned long *remote_checksums, vector<MPI_Request*> *waiting_list, int iter)
 {
@@ -1659,14 +1659,17 @@ bool Delaunay_grid_decomposition::are_checksums_identical(Search_tree_node *leaf
     for(unsigned i = 0; i < leaf_node->neighbors.size(); i++) {
         unsigned long l_checksum = local_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR;
         unsigned long r_checksum = remote_checksums[i] & PDLN_BOUNDRY_TYPE_CLEAR;
-        if(l_checksum == r_checksum) {
+        if (l_checksum == r_checksum) {
             leaf_node->neighbors[i].second = true;
             leaf_node->reduce_num_neighbors_on_boundry(get_boundry_type(local_checksums[i]));
             leaf_node->clear_expanding_count(get_boundry_type(local_checksums[i]));
-            log(LOG_DEBUG, "%3d -> %3d same, %016lx vs %016lx\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id, l_checksum, r_checksum);
+
+            if (l_checksum != 0)
+                log(LOG_DEBUG, "%3d -> %3d same, %016lx vs %016lx\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id, l_checksum, r_checksum);
         } else {
             leaf_node->neighbors[i].second = false;
             ok = false;
+
             log(LOG_DEBUG, "%3d -> %3d diff, %016lx vs %016lx\n", leaf_node->region_id, leaf_node->neighbors[i].first->region_id, l_checksum, r_checksum);
         }
     }
