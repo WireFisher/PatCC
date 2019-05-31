@@ -1,16 +1,16 @@
 ############
 # Required #
 ############
-CXX := mpiicpc
-MPI_PATH := /opt/intel/impi/3.2.0.011
-#MPI_PATH := /opt/mpich-3.2-gcc4.4.7/
+CXX := mpicxx
+#MPI_PATH := /opt/intel/impi/3.2.0.011
+MPI_PATH := /opt/mpich-3.2-gcc4.4.7/
 PAT_OPENCV := true
 PAT_NETCDF := true
 PAT_TIMING := false
 PAT_DEBUG := true
 PAT_MUTE := true
-#NETCDF_PATH := /opt/netCDF-gcc4.4.7
-NETCDF_PATH := /opt/netCDF-intel13-without-hdf5
+NETCDF_PATH := /opt/netCDF-gcc4.4.7
+#NETCDF_PATH := /opt/netCDF-intel13-without-hdf5
 OPENCV_PATH := /home/yanghy/opt/opencv
 CXXFLAGS :=
 

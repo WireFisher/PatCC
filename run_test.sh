@@ -1,9 +1,10 @@
 #!/bin/bash
 set -x
-source /opt/intel/composer_xe_2015/bin/compilervars.sh intel64  #icpc15
+#source /opt/intel/composer_xe_2015/bin/compilervars.sh intel64  #icpc15
 #source /opt/intel/composer_xe_2013_sp1.2.144/bin/compilervars.sh intel64 #icpc14
 #source /opt/intel/composer_xe_2013.0.079/bin/compilervars.sh intel64 #icpc13
-echo `mpiicpc --version`
+source /opt/gcc-4.4.7/bin/gcc-env
+echo `mpicxx --version`
 echo $I_MPI_ROOT
 
 rm nohup.out
