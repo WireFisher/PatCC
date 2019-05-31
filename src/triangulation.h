@@ -59,6 +59,7 @@ class Delaunay_Voronoi
         void set_checksum_bound(double, double, double, double, double);
         void set_polar_mode(bool);
         void set_tolerance(double t) {tolerance = t; };
+        void set_original_center_lon(double);
 
         bool is_all_leaf_triangle_legal();
         void get_triangles_in_region(double, double, double, double, Triangle_inline *, int *, int);
@@ -133,8 +134,8 @@ class Delaunay_Voronoi
         int  circum_circle_contains_reliably(const Edge*, Point*, double);
         int  get_index_in_array(const Point*);
 
-        Triangle_inline pack_triangle(Triangle*);
-        void add_to_bound_triangles(Triangle_inline&, unsigned);
+        void pack_triangle(Triangle*, Triangle_inline*);
+        void add_to_bound_triangles(Triangle_inline*, unsigned);
 
         bool is_triangle_valid(Triangle* tri);
         bool is_triangle_on_line(Triangle* tri, Point* head, Point* tail);
@@ -184,6 +185,7 @@ class Delaunay_Voronoi
         const double* x_ref;
         const double* y_ref;
         const int*    global_index;
+        double original_lon_center;
 
         /* Triangulating stuff */
         Point* virtual_point[4];

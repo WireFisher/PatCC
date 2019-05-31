@@ -368,6 +368,10 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int vpoint_b
         /* Case: first triangulation */
         triangulation = new Delaunay_Voronoi();
         //triangulation->set_virtual_polar_index(virtual_point_local_index);
+        if (node_type == PDLN_NODE_TYPE_COMMON)
+            triangulation->set_original_center_lon(center[PDLN_LON]);
+        else
+            triangulation->set_original_center_lon(180.);
 
         //if (is_fine_grid)
         //    triangulation->set_tolerance(1e-8);
@@ -457,8 +461,10 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int vpoint_b
         }
     }
 
-    if(vpoint_num > 0)
+    if(vpoint_num > 0) {
+        log(LOG_DEBUG, "Remove virtual %d points, begin with %d\n", vpoint_num, vpoint_begin, vpoint_num);
         triangulation->remove_triangles_containing_vertexs(vpoint_begin, vpoint_num);
+    }
 
     triangulation->make_bounding_triangle_pack();
 
@@ -2645,6 +2651,7 @@ int Delaunay_grid_decomposition::generate_trianglulation_for_local_decomp()
         }
 
         if(global_expanding_fail) {
+            log(LOG_ERROR, "Failed in expanding\n");
             global_finish = false;
             break;
         }
