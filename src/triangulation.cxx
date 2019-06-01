@@ -694,17 +694,19 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
     t->edge[2]->ref_inc();
     t->calulate_circum_circle(pt1, pt2, pt3);
 
-    int id[3];
-    for (int j = 0; j < 3; j++)
-        id[j] = vertex(t, j)->id;
+    if (x_ref) {
+        int id[3];
+        for (int j = 0; j < 3; j++)
+            id[j] = vertex(t, j)->id;
 
-    if (id[0] != -1 && id[1] != -1 && id[2] != -1)
-        for (int j = 0; j < 3; j++) {
-            if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > PAT_CYCLIC_EDGE_THRESHOLD) {
-                t->is_cyclic = true;
-                break;
+        if (id[0] != -1 && id[1] != -1 && id[2] != -1)
+            for (int j = 0; j < 3; j++) {
+                if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > PAT_CYCLIC_EDGE_THRESHOLD) {
+                    t->is_cyclic = true;
+                    break;
+                }
             }
-        }
+    }
 }
 
 
