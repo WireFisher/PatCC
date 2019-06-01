@@ -1,0 +1,17 @@
+lonlat_random_global_10000.dat
+lonlat_random_global_100000.dat
+lonlat_random_global_1000000.dat
+lonlat_random_global_10000000.dat
+MonteCarlo_100000.dat
+MonteCarlo_1000000.dat
+MonteCarlo_10000000.dat
+lonlat_non-uniform_global_100000.dat
+lonlat_non-uniform_global_1000000.dat
+lonlat_grid_1.dat
+lonlat_grid_0.3.dat
+lonlat_grid_0.1.dat
+lonlat_grid_small.dat
+CUBE_grid_2.5.nc
+CUBE_grid_1.nc
+CUBE_grid_0.3.nc
+CUBE_grid_0.1.nc

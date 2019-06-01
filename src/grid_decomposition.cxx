@@ -1345,10 +1345,18 @@ void decompose_common_node_recursively(Delaunay_grid_decomposition *decomp, Sear
                                                PDLN_DECOMPOSE_COMMON_MODE, c_intervals, 
                                                c_num_intervals, min_points_per_chunk);
 
-    for (int i = 0; i < c_num_points[0]; i++)
-        PDASSERT(is_in_region(c_points_coord[0][i], c_points_coord[1][i], c_boundry[0]));
-    for (int i = 0; i < c_num_points[1]; i++)
+    for (int i = 0; i < c_num_points[0]; i++){
+        if(!is_in_region(c_points_coord[0][i], c_points_coord[1][i], c_boundry[0])){
+			printf("%lf %lf\n",c_points_coord[0][i], c_points_coord[1][i]);	
+		}
+		PDASSERT(is_in_region(c_points_coord[0][i], c_points_coord[1][i], c_boundry[0]));
+	}
+    for (int i = 0; i < c_num_points[1]; i++){
+		if(!is_in_region(c_points_coord[2][i], c_points_coord[3][i], c_boundry[1])){
+			printf("%lf %lf\n",c_points_coord[0][i], c_points_coord[1][i]);
+	    }
         PDASSERT(is_in_region(c_points_coord[2][i], c_points_coord[3][i], c_boundry[1]));
+	}
 
     if(c_num_points[0] != 0 || c_num_points[1] != 0) {
         PDASSERT(c_points_coord[0] + c_num_points[0] == c_points_coord[2]);

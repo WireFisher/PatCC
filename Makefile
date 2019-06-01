@@ -1,20 +1,22 @@
 ############
 # Required #
 ############
-CXX := mpiicpc
-MPI_PATH := /opt/intel/impi/3.2.0.011
+CXX := mpicxx
+#MPI_PATH := /opt/intel/impi/3.2.0.011
+MPI_PATH := /opt/mpich-3.2-gcc4.4.7/
+PAT_OPENCV := true
+PAT_NETCDF := true
+PAT_TIMING := false
+PAT_DEBUG := true
+PAT_MUTE := true
+NETCDF_PATH := /opt/netCDF-gcc4.4.7
+#NETCDF_PATH := /opt/netCDF-intel13-without-hdf5
+OPENCV_PATH := /home/yanghy/opt/opencv
+CXXFLAGS :=
 
 ############
 # Optional #
 ############
-NETCDF_PATH :=
-OPENCV_PATH :=
-CXXFLAGS :=
-
-#PAT_OPENCV := true
-#PAT_NETCDF := true
-#PAT_TIMING := true
-#PAT_MUTE := true
 
 SRCDIR := src
 OBJDIR := obj
@@ -23,7 +25,7 @@ TESTDIR := unittest
 INC := -isystem $(MPI_PATH)/include64
 INC += -isystem dependency/googletest/include
 INC += -isystem dependency/googlemock/include
-INC += -I $(SRCDIR)
+INC += -I./$(SRCDIR)
 
 LIB :=
 LIBS:=
@@ -43,7 +45,8 @@ test_objs = obj/testmain.o \
 			obj/DelaunayVoronoi2D.o
 			#obj/GridDecomposition.o \
 
-COMMON_FLAGS := -Wall -g -fopenmp -pthread
+ADDED_FLAGS := -O3
+COMMON_FLAGS := -Wall -fopenmp -pthread 
 
 
 ifeq ($(PAT_TIMING),true)
@@ -62,7 +65,7 @@ endif
 
 ifeq ($(PAT_NETCDF),true)
 	COMMON_FLAGS += -DNETCDF
-	INC += -isystem $(NETCDF_PATH)/include
+	INC += -I$(NETCDF_PATH)/include
 	LIB += -L$(NETCDF_PATH)/lib 
 	LIBS += -lnetcdf
 	SOURCES += $(SRCDIR)/netcdf_utils.cxx
@@ -76,6 +79,7 @@ ifeq ($(PAT_OPENCV),true)
 	SOURCES += $(SRCDIR)/opencv_utils.cxx
 endif
 
+COMMON_FLAGS += $(ADDED_FLAGS)
 INCLUDES := $(wildcard $(SRCDIR)/*.h)
 OBJECTS  := $(SOURCES:$(SRCDIR)/%.cxx=$(OBJDIR)/%.o)
 OBJECTS  := $(filter-out $(OBJDIR)/main.o, $(OBJECTS))

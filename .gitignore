@@ -7,11 +7,12 @@ log/*
 *.log
 tmp*
 backup/*
+gridfile/*
 .DS_Store
 *.dat
 *.nc
 all*
-*.sh
-*_list
-*list_backup
-*.py
+*list
+*backup
+*sh
+*py

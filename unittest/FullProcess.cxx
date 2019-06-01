@@ -10,12 +10,12 @@
 #include "mpi.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-
-#include "patcc.h"
-#include "processing_unit_mgt.h"
-#include "grid_decomposition.h"
-#include "netcdf_utils.h"
-#include "projection.h"
+#include "../src/patcc.h"
+#include "../src/processing_unit_mgt.h"
+#include "../src/grid_decomposition.h"
+#include "../src/netcdf_utils.h"
+#include "../src/projection.h"
+#include "netcdf.h"
 
 #include <cmath>
 #define CHECK_PARALLEL_CONSISTENCY (true)
@@ -25,7 +25,10 @@
 extern Grid_info_manager *grid_info_mgr;
 extern Process_thread_manager *process_thread_mgr;
 
+FILE* test_log = fopen("all_grid_checksum", "a+");
 double max_point_lat;
+extern int my_argc;
+extern char** my_argv;
 class Mock_Process_thread_manager3 : public Process_thread_manager
 {
 public:
@@ -387,7 +390,7 @@ void prepare_latlon_singlepolar()
 #endif
 
 
-TEST_F(FullProcess, Basic) {
+TEST_F(FullProcess, OLD_Basic) {
     comm = MPI_COMM_WORLD;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -400,43 +403,14 @@ TEST_F(FullProcess, Basic) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
-
-    if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
-
-    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Patcc(1);
-        comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1, true);
-
-        delete comp;
-
-        int new_mpi_size;
-        MPI_Comm_size(comm, &new_mpi_size);
-
-        if (mpi_rank == 0) {
-            FILE *fp;
-            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-            char md5[2][64];
-            memset(md5[0], 0, 64);
-            memset(md5[1], 0, 64);
-            fp = popen(cmd, "r");
-            fgets(md5[0], 64, fp);
-            fgets(md5[1], 64, fp);
-            EXPECT_STREQ(md5[0], md5[1]);
-        }
-    }
 };
 
-
 #ifdef NETCDF
-TEST_F(FullProcess, LatLonGrid) {
+TEST_F(FullProcess, OLD_LatLonGrid) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
-
 
     prepare_latlon_grid();
 
@@ -446,37 +420,28 @@ TEST_F(FullProcess, LatLonGrid) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
+/*
+	if (mpi_rank == 0) {
+        FILE *fp;
+        char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
 
-    if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
-
-    if (mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Patcc(1);
-        comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1, true);
-
-        delete comp;
-
-        int new_mpi_size;
-        MPI_Comm_size(comm, &new_mpi_size);
-
-        if (mpi_rank == 0) {
-            FILE *fp;
-            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-            char md5[2][64];
-            memset(md5[0], 0, 64);
-            memset(md5[1], 0, 64);
-            fp = popen(cmd, "r");
-            fgets(md5[0], 64, fp);
-            fgets(md5[1], 64, fp);
-            EXPECT_STREQ(md5[0], md5[1]);
-        }
+        char md5[2][64];
+        memset(md5[0], 0, 64);
+        memset(md5[1], 0, 64);
+        fp = popen(cmd, "r");
+        fgets(md5[0], 64, fp);
+        fgets(md5[1], 64, fp);
+        EXPECT_STREQ(md5[0], md5[1]);
+        fprintf(test_log, "LatLonGrid %s\n",md5[0]);
+	    fflush(test_log);
+		char mv[] = "mv log/global_triangles_* log/check/global_triangles_LatLonGrid";
+        fp = popen(mv, "r");
     }
+*/
 };
 
 
-TEST_F(FullProcess, LatLonSinglePolar) {
+TEST_F(FullProcess, OLD_LatLonSinglePolar) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -490,38 +455,10 @@ TEST_F(FullProcess, LatLonSinglePolar) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
-
-    if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
-
-    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Patcc(1);
-        comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1, true);
-
-        delete comp;
-
-        int new_mpi_size;
-        MPI_Comm_size(comm, &new_mpi_size);
-
-        if (mpi_rank == 0) {
-            FILE *fp;
-            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-            char md5[2][64];
-            memset(md5[0], 0, 64);
-            memset(md5[1], 0, 64);
-            fp = popen(cmd, "r");
-            fgets(md5[0], 64, fp);
-            fgets(md5[1], 64, fp);
-            EXPECT_STREQ(md5[0], md5[1]);
-        }
-    }
 };
 
 
-
-TEST_F(FullProcess, LatLonMutiPolars) {
+TEST_F(FullProcess, OLD_LatLonMutiPolars) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -535,37 +472,10 @@ TEST_F(FullProcess, LatLonMutiPolars) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
-
-    if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
-
-    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Patcc(1);
-        comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1, true);
-
-        delete comp;
-
-        int new_mpi_size;
-        MPI_Comm_size(comm, &new_mpi_size);
-
-        if (mpi_rank == 0) {
-            FILE *fp;
-            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-            char md5[2][64];
-            memset(md5[0], 0, 64);
-            memset(md5[1], 0, 64);
-            fp = popen(cmd, "r");
-            fgets(md5[0], 64, fp);
-            fgets(md5[1], 64, fp);
-            EXPECT_STREQ(md5[0], md5[1]);
-        }
-    }
 };
 
 
-TEST_F(FullProcess, ThreePolar) {
+TEST_F(FullProcess, OLD_ThreePolar) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -579,37 +489,10 @@ TEST_F(FullProcess, ThreePolar) {
     int ret = comp->generate_delaunay_trianglulation(1, true);
     EXPECT_EQ(ret, 0);
     delete comp;
-
-    if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
-
-    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        comp = new Patcc(1);
-        comp->register_grid(new Grid(1));
-        ret = comp->generate_delaunay_trianglulation(1, true);
-        EXPECT_EQ(ret, 0);
-        delete comp;
-
-        int new_mpi_size;
-        MPI_Comm_size(comm, &new_mpi_size);
-
-        if (mpi_rank == 0) {
-            FILE *fp;
-            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-            char md5[2][64];
-            memset(md5[0], 0, 64);
-            memset(md5[1], 0, 64);
-            fp = popen(cmd, "r");
-            fgets(md5[0], 64, fp);
-            fgets(md5[1], 64, fp);
-            EXPECT_STREQ(md5[0], md5[1]);
-        }
-    }
 };
 
 
-TEST_F(FullProcess, ThreePolarBig) {
+TEST_F(FullProcess, OLD_ThreePolarBig) {
     comm = MPI_COMM_WORLD;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -624,47 +507,11 @@ TEST_F(FullProcess, ThreePolarBig) {
     comp->generate_delaunay_trianglulation(1, true);
 
     delete comp;
-
-    if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &comm);
-
-    if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
-        printf("part of processes...\n");
-        comp = new Patcc(1);
-        comp->register_grid(new Grid(1));
-        comp->generate_delaunay_trianglulation(1, true);
-
-        delete comp;
-
-        if (mpi_rank == 0) {
-            FILE *fp;
-            char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-            char md5[2][64];
-            memset(md5[0], 0, 64);
-            memset(md5[1], 0, 64);
-            fp = popen(cmd, "r");
-            fgets(md5[0], 64, fp);
-            fgets(md5[1], 64, fp);
-            EXPECT_STREQ(md5[0], md5[1]);
-
-            if(strncmp(md5[0], md5[1], 64) == 0) {
-                char cmd[256];
-                snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_big_three_poles.png");
-                system(cmd);
-                snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_big_three_poles.png");
-                system(cmd);
-            }
-        }
-        MPI_Barrier(comm);
-    }
 };
 
 
 const char dim1_grid_path[] = "gridfile/many_types_of_grid/one_dimension/%s";
 const char dim1_grid_name[][64] = {
-    /*
-    */
     "ne30np4-t2.nc",
     "ne60np4_pentagons_100408.nc",
     "gx3v5_Present_DP_x3.nc",
@@ -689,9 +536,6 @@ const char dim1_grid_name[][64] = {
     "CUBE_grid_1.nc",
     "CUBE_grid_0.3.nc",
     "CUBE_grid_0.1.nc",
-    /*
-    "mom_h2d_T_grid@mom.nc",
-    */
 };
 const char dim1_global_grid_name[][64] = {
     "ne30np4-t2.nc",
@@ -911,65 +755,25 @@ void save_dim1_grid(const char grid_name[])
 #include <unistd.h>
 TEST_F(FullProcess, ManyTypesOfGrids) {
     MPI_Barrier(MPI_COMM_WORLD);
-
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
-    MPI_Comm split_world;
 
     ON_CALL(*mock_grid_info_manager, get_grid_mask(1))
         .WillByDefault(ReturnPointee(&grid_mask));
 
-    if (mpi_size/3 > 1)
-        MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("processing: %s\n", my_argv[1]);
+	comm = MPI_COMM_WORLD;
 
-    for(unsigned i = 0; i < sizeof(dim1_grid_name)/64; i++) {
-        MPI_Barrier(MPI_COMM_WORLD);
-        printf("processing: %s\n", dim1_grid_name[i]);
-        comm = MPI_COMM_WORLD;
-        prepare_dim1_grid(dim1_grid_name[i]);
+    prepare_dim1_grid(my_argv[1]);
+    Patcc* comp;
+    comp = new Patcc(0);
+    comp->register_grid(new Grid(1));
+    int ret = comp->generate_delaunay_trianglulation(1, true);
+    EXPECT_EQ(ret, 0);
+    delete comp;
 
-        Patcc* comp;
-        comp = new Patcc(0);
-        comp->register_grid(new Grid(1));
-        int ret = comp->generate_delaunay_trianglulation(1, true);
-        EXPECT_EQ(ret, 0);
-        delete comp;
-
-        if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
-            printf("spliting world: %s\n", dim1_grid_name[i]);
-            comm = split_world;
-            MPI_Barrier(split_world);
-            comp = new Patcc(1);
-            comp->register_grid(new Grid(1));
-            int ret = comp->generate_delaunay_trianglulation(1, true);
-            EXPECT_EQ(ret, 0);
-
-            delete comp;
-
-            if (mpi_rank == 0) {
-                FILE *fp;
-                char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-                char md5[2][64];
-                memset(md5[0], 0, 64);
-                memset(md5[1], 0, 64);
-                fp = popen(cmd, "r");
-                fgets(md5[0], 64, fp);
-                fgets(md5[1], 64, fp);
-                EXPECT_STREQ(md5[0], md5[1]);
-
-                if(strncmp(md5[0], md5[1], 64) == 0) {
-                    char cmd[256];
-                    snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", dim1_grid_name[i]);
-                    system(cmd);
-                    snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", dim1_grid_name[i]);
-                    system(cmd);
-                }
-            }
-            MPI_Barrier(split_world);
-        }
-
-    }
+    MPI_Barrier(MPI_COMM_WORLD);
 };
 #endif
 
@@ -1154,7 +958,8 @@ void prepare_autogen_grid(const char grid_name[], int grid_size)
 TEST_F(FullProcess, Performance) {
     MPI_Barrier(MPI_COMM_WORLD);
     comm = MPI_COMM_WORLD;
-
+	
+	int grid_size=0;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm split_world;
@@ -1162,53 +967,23 @@ TEST_F(FullProcess, Performance) {
     if (mpi_size/3 > 1)
         MPI_Comm_split(MPI_COMM_WORLD, mpi_rank%3, mpi_rank/3, &split_world);
 
-    for(unsigned i = 0; i < sizeof(autogen_grid_name)/64; i++) {
-        printf("processing: %s\n", autogen_grid_name[i]);
-        prepare_autogen_grid(autogen_grid_name[i], autogen_grid_size[i]);
+	for(unsigned i = 0; i < sizeof(autogen_grid_name)/64; i++) {
+		if(strcmp(my_argv[1],autogen_grid_name[i])==0){
+			grid_size = autogen_grid_size[i];
+			break;
+		}
+	}
+    printf("processing: %s %d\n", my_argv[1],grid_size);
+    prepare_autogen_grid(my_argv[1],grid_size);
 
-        Patcc* comp;
-        comp = new Patcc(0);
-        comp->register_grid(new Grid(1));
-        int ret = comp->generate_delaunay_trianglulation(1, true);
-        EXPECT_EQ(ret, 0);
-        delete comp;
-
-        if (CHECK_PARALLEL_CONSISTENCY && mpi_size/3 > 1 && mpi_rank%3 == 0) {
-            printf("spliting world: %s\n", autogen_grid_name[i]);
-            comm = split_world;
-            MPI_Barrier(split_world);
-            comp = new Patcc(0);
-            comp->register_grid(new Grid(1));
-            int ret = comp->generate_delaunay_trianglulation(1, true);
-            EXPECT_EQ(ret, 0);
-
-            delete comp;
-
-            if (mpi_rank == 0) {
-                FILE *fp;
-                char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
-
-                char md5[2][64];
-                memset(md5[0], 0, 64);
-                memset(md5[1], 0, 64);
-                fp = popen(cmd, "r");
-                fgets(md5[0], 64, fp);
-                fgets(md5[1], 64, fp);
-                EXPECT_STREQ(md5[0], md5[1]);
-
-                if(strncmp(md5[0], md5[1], 64) == 0) {
-                    char cmd[256];
-                    snprintf(cmd, 256, "test -e log/image_global_triangles_15.png && mv log/image_global_triangles_15.png log/image_%s.png", autogen_grid_name[i]);
-                    system(cmd);
-                    snprintf(cmd, 256, "test -e log/original_input_points.png && mv log/original_input_points.png log/input_%s.png", autogen_grid_name[i]);
-                    system(cmd);
-                }
-            }
-            MPI_Barrier(split_world);
-        }
-    }
+    Patcc* comp;
+    comp = new Patcc(0);
+    comp->register_grid(new Grid(1));
+    int ret = comp->generate_delaunay_trianglulation(1,true);
+    EXPECT_EQ(ret, 0);
+    delete comp;
+    
 };
-
 
 static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat)
 {
@@ -1233,3 +1008,351 @@ static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num,
     *num = disabling_num;
     *data = disabling_data;
 }
+
+const char real_grid_name[][64]={
+		"ice_grid_at_ice_comp@cesm@ICE.nc",
+		"ocn_grid_at_ocn_comp@cesm@OCN.nc",
+		"MITgcm_H2D_grid@mitgcm.nc",
+		"gigc_H2D_grid@GIGC.nc",
+		"gigc_H2D_grid_temp@GIGC.nc",
+		"pom_grid_via_local@pom@POM_TOP_d01.nc",
+		"wrf_H2D_grid_no_mask@wrf.nc",
+		"wrf_H2D_grid_ocn_mask@wrf.nc",
+		"wrf_grid_via_local@wrf@WRF_TOP_d01.nc",
+		"wwatch3_H2D_grid@wwatch3.nc",
+		"wwatch3_H2D_grid_temp@wwatch3.nc",
+		"mpas_H2D_grid@mpas.nc",
+		"mpas_H2D_grid_mask@mpas.nc",
+		"rof_grid_at_rof_comp@cesm@ROF.nc",
+		"lnd_grid_at_lnd_comp@cesm@LND.nc",
+		"atm_grid_at_gamil_comp@gamil.nc",
+		"atm_grid_at_atm_comp@cesm@ATM.nc",
+		"cfs_atm_H2D_grid@cfs_atm.nc",
+		"gamil_H2D_grid@gamil.nc",
+		"gamil_H2D_grid_temp@gamil.nc",
+		"cfs_ocn_H2D_grid@cfs_ocn.nc",
+		"bccam_2D_grid@bccam.nc",
+		"bccam_2D_grid_temp@bccam.nc",
+		"bccavim_lnd_grid@bccavim.nc",
+		"bccavim_river_grid@bccavim.nc",
+		"bccavim_river_grid_temp@bccavim.nc",
+		"cpl_atm_grid@cpl.nc",
+		"cpl_ice_grid@cpl.nc",
+		"cpl_lnd_grid@cpl.nc",
+		"cpl_lnd_grid_temp@cpl.nc",
+		"cpl_ocn_grid@cpl.nc",
+		"cpl_river_grid@cpl.nc",
+		"mom_ocn_grid@mom.nc",
+		"mom_ocn_grid_temp@mom.nc",
+		"sis_ice_grid@sis.nc",
+		"sis_ice_grid_temp@sis.nc",
+		"grapes_h2d_ocn_grid@grapes.nc",
+		"grapes_h2d_T_grid@grapes.nc",
+
+};
+
+const char real_global_grid_name[][64]={
+	    "mpas_H2D_grid@mpas.nc",
+		"mpas_H2D_grid_mask@mpas.nc",
+        "rof_grid_at_rof_comp@cesm@ROF.nc",
+        "lnd_grid_at_lnd_comp@cesm@LND.nc",
+		"atm_grid_at_atm_comp@cesm@ATM.nc",
+        "cfs_atm_H2D_grid@cfs_atm.nc",
+        "gamil_H2D_grid@gamil.nc",
+        "gamil_H2D_grid_temp@gamil.nc",
+		"cfs_ocn_H2D_grid@cfs_ocn.nc",
+		
+};
+
+void prepare_real_grid(const char grid_name[]){
+	int num_dims;
+	int *dim_size_ptr;
+	int field_size, field_size2;
+	void *coord_buf0, *coord_buf1;
+	char lon_unit[32];
+	char lat_unit[32];
+	char cyclic[32];
+	const char* field_lat_name;
+	const char* field_lon_name;
+	int ncfile_id, variable_lon_id, variable_lat_id;
+	nc_type xtype;
+	char file_name[64]="coupler_grid/";
+	sprintf(file_name,"%s%s",file_name,grid_name);
+
+	MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
+	MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
+	if(mpi_rank == 0){
+		if(strcmp(grid_name,"atm_grid_at_atm_comp@cesm@ATM.nc")==0 || 
+		   strcmp(grid_name,"ice_grid_at_ice_comp@cesm@ICE.nc")==0 ||
+		   strcmp(grid_name,"lnd_grid_at_lnd_comp@cesm@LND.nc")==0 ||
+	       strcmp(grid_name,"ocn_grid_at_ocn_comp@cesm@OCN.nc")==0 ||
+	   	   strcmp(grid_name,"rof_grid_at_rof_comp@cesm@ROF.nc")==0){
+		   		field_lat_name="lat";
+				field_lon_name="lon";
+		}
+		else{
+			field_lat_name="grid_center_lat";
+			field_lon_name="grid_center_lon";
+		}
+	
+		report_nc_error(nc_open(file_name, NC_NOWRITE, &ncfile_id));
+		report_nc_error(nc_inq_varid(ncfile_id, field_lon_name, &variable_lon_id));
+		report_nc_error(nc_inq_varid(ncfile_id, field_lat_name, &variable_lat_id));
+		report_nc_error(nc_inq_var(ncfile_id, variable_lon_id, NULL, &xtype, NULL, NULL, NULL));
+		
+		report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"min_lon",&min_lon));
+		report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"min_lat",&min_lat));
+		report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"max_lon",&max_lon));
+		report_nc_error(nc_get_att_double(ncfile_id,NC_GLOBAL,"max_lat",&max_lat));
+		report_nc_error(nc_get_att_text(ncfile_id,NC_GLOBAL,"cyclic_or_acyclic",cyclic));
+	
+		if(strcmp(cyclic,"acyclic")==0)
+			is_cyclic = false;
+		else
+			is_cyclic = true;
+	
+		if(xtype == NC_DOUBLE){
+			read_file_field_as_double(file_name, field_lon_name, &coord_buf0, &num_dims, &dim_size_ptr, &field_size, lon_unit);
+			delete dim_size_ptr;
+			read_file_field_as_double(file_name, field_lat_name, &coord_buf1, &num_dims, &dim_size_ptr, &field_size2, lat_unit);
+			delete dim_size_ptr;
+			ASSERT_EQ(field_size, field_size2);
+			num_points = field_size;
+			coord_values[PDLN_LON] = (double*)coord_buf0;
+			coord_values[PDLN_LAT] = (double*)coord_buf1;
+			for (int i = 0; i < num_points; i++) {
+			    coord_values[PDLN_LON][i] = round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
+			    coord_values[PDLN_LAT][i] = round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
+			    while(coord_values[PDLN_LON][i] >= 360)
+			        coord_values[PDLN_LON][i] -= 360;
+			    while(coord_values[PDLN_LON][i] < 0)
+			        coord_values[PDLN_LON][i] += 360;
+		    if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
+   		    if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
+    	    if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
+    	    if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
+			
+			}
+			delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+		}
+		else if(xtype == NC_FLOAT){
+			read_file_field_as_float(file_name, "grid_center_lon", &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+			delete dim_size_ptr;
+			read_file_field_as_float(file_name, "grid_center_lat", &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+			delete dim_size_ptr;
+			ASSERT_EQ(field_size, field_size2);
+			num_points = field_size;
+			coord_values[PDLN_LON] = (double*)coord_buf0;
+			coord_values[PDLN_LAT] = (double*)coord_buf1;
+	
+			for (int i = 0; i < num_points; i++) {
+			    coord_values[PDLN_LON][i] = (double)round(coord_values[PDLN_LON][i]*ROUND_VALUE)/ROUND_VALUE;
+			    coord_values[PDLN_LAT][i] = (double)round(coord_values[PDLN_LAT][i]*ROUND_VALUE)/ROUND_VALUE;
+			    while(coord_values[PDLN_LON][i] >= 360)
+			        coord_values[PDLN_LON][i] -= 360;
+			    while(coord_values[PDLN_LON][i] < 0)
+			        coord_values[PDLN_LON][i] += 360;
+			
+			if(coord_values[PDLN_LON][i] < min_lon) min_lon = coord_values[PDLN_LON][i];
+	        if(coord_values[PDLN_LON][i] > max_lon) max_lon = coord_values[PDLN_LON][i];
+	        if(coord_values[PDLN_LAT][i] < min_lat) min_lat = coord_values[PDLN_LAT][i];
+			if(coord_values[PDLN_LAT][i] > max_lat) max_lat = coord_values[PDLN_LAT][i];
+			
+			}
+			delete_redundent_points(coord_values[PDLN_LON], coord_values[PDLN_LAT], num_points);
+		}
+		
+		for(unsigned int i = 0; i < sizeof(real_global_grid_name)/64; i ++){
+			if(strcmp(grid_name,real_grid_name[i])==0){
+				min_lon = 0;
+				max_lon = 360;
+				min_lat = -90;
+				max_lat = 90;
+				is_cyclic = true;
+				break;
+			}
+		}	
+		if(strcmp(grid_name,"gigc_H2D_grid_temp@GIGC.nc")==0 || 
+		   strcmp(grid_name,"datamodel_GIGC_H2D_grid@gamil.nc")==0 ||		
+		   strcmp(grid_name,"gigc_H2D_grid@GIGC.nc")==0){
+			min_lon = 0.0;
+			max_lon = 360.0;
+			min_lat = -90;
+			max_lat = 90;
+		}else if(strcmp(grid_name,"atm_grid_at_gamil_comp@gamil.nc")==0){
+			min_lon = 0.0;
+			max_lon = 358.0;
+			min_lat = -90;
+			max_lat = 90;
+		}else if(strcmp(grid_name,"wwatch3_H2D_grid_temp@wwatch3.nc")==0 ||
+		   		 strcmp(grid_name,"wwatch3_H2D_grid@wwatch3.nc")==0){
+		    min_lon = 0.0;
+		    max_lon = 360.0;
+		    min_lat = -79;
+		    max_lat = 79;
+			is_cyclic = true;
+		}else if(strcmp(grid_name,"wrf_H2D_grid_ocn_mask@wrf.nc")==0 ||
+		   		 strcmp(grid_name,"wrf_H2D_grid_ocn_no_mask@wrf.nc")==0 || 
+				 strcmp(grid_name,"wrf_H2D_grid_no_mask@wrf.nc")==0){
+			min_lon = 0.0;
+			max_lon = 360.0;
+			min_lat = 0.0;
+			max_lat = 90.0;
+			is_cyclic = true;
+		}else if(strcmp(grid_name,"ocn_grid_at_ocn_comp@cesm@OCN.nc")==0 ||
+				 strcmp(grid_name,"ice_grid_at_ice_comp@cesm@ICE.nc")==0){
+		    min_lon = 0.0;
+		    max_lon = 360.0;
+		    min_lat = -90.0;
+		    max_lat = 90.0;
+			is_cyclic = true;
+		}else if(strcmp(grid_name,"MITgcm_H2D_grid@mitgcm.nc")==0){
+			min_lon = 0.0;
+    	    max_lon = 360.0;
+		    min_lat = 30.0;
+			max_lat = 90.0;
+		}else if(strcmp(grid_name,"pom_grid_via_local@pom@POM_TOP_d01.nc")==0 || 
+				 strcmp(grid_name,"wrf_grid_via_local@wrf@WRF_TOP_d01.nc")==0){
+			min_lon = 30.0;
+			max_lon = 100.0;
+			min_lat = -15.0;
+			max_lat = 30.0;
+			is_cyclic = false;
+		}else if(strcmp(grid_name,"cpl_ocn_grid@cpl.nc")==0 ||
+				 strcmp(grid_name,"sis_ice_grid@sis.nc")==0 || 
+				 strcmp(grid_name,"mom_ocn_grid@mom.nc")==0 || 
+				 strcmp(grid_name,"mom_ocn_grid_temp@mom.nc")==0 || 
+				 strcmp(grid_name,"sis_ice_grid_temp@sis.nc")==0 || 
+				 strcmp(grid_name,"cpl_ice_grid@cpl.nc")==0){
+   	     min_lon = 0.0;
+   	     max_lon = 360.0;
+   	     min_lat = -90.0;
+   	     max_lat = 90.0;
+   	     is_cyclic = true;
+		}else if(strcmp(grid_name,"cfs_ocn_H2D_grid@cfs_ocn.nc")==0){
+			min_lon = 0.0;
+			max_lon = 360.0;
+			min_lat = -90.0;
+			max_lat = 90.0;
+			is_cyclic = true;
+		}
+	}
+
+	MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	if (mpi_rank != 0) {
+	    coord_values[PDLN_LON] = new double[num_points];
+	    coord_values[PDLN_LAT] = new double[num_points];
+	}
+	MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+}
+
+#include <fstream>
+#include <iomanip>
+#include <algorithm>
+void prepare_datamodel_grid(const char grid_name[])
+{
+    int ncfile_id, variable_lon_id,variable_lat_id;
+    const char* field_lat_name="grid_center_lat";
+    const char* field_lon_name="grid_center_lon";
+    void *coord_buf0, *coord_buf1;
+    char lon_unit[32];
+    char lat_unit[32];
+    int num_dims;
+    int *dim_size_ptr;
+    int field_size, field_size2;
+    nc_type xtype;
+    int num_points=0;
+    char file_name[64]="coupler_grid/";
+    sprintf(file_name,"%s%s",file_name,grid_name);
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    if(mpi_rank == 0){
+	    report_nc_error(nc_open(file_name, NC_NOWRITE, &ncfile_id));
+	    report_nc_error(nc_inq_varid(ncfile_id, field_lon_name, &variable_lon_id));
+	    report_nc_error(nc_inq_varid(ncfile_id, field_lat_name, &variable_lat_id));
+	    report_nc_error(nc_inq_var(ncfile_id, variable_lon_id, NULL, &xtype, NULL, NULL, NULL));
+	
+	    read_file_field_as_float(file_name, field_lon_name, &coord_buf0, &num_dims, &dim_size_ptr, &field_size);
+	    delete dim_size_ptr;
+	    read_file_field_as_float(file_name, field_lat_name, &coord_buf1, &num_dims, &dim_size_ptr, &field_size2);
+
+	    coord_values[PDLN_LON] = (double*)malloc(sizeof(double)*field_size*field_size);
+	    coord_values[PDLN_LAT] = (double*)malloc(sizeof(double)*field_size*field_size2);
+		std::sort((double*)coord_buf0,(double*)coord_buf0+field_size);	
+		std::sort((double*)coord_buf1,(double*)coord_buf1+field_size2);	
+		std::ofstream ofile;               
+        ofile.open("myfile");
+	    for(int i=0; i < field_size; i ++)
+	        for(int j=0; j < field_size2; j++){
+	            coord_values[PDLN_LON][num_points]=((double*)coord_buf0)[i];
+	            coord_values[PDLN_LAT][num_points]=((double*)coord_buf1)[j];
+				ofile<<std::setw(6)<<coord_values[PDLN_LON][num_points]<<std::setw(10)<<coord_values[PDLN_LAT][num_points]<<std::endl;
+				num_points++;
+	        }
+	}
+	printf("%d %d %d %d\n",num_points,field_size,field_size2,field_size*field_size2);
+	MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	if (mpi_rank != 0) {
+	    coord_values[PDLN_LON] = new double[num_points];
+		coord_values[PDLN_LAT] = new double[num_points];
+	}
+
+	min_lon = 0.0;
+	max_lon = 360.0;
+	min_lat = -90.0;
+	max_lat = 90.0;
+	is_cyclic = true;
+    MPI_Bcast(coord_values[PDLN_LON], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(coord_values[PDLN_LAT], num_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lon, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+}
+
+TEST_F(FullProcess, RealGridTest) {
+    MPI_Barrier(MPI_COMM_WORLD);
+    comm = MPI_COMM_WORLD;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+	
+	printf("processing real grid: %s\n", my_argv[1]);
+    if(strcmp(my_argv[1],"datamodel_GIGC_H2D_grid@gamil.nc")==0)
+		prepare_datamodel_grid(my_argv[1]);
+	else
+		prepare_real_grid(my_argv[1]);
+    
+    Patcc* comp;
+    comp = new Patcc(0);
+    comp->register_grid(new Grid(1));
+	int ret = comp->generate_delaunay_trianglulation(1, true);
+    EXPECT_EQ(ret, 0);
+    delete comp;
+/*
+	if (mpi_rank == 0) {
+		FILE *fp;
+		char cmd[] = "md5sum log/global_triangles_* | awk -F\" \" '{print $1}'";
+		char md5[2][64];
+		memset(md5[0], 0, 64);
+		memset(md5[1], 0, 64);
+		fp = popen(cmd, "r");
+		fgets(md5[0], 64, fp);
+        fprintf(test_log,"%s", my_argv[1]);
+        fflush(test_log);
+        char mv[] = "mv log/global_triangles_* log/check/global_triangle_Real_";
+        char tep[100];
+        sprintf(tep,"%s%s",mv,my_argv[1]);
+        fp = popen(tep, "r");
+	}
+*/
+};
