@@ -10,3 +10,8 @@ backup/*
 .DS_Store
 *.dat
 *.nc
+all*
+*.sh
+*_list
+*list_backup
+*.py
