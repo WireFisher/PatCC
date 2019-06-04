@@ -149,6 +149,10 @@ void Patcc::grid_preprocessing(int grid_id)
     num_points = grid_info_mgr->get_grid_num_points(grid_id);
     is_cyclic = grid_info_mgr->is_grid_cyclic(grid_id);
 
+    log(LOG_DEBUG, "Input grid info: points %d\n", num_points);
+    log(LOG_DEBUG, "Input grid info: boundary (%lf, %lf, %lf, %lf)\n", min_lon, max_lon, min_lat, max_lat);
+    log(LOG_DEBUG, "Input grid info: cyclic %d\n", is_cyclic);
+
     if (PAT_DUP_USER_INPUT) {
         coord_values[0] = new double[num_points];
         memcpy(coord_values[0], user_coord_values[0], sizeof(double)*num_points);
