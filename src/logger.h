@@ -23,6 +23,7 @@ enum PAT_log_level {
     LOG_WARNING = 1,
     LOG_INFO = 2,
     LOG_DEBUG = 3,
+    LOG_DEBUG_V = 4,
 };
 
 extern PAT_log_level CURRENT_LOG_LEVEL;
