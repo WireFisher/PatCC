@@ -29,6 +29,11 @@
 #define PDLN_SPOLAR_MAX_LAT (-19.47)
 #define PDLN_NPOLAR_MIN_LAT (19.47)
 
+#define PDLN_SPOLAR_MIN_LAT (-91)
+#define PDLN_NPOLAR_MAX_LAT (91)
+
+#define PAT_POLE_STRETCHING_THRESHOLD (7);
+
 #define PDLN_MAX_ITER_COUNT (10)
 
 #define PDLN_TOLERABLE_ERROR (0.0001)
@@ -720,7 +725,7 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
 void Search_tree_node::reorganize_kernel_points(double left_expt, double rite_expt, double left_bound, double rite_bound, 
                                                 int offset, int num_points, Midline* midline, int c_num_points[2],
                                                 int min_points) {
-    log(LOG_DEBUG, "divide points: ========== start a new reOrganization ========== \n");
+    log(LOG_DEBUG_V, "divide points: ========== A new round ========== \n");
     int ret = divide_points(kernel_coord, kernel_index, kernel_mask, left_expt, rite_expt,
                             left_bound, rite_bound, offset, num_points, 0, midline,
                             c_num_points, 0, 0, PDLN_DOUBLE_INVALID_VALUE, min_points);
@@ -747,7 +752,7 @@ int Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, do
                                     double left_solid, double rite_solid, double best_value, int min_points) {
     PDASSERT(num_points >= 0);
 
-    log(LOG_DEBUG, "divide points: l %lf, r %lf\n", left_expt, rite_expt);
+    log(LOG_DEBUG_V, "divide points: l %lf, r %lf\n", left_expt, rite_expt);
     if (float_eq(rite_expt, 0)) {
         assert(false);
         midline->value = rite_bound;
@@ -762,18 +767,18 @@ int Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, do
 
     int tmp_num[2];
     sort_by_line_internal(coord, index, mask, midline, offset, num_points, &tmp_num[0], &tmp_num[1]);
-    log(LOG_DEBUG, "divide points: midline %lf. %d vs %d\n", midline->value, tmp_num[0], tmp_num[1]);
+    log(LOG_DEBUG_V, "divide points: midline %lf. %d vs %d\n", midline->value, tmp_num[0], tmp_num[1]);
     if (tmp_num[0] > 0 && tmp_num[1] > 0 && left_solid + tmp_num[0] >= min_points && rite_solid + tmp_num[1] >= min_points)
         best_value = midline->value;
 
-    log(LOG_DEBUG, "divide points: best_value %lf\n", best_value);
+    log(LOG_DEBUG_V, "divide points: best_value %lf\n", best_value);
 
     PDASSERT(tmp_num[0] >= 0);
     PDASSERT(tmp_num[0] <= num_points);
     PDASSERT(tmp_num[1] >= 0);
     PDASSERT(tmp_num[1] <= num_points);
 
-    if (count > 10 || (left_expt > rite_expt ?
+    if (count > 20 || (left_expt > rite_expt ?
        fabs(left_expt/rite_expt - (double)tmp_num[0]/tmp_num[1]) < 0.1 :
        fabs(rite_expt/left_expt - (double)tmp_num[1]/tmp_num[0]) < 0.1) ) {
 
@@ -1708,26 +1713,42 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         return 0;
     
     if(assign_south_polar) {
-        current_tree_node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, c_points_mask,
-                                                                c_num_points, c_boundry, c_ids_start, c_ids_end,
-                                                                PDLN_DECOMPOSE_SPOLAR_MODE, NULL, NULL, min_points_per_chunk);
-        if(c_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT) {
+        for (;;) {
+            current_tree_node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, c_points_mask,
+                                                                    c_num_points, c_boundry, c_ids_start, c_ids_end,
+                                                                    PDLN_DECOMPOSE_SPOLAR_MODE, NULL, NULL, min_points_per_chunk);
+            bool valid = is_polar_region_valid(c_num_points[0], &c_boundry[0]);
+            if (valid)
+                break;
+            else {
+                int delta = workloads[1];
+                update_workloads(workloads[1] + delta, c_ids_start[0], c_ids_end[0], false);
+                update_workloads(num_points - workloads[1] - delta, c_ids_start[1], c_ids_end[1], false);
+            }
+        }
+        if(c_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT || c_boundry[0].max_lat < PDLN_SPOLAR_MIN_LAT) {
             midline.type = PDLN_LAT;
-            midline.value = PDLN_SPOLAR_MAX_LAT;
+            midline.value = c_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT ? PDLN_SPOLAR_MAX_LAT : PDLN_SPOLAR_MIN_LAT;
             current_tree_node->divide_at_fix_line(midline, c_points_coord, c_points_index, c_points_mask, c_num_points);;
 
             if(c_num_points[0] < min_points_per_chunk)
                 goto fail;
 
-            c_boundry[0].max_lat = PDLN_SPOLAR_MAX_LAT;
-            c_boundry[1].min_lat = PDLN_SPOLAR_MAX_LAT;
+            c_boundry[0].max_lat = midline.value;
+            c_boundry[1].min_lat = midline.value;
 
-            /* 0 is preserved for this situation */
-            c_ids_start[0] = 0;
-            c_ids_end[0]   = 1;
-            c_ids_start[1] = 1;
-            /* c_ids_end[1] stay unchanged */
-            workloads[1] -= c_num_points[0];
+            if (c_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT) {
+                /* 0 is preserved for this situation */
+                c_ids_start[0] = 0;
+                c_ids_end[0]   = 1;
+                c_ids_start[1] = 1;
+                /* c_ids_end[1] stay unchanged */
+                workloads[1] -= c_num_points[0];
+            } else {
+                c_ids_start[0] = 1;
+                c_ids_end[0]   = 2;
+                c_ids_start[1] = 2;
+            }
         }
         PDASSERT(c_points_coord[0] + c_num_points[0] == c_points_coord[2]);
         PDASSERT(c_points_coord[1] + c_num_points[0] == c_points_coord[3]);
@@ -1748,44 +1769,48 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             local_leaf_nodes.push_back(search_tree_root->children[0]);
         all_leaf_nodes.push_back(search_tree_root->children[0]);
 
-        /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
-        //gettimeofday(&start, NULL);
-        //double shifted_polar_lat = search_tree_root->children[0]->load_polars_info();
-        //gettimeofday(&end, NULL);
-        //if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
-        //    search_tree_root->real_boundry->min_lat = shifted_polar_lat;
-
         if (search_tree_root->children[0]->num_kernel_points > average_workload * 4)
             search_tree_root->children[0]->fast_triangulate = true;
 
-#ifdef TIME_PERF
-        printf("[ - ] Pseudo Point 1&2: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-        time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-        time_decomose -= (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-#endif
     }
     
     if(assign_north_polar) {
-        current_tree_node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, c_points_mask,
-                                                                c_num_points, c_boundry, c_ids_start, c_ids_end,
-                                                                PDLN_DECOMPOSE_NPOLAR_MODE, NULL, NULL, min_points_per_chunk);
-        if(c_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT) {
+        for (;;) {
+            current_tree_node->decompose_by_processing_units_number(workloads, c_points_coord, c_points_index, c_points_mask,
+                                                                    c_num_points, c_boundry, c_ids_start, c_ids_end,
+                                                                    PDLN_DECOMPOSE_NPOLAR_MODE, NULL, NULL, min_points_per_chunk);
+            bool valid = is_polar_region_valid(c_num_points[1], &c_boundry[1]);
+            if (valid)
+                break;
+            else {
+                int delta = workloads[num_regions];
+                update_workloads(workloads[num_regions] + delta, c_ids_start[1], c_ids_end[1], false);
+                update_workloads(num_points - workloads[num_regions] - delta, c_ids_start[0], c_ids_end[0], false);
+            }
+        }
+        if(c_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT || c_boundry[1].min_lat > PDLN_NPOLAR_MAX_LAT) {
             midline.type = PDLN_LAT;
-            midline.value = PDLN_NPOLAR_MIN_LAT;
+            midline.value = c_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT ? PDLN_NPOLAR_MIN_LAT : PDLN_NPOLAR_MAX_LAT;
             current_tree_node->divide_at_fix_line(midline, c_points_coord, c_points_index, c_points_mask, c_num_points);;
 
             if(c_num_points[1] < min_points_per_chunk)
                 goto fail;
 
-            c_boundry[0].max_lat = PDLN_NPOLAR_MIN_LAT;
-            c_boundry[1].min_lat = PDLN_NPOLAR_MIN_LAT;
+            c_boundry[0].max_lat = midline.value;
+            c_boundry[1].min_lat = midline.value;
 
-            /* num_regions+1 is preserved for this situation */
-            c_ids_start[1] = num_regions+1;
-            c_ids_end[1]   = num_regions+2;
-            c_ids_end[0]   = num_regions+1;;
-            /* c_ids_start[0] stay unchanged */
-            workloads[num_regions] -= c_num_points[1];
+            if (c_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT) {
+                /* num_regions+1 is preserved for this situation */
+                c_ids_start[1] = num_regions+1;
+                c_ids_end[1]   = num_regions+2;
+                c_ids_end[0]   = num_regions+1;
+                /* c_ids_start[0] stay unchanged */
+                workloads[num_regions] -= c_num_points[1];
+            } else {
+                c_ids_start[1] = num_regions;
+                c_ids_end[1]   = num_regions+1;
+                c_ids_end[0]   = num_regions;
+            }
         }
         delete search_tree_root->children[1];
 
@@ -1811,21 +1836,10 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
         if(have_local_region_ids(search_tree_root->children[2]->ids_start, search_tree_root->children[2]->ids_end))
             local_leaf_nodes.push_back(search_tree_root->children[2]);
         all_leaf_nodes.push_back(search_tree_root->children[2]);
-        /* multiple polars are shifting only on polar node, points of search_tree_root won't change */
-        //gettimeofday(&start, NULL);
-        //double shifted_polar_lat = search_tree_root->children[2]->load_polars_info();
-        //gettimeofday(&end, NULL);
-        //if(shifted_polar_lat != PDLN_DOUBLE_INVALID_VALUE)
-        //    search_tree_root->real_boundry->max_lat = shifted_polar_lat;
 
         if (search_tree_root->children[2]->num_kernel_points > average_workload * 4)
             search_tree_root->children[2]->fast_triangulate = true;
 
-#ifdef TIME_PERF
-        printf("[ - ] Pseudo Point 1&2: %ld us\n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec));
-        time_pretreat += (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-        time_decomose -= (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec);
-#endif
     }
 
     return 0;
@@ -1833,6 +1847,26 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
 fail:
     printf("assign polars fault, %d, %d vs %d\n", c_num_points[0], c_num_points[1], min_points_per_chunk);
     return 1;
+}
+
+
+double Delaunay_grid_decomposition::is_polar_region_valid(int num_points, Boundry* boundary)
+{
+    ///* 
+    // *  x * y = num_points
+    // *  x : y = widthX : widthY
+    // */
+
+    //double widthX = 360;
+    //double widthY = boundary->max_lat - boundary->min_lat;
+
+    //double num_x = sqrt(num_points * widthX / widthY);
+
+    //if (num_x > num_points) num_x = num_points;
+
+    //double spacing = 360. / num_x;
+    //
+    return 360./(4. * sqrt(num_points)) < PAT_POLE_STRETCHING_THRESHOLD;
 }
 
 

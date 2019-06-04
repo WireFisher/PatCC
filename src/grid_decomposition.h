@@ -201,6 +201,7 @@ private:
     Search_tree_node* alloc_search_tree_node(Search_tree_node*, double**, int*, bool*, int, Boundry, int, int, int, bool=false);
     bool is_polar_node(Search_tree_node*) const;
     void set_binding_relationship();
+    double is_polar_region_valid(int, Boundry*);
 
     /* Grid Expanding */
     int expand_tree_node_boundry(Search_tree_node*, double);
