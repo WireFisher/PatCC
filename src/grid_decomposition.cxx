@@ -378,6 +378,8 @@ void Search_tree_node::generate_local_triangulation(bool is_cyclic, int vpoint_b
         else
             triangulation->set_original_center_lon(180.);
 
+        if (project_boundry == NULL && !is_cyclic)
+            triangulation->set_regional(true);
         //if (is_fine_grid)
         //    triangulation->set_tolerance(1e-8);
 

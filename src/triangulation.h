@@ -58,6 +58,7 @@ class Delaunay_Voronoi
         bool try_fast_triangulate(double, double, double, double);
         void set_checksum_bound(double, double, double, double, double);
         void set_polar_mode(bool);
+        void set_regional(bool);
         void set_tolerance(double t) {tolerance = t; };
         void set_original_center_lon(double);
 
@@ -175,6 +176,7 @@ class Delaunay_Voronoi
         unsigned   stack_size;
 
         /* Property */
+        bool   is_regional;
         bool   polar_mode;
         bool   fast_mode;
         double tolerance;

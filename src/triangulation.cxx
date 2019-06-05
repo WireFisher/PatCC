@@ -694,16 +694,23 @@ void Delaunay_Voronoi::initialize_triangle_with_edges(Triangle* t, Edge *edge1, 
     t->edge[2]->ref_inc();
     t->calulate_circum_circle(pt1, pt2, pt3);
 
-    if (x_ref) {
+    if (!is_regional) {
         int id[3];
         for (int j = 0; j < 3; j++)
             id[j] = vertex(t, j)->id;
 
         if (id[0] != -1 && id[1] != -1 && id[2] != -1)
             for (int j = 0; j < 3; j++) {
-                if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > PAT_CYCLIC_EDGE_THRESHOLD) {
-                    t->is_cyclic = true;
-                    break;
+                if (x_ref) {
+                    if (calculate_distance(x_ref[id[j]], y_ref[id[j]], x_ref[id[(j+1)%3]], y_ref[id[(j+1)%3]]) > PAT_CYCLIC_EDGE_THRESHOLD) {
+                        t->is_cyclic = true;
+                        break;
+                    }
+                } else {
+                    if (calculate_distance(vertex(t, j)->x, vertex(t, j)->y, vertex(t, (j+1)%3)->x, vertex(t, (j+1)%3)->y) > PAT_CYCLIC_EDGE_THRESHOLD) {
+                        t->is_cyclic = true;
+                        break;
+                    }
                 }
             }
     }
@@ -1309,6 +1316,7 @@ void Delaunay_Voronoi::mark_special_triangles()
 Delaunay_Voronoi::Delaunay_Voronoi()
     : triangle_stack(NULL)
     , stack_size(0)
+    , is_regional(false)
     , polar_mode(false)
     , fast_mode(false)
     , tolerance(1e-9)
@@ -2417,6 +2425,12 @@ void Delaunay_Voronoi::get_triangles_in_region(double min_x, double max_x, doubl
 void Delaunay_Voronoi::set_polar_mode(bool mode)
 {
     polar_mode = mode;
+}
+
+
+void Delaunay_Voronoi::set_regional(bool mode)
+{
+    is_regional = mode;
 }
 
 
