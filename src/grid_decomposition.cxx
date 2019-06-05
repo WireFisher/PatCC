@@ -1273,9 +1273,11 @@ void Delaunay_grid_decomposition::update_workloads(int total_workload, int start
     for (int i = start; i < end; i++)
         old_total_workload += workloads[i];
 
-    double ratio = total_workload / old_total_workload;
+    int average_new_load = total_workload / size;
     for (int i = start; i < end; i++)
-        workloads[i] *= ratio;
+        workloads[i] = average_new_load;
+    for (int i = start; i < start + total_workload % size; i++)
+        workloads[i] += 1;
 
     if (!kill_tiny_region)
         return;
@@ -1721,9 +1723,10 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             if (valid)
                 break;
             else {
-                int delta = workloads[1];
-                update_workloads(workloads[1] + delta, c_ids_start[0], c_ids_end[0], false);
-                update_workloads(num_points - workloads[1] - delta, c_ids_start[1], c_ids_end[1], false);
+                double old_polar_workload = workloads[1];
+                int delta = old_polar_workload * 0.5;
+                update_workloads(old_polar_workload + delta, c_ids_start[0], c_ids_end[0], false);
+                update_workloads(c_num_points[0] + c_num_points[1] - old_polar_workload - delta, c_ids_start[1], c_ids_end[1], false);
             }
         }
         if(c_boundry[0].max_lat > PDLN_SPOLAR_MAX_LAT || c_boundry[0].max_lat < PDLN_SPOLAR_MIN_LAT) {
@@ -1783,9 +1786,10 @@ int Delaunay_grid_decomposition::assign_polars(bool assign_south_polar, bool ass
             if (valid)
                 break;
             else {
-                int delta = workloads[num_regions];
-                update_workloads(workloads[num_regions] + delta, c_ids_start[1], c_ids_end[1], false);
-                update_workloads(num_points - workloads[num_regions] - delta, c_ids_start[0], c_ids_end[0], false);
+                double old_polar_workload = workloads[num_regions];
+                int delta = old_polar_workload * 0.5;
+                update_workloads(old_polar_workload + delta, c_ids_start[1], c_ids_end[1], false);
+                update_workloads(c_num_points[0] + c_num_points[1] - old_polar_workload - delta, c_ids_start[0], c_ids_end[0], false);
             }
         }
         if(c_boundry[1].min_lat < PDLN_NPOLAR_MIN_LAT || c_boundry[1].min_lat > PDLN_NPOLAR_MAX_LAT) {
