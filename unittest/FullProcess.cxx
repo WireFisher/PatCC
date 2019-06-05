@@ -1267,7 +1267,6 @@ void prepare_datamodel_grid(const char grid_name[])
     int *dim_size_ptr;
     int field_size, field_size2;
     nc_type xtype;
-    int num_points=0;
     char file_name[64]="coupler_grid/";
     sprintf(file_name,"%s%s",file_name,grid_name);
 
@@ -1286,19 +1285,13 @@ void prepare_datamodel_grid(const char grid_name[])
 
 	    coord_values[PDLN_LON] = (double*)malloc(sizeof(double)*field_size*field_size);
 	    coord_values[PDLN_LAT] = (double*)malloc(sizeof(double)*field_size*field_size2);
-		std::sort((double*)coord_buf0,(double*)coord_buf0+field_size);	
-		std::sort((double*)coord_buf1,(double*)coord_buf1+field_size2);	
-		std::ofstream ofile;               
-        ofile.open("myfile");
 	    for(int i=0; i < field_size; i ++)
 	        for(int j=0; j < field_size2; j++){
 	            coord_values[PDLN_LON][num_points]=((double*)coord_buf0)[i];
 	            coord_values[PDLN_LAT][num_points]=((double*)coord_buf1)[j];
-				ofile<<std::setw(6)<<coord_values[PDLN_LON][num_points]<<std::setw(10)<<coord_values[PDLN_LAT][num_points]<<std::endl;
 				num_points++;
 	        }
 	}
-	printf("%d %d %d %d\n",num_points,field_size,field_size2,field_size*field_size2);
 	MPI_Bcast(&num_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	if (mpi_rank != 0) {
 	    coord_values[PDLN_LON] = new double[num_points];
