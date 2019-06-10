@@ -681,6 +681,7 @@ void Search_tree_node::decompose_by_processing_units_number(double *workloads, d
             c_total_workload[1] += workloads[i];
 
         c_num_points[0] = c_num_points[1] = 0;
+        c_total_workload[1] = (double)num_kernel_points - c_total_workload[0];
         reorganize_kernel_points(c_total_workload[0], c_total_workload[1], boundry_values[midline.type], boundry_values[midline.type+2],
                                  0, num_kernel_points, &midline, c_num_points, min_points);
         PDASSERT(c_num_points[0] + c_num_points[1] == num_kernel_points);
@@ -778,7 +779,7 @@ int Search_tree_node::divide_points(double *coord[2], int *index, bool *mask, do
     PDASSERT(tmp_num[1] >= 0);
     PDASSERT(tmp_num[1] <= num_points);
 
-    if (count > 20 || (left_expt > rite_expt ?
+    if (count > 20 || tmp_num[0] == left_expt || (left_expt > rite_expt ?
        fabs(left_expt/rite_expt - (double)tmp_num[0]/tmp_num[1]) < 0.1 :
        fabs(rite_expt/left_expt - (double)tmp_num[1]/tmp_num[0]) < 0.1) ) {
 
