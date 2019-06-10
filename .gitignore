@@ -11,8 +11,8 @@ gridfile/*
 .DS_Store
 *.dat
 *.nc
-*.out
-*.err
-all_grid_checksum
-test_log*
-*.py
+all*
+*list
+*backup
+*sh
+*py
