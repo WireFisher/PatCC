@@ -3199,6 +3199,7 @@ Grid_info_manager::Grid_info_manager()
     , disabling_method(NO_DISABLED_POINTS)
     , disabling_num(0)
     , disabling_data(NULL)
+    , grid_type(GRID_COMMON)
 {
     coord_values[0] = coord_values[1] = NULL;
 }
@@ -3362,4 +3363,9 @@ void Grid_info_manager::set_grid_boundry(int grid_id, double mi_lon, double ma_l
 bool Grid_info_manager::is_grid_cyclic(int grid_id)
 {
     return is_cyclic;
+}
+
+GRID_TYPE Grid_info_manager::get_grid_type(int grid_id)
+{
+    return grid_type;
 }

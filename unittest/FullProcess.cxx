@@ -45,6 +45,7 @@ public:
     MOCK_METHOD5(set_grid_boundry, void(int, double, double, double, double));
     MOCK_METHOD1(is_grid_cyclic, bool(int));
     MOCK_METHOD4(get_disabled_points_info, void(int, DISABLING_POINTS_METHOD*, int*, void**));
+    MOCK_METHOD1(get_grid_type, GRID_TYPE(int));
 };
 
 using ::testing::Return;
@@ -65,10 +66,12 @@ static MPI_Comm comm = MPI_COMM_WORLD;
 static DISABLING_POINTS_METHOD disabling_method = NO_DISABLED_POINTS;
 static int disabling_num = 0;
 static void* disabling_data = NULL;
+static GRID_TYPE grid_type = GRID_COMMON;
 
 static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat);
 static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat);
 static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num, void** data);
+static GRID_TYPE get_type(int grid_id);
 
 
 class FullProcess : public ::testing::Test
@@ -101,6 +104,9 @@ public:
 
         ON_CALL(*mock_grid_info_manager, get_disabled_points_info(1, _, _, _))
             .WillByDefault(Invoke(get_disabled));
+
+        ON_CALL(*mock_grid_info_manager, get_grid_type(1))
+            .WillByDefault(Invoke(get_type));
     }
 
     virtual void TearDown() {
@@ -1009,6 +1015,12 @@ static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num,
     *data = disabling_data;
 }
 
+static GRID_TYPE get_type(int grid_id)
+{
+    return grid_type;
+}
+
+
 const char real_grid_name[][64]={
 		"ice_grid_at_ice_comp@cesm@ICE.nc",
 		"ocn_grid_at_ocn_comp@cesm@OCN.nc",
@@ -1206,6 +1218,7 @@ void prepare_real_grid(const char grid_name[]){
 		    min_lat = -90.0;
 		    max_lat = 90.0;
 			is_cyclic = true;
+            grid_type = GRID_DISPLACED_POLE;
 		}else if(strcmp(grid_name,"MITgcm_H2D_grid@mitgcm.nc")==0){
 			min_lon = 0.0;
     	    max_lon = 360.0;
@@ -1250,6 +1263,7 @@ void prepare_real_grid(const char grid_name[]){
 	MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&grid_type, 1, MPI_INT, 0, MPI_COMM_WORLD);
 }
 
 #include <fstream>
