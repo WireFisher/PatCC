@@ -45,7 +45,8 @@ public:
     MOCK_METHOD5(set_grid_boundry, void(int, double, double, double, double));
     MOCK_METHOD1(is_grid_cyclic, bool(int));
     MOCK_METHOD4(get_disabled_points_info, void(int, DISABLING_POINTS_METHOD*, int*, void**));
-    MOCK_METHOD1(get_grid_type, GRID_TYPE(int));
+    MOCK_METHOD1(get_num_additional_points, int(int));
+    MOCK_METHOD1(get_additional_points, double**(int));
 };
 
 using ::testing::Return;
@@ -66,12 +67,12 @@ static MPI_Comm comm = MPI_COMM_WORLD;
 static DISABLING_POINTS_METHOD disabling_method = NO_DISABLED_POINTS;
 static int disabling_num = 0;
 static void* disabling_data = NULL;
-static GRID_TYPE grid_type = GRID_COMMON;
+static int num_additional_points = 0;
+static double *additional_points[2] = {NULL, NULL};
 
 static void get_boundry(int grid_id, double* mi_lon, double* ma_lon, double* mi_lat, double* ma_lat);
 static void set_boundry(int grid_id, double mi_lon, double ma_lon, double mi_lat, double ma_lat);
 static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num, void** data);
-static GRID_TYPE get_type(int grid_id);
 
 
 class FullProcess : public ::testing::Test
@@ -80,6 +81,9 @@ public:
     virtual void SetUp() {
         mock_process_thread_manager = new NiceMock<Mock_Process_thread_manager3>;
         mock_grid_info_manager = new NiceMock<Mock_Grid_info_manager2>;
+
+        additional_points[0] = new double[2];
+        additional_points[1] = new double[2];
 
         process_thread_mgr = mock_process_thread_manager;
         grid_info_mgr = mock_grid_info_manager;
@@ -105,8 +109,11 @@ public:
         ON_CALL(*mock_grid_info_manager, get_disabled_points_info(1, _, _, _))
             .WillByDefault(Invoke(get_disabled));
 
-        ON_CALL(*mock_grid_info_manager, get_grid_type(1))
-            .WillByDefault(Invoke(get_type));
+        ON_CALL(*mock_grid_info_manager, get_num_additional_points(1))
+            .WillByDefault(ReturnPointee(&num_additional_points));
+
+        ON_CALL(*mock_grid_info_manager, get_additional_points(1))
+            .WillByDefault(Return(additional_points));
     }
 
     virtual void TearDown() {
@@ -114,6 +121,9 @@ public:
         delete mock_grid_info_manager;
         process_thread_mgr = NULL;
         grid_info_mgr = NULL;
+
+        delete [] additional_points[0];
+        delete [] additional_points[1];
     }
 
     NiceMock<Mock_Process_thread_manager3> *mock_process_thread_manager;
@@ -1015,11 +1025,6 @@ static void get_disabled(int grid_id, DISABLING_POINTS_METHOD* method, int* num,
     *data = disabling_data;
 }
 
-static GRID_TYPE get_type(int grid_id)
-{
-    return grid_type;
-}
-
 
 const char real_grid_name[][64]={
 		"ice_grid_at_ice_comp@cesm@ICE.nc",
@@ -1218,7 +1223,9 @@ void prepare_real_grid(const char grid_name[]){
 		    min_lat = -90.0;
 		    max_lat = 90.0;
 			is_cyclic = true;
-            grid_type = GRID_DISPLACED_POLE;
+            num_additional_points = 1;
+            additional_points[PDLN_LON][0] = 320;
+            additional_points[PDLN_LAT][0] = 76.2;
 		}else if(strcmp(grid_name,"MITgcm_H2D_grid@mitgcm.nc")==0){
 			min_lon = 0.0;
     	    max_lon = 360.0;
@@ -1263,7 +1270,9 @@ void prepare_real_grid(const char grid_name[]){
 	MPI_Bcast(&min_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&max_lat, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&is_cyclic, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&grid_type, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&num_additional_points, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(additional_points[PDLN_LON], num_additional_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(additional_points[PDLN_LAT], num_additional_points, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
 
 #include <fstream>
