@@ -331,8 +331,7 @@ void Patcc::grid_preprocessing(int grid_id)
     bool do_fence_point_inserting = !float_eq(min_lat, -90) || !float_eq(max_lat, 90) || !is_cyclic;
     bool do_virtual_pole_inserting = (do_spole_processing && shifted_spoles_index.size() != 1) ||
                                      (do_npole_processing && shifted_npoles_index.size() != 1);
-    bool do_tripoles_grid_inserting = grid_info_mgr->get_grid_type(grid_id) == GRID_TRIPOLES;
-    bool do_displaced_pole_grid_inserting = grid_info_mgr->get_grid_type(grid_id) == GRID_DISPLACED_POLE;
+    bool do_additional_points_inserting = grid_info_mgr->get_num_additional_points(grid_id) != 0;
 
     double* extended_coord[2];
     bool*   extended_mask = NULL;
@@ -436,10 +435,8 @@ void Patcc::grid_preprocessing(int grid_id)
             num_new_points += num_y*4;
         if (do_virtual_pole_inserting)
             num_new_points += 2;
-        if (do_tripoles_grid_inserting)
-            num_new_points += 2;
-        if (do_displaced_pole_grid_inserting)
-            num_new_points += 1;
+        if (do_additional_points_inserting)
+            num_new_points += grid_info_mgr->get_num_additional_points(grid_id);
 
         extended_coord[0] = new double[num_points + num_new_points];
         extended_coord[1] = new double[num_points + num_new_points];
@@ -461,19 +458,17 @@ void Patcc::grid_preprocessing(int grid_id)
 
         num_current = num_points;
         /* Then, virtual poles follow */
-        if(do_spole_processing && shifted_spoles_index.size() != 1)
+        if (do_spole_processing && shifted_spoles_index.size() != 1)
             append_to_buf(0, -90, extended_coord, extended_mask, &num_current);
 
-        if(do_npole_processing && shifted_npoles_index.size() != 1)
+        if (do_npole_processing && shifted_npoles_index.size() != 1)
             append_to_buf(0, 90, extended_coord, extended_mask, &num_current);
 
-        if(do_tripoles_grid_inserting) {
-            append_to_buf(0, 0, extended_coord, extended_mask, &num_current);
-            append_to_buf(0, 0, extended_coord, extended_mask, &num_current);
+        if (do_additional_points_inserting) {
+            double **additional_points = grid_info_mgr->get_additional_points(grid_id);
+            for (int i = 0; i < grid_info_mgr->get_num_additional_points(grid_id); i++)
+                append_to_buf(additional_points[PDLN_LON][i], additional_points[PDLN_LAT][i], extended_coord, extended_mask, &num_current);
         }
-
-        if(do_displaced_pole_grid_inserting)
-            append_to_buf(320, 76.2, extended_coord, extended_mask, &num_current);
 
         num_vpoles = num_current - num_points;
 

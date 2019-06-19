@@ -283,13 +283,6 @@ enum DISABLING_POINTS_METHOD {
 };
 
 
-enum GRID_TYPE {
-    GRID_COMMON,
-    GRID_DISPLACED_POLE,
-    GRID_TRIPOLES,
-};
-
-
 class Grid_info_manager {
 private:
     double *coord_values[2];
@@ -302,7 +295,8 @@ private:
     DISABLING_POINTS_METHOD disabling_method;
     int disabling_num;
     void* disabling_data;
-    GRID_TYPE grid_type;
+    int num_additional_points;
+    double* additional_points[2];
 
     void gen_basic_grid();
 
@@ -318,7 +312,8 @@ public:
     virtual bool is_grid_cyclic(int);
     virtual bool read_grid_from_text(const char []);
     virtual void get_disabled_points_info(int, DISABLING_POINTS_METHOD*, int*, void**);
-    virtual GRID_TYPE get_grid_type(int);
+    virtual int get_num_additional_points(int);
+    virtual double** get_additional_points(int);
 #ifdef NETCDF
     virtual void read_grid_from_nc(const char [], const char [], const char []);
     void gen_three_polar_grid();

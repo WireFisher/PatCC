@@ -3199,9 +3199,10 @@ Grid_info_manager::Grid_info_manager()
     , disabling_method(NO_DISABLED_POINTS)
     , disabling_num(0)
     , disabling_data(NULL)
-    , grid_type(GRID_COMMON)
+    , num_additional_points(0)
 {
     coord_values[0] = coord_values[1] = NULL;
+    additional_points[0] = additional_points[1] = NULL;
 }
 
 
@@ -3365,7 +3366,13 @@ bool Grid_info_manager::is_grid_cyclic(int grid_id)
     return is_cyclic;
 }
 
-GRID_TYPE Grid_info_manager::get_grid_type(int grid_id)
+
+int Grid_info_manager::get_num_additional_points(int grid_id)
 {
-    return grid_type;
+    return num_additional_points;
+}
+
+double** Grid_info_manager::get_additional_points(int grid_id)
+{
+    return additional_points;
 }
